@@ -1,0 +1,8 @@
+#1 add repository contract tests (6 hermetic tests)
+
+- Guards: required docs exist, skills frontmatter valid, CI install-free,
+  no bare data/ gitignore rule, no internal classification marker shapes
+- Red/green discipline: tests/__init__.py missing was a real red first
+- Also fixes scripts/run_tests.py discovery via tests/__init__.py
+
+Closes evidence requirements of EPIC #1 (CI + local run).
