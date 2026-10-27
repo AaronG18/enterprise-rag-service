@@ -78,6 +78,132 @@ class DeterministicProvider:
         }
 
 
+def is_loopback(url: str) -> bool:
+    """Only loopback endpoints are allowed: this provider may see user queries and retrieved
+    content, so a remote endpoint would be a data-exfiltration path, not a config choice."""
+    from urllib.parse import urlparse
+
+    host = (urlparse(url or "").hostname or "").strip("[]").lower()
+    return host in ("127.0.0.1", "localhost", "::1", "")
+
+
+class CodeBuddyServeProvider:
+    """Real generation through the local CodeBuddy CLI `--serve` endpoint.
+
+    Contract (verified against the running server, not assumed):
+
+    * `POST /api/v1/runs` with `{"id", "type": "message", "payload": {"text": ...}}`
+      returns `{"data": {"runId": ...}}`
+    * `GET /api/v1/runs/{runId}/stream` is SSE; `event: message` carries
+      `content.markdown` (fallback `content.text`), `event: done` ends the run.
+    * **No token usage is returned** - measured: message events carry only
+      agent/content/replyTo/status/version. Token counts here are therefore estimates and
+      must be reported with provenance `estimate`.
+
+    The model version is fixed when the CLI is started (`--model`), because passing a model in
+    the request body is not echoed back and cannot be verified.
+    """
+
+    name = "codebuddy-serve"
+
+    def __init__(self, base_url: str, model: str, timeout: float = 120.0):
+        if not is_loopback(base_url):
+            raise ProviderUnavailable(
+                "refusing non-loopback endpoint %r: this provider would send user queries and "
+                "retrieved content off-host" % base_url)
+        self.base_url = (base_url or "").rstrip("/")
+        self.model = model
+        self.version = model
+        self.timeout = timeout
+
+    # -- generation -------------------------------------------------------
+    def generate_from_prompt(self, prompt: str, retrieved: List | None = None,
+                             max_chars: int | None = None):
+        text = self._complete(prompt)
+        if max_chars and len(text) > max_chars:
+            text = text[:max_chars].rstrip() + "..."
+        return text, self._usage(prompt, text)
+
+    # -- transport ---------------------------------------------------------
+    def _complete(self, prompt: str) -> str:
+        import json as _json
+        import urllib.error
+        import urllib.request
+        import uuid
+
+        headers = {"Content-Type": "application/json", "X-CodeBuddy-Request": "1"}
+        body = _json.dumps({"id": "cb-" + uuid.uuid4().hex, "type": "message",
+                             "payload": {"text": prompt}}, ensure_ascii=False).encode("utf-8")
+        request = urllib.request.Request(self.base_url + "/api/v1/runs", data=body,
+                                        headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                created = _json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raise ProviderUnavailable("run creation failed HTTP %s" % exc.code) from exc
+        except Exception as exc:  # noqa: BLE001 - surfaced as a clear provider error
+            raise ProviderUnavailable(
+                "CodeBuddy serve unreachable at %s: %s: %s" % (self.base_url, type(exc).__name__,
+                                                               exc)) from exc
+
+        try:
+            run_id = created["data"]["runId"]
+        except (KeyError, TypeError) as exc:
+            raise ProviderUnavailable("no runId in response: %s" % str(created)[:160]) from exc
+
+        stream_req = urllib.request.Request(
+            self.base_url + "/api/v1/runs/%s/stream" % run_id, headers=headers, method="GET")
+        pieces = []
+        try:
+            with urllib.request.urlopen(stream_req, timeout=self.timeout) as response:
+                event = None
+                for raw in response:
+                    line = raw.decode("utf-8", "replace").rstrip("\r\n")
+                    if line.startswith("event:"):
+                        event = line[len("event:"):].strip()
+                    elif line.startswith("data:"):
+                        data = line[len("data:"):].strip()
+                        if not data:
+                            continue
+                        try:
+                            obj = _json.loads(data)
+                        except _json.JSONDecodeError:
+                            continue
+                        if event == "message":
+                            content = obj.get("content") or {}
+                            piece = content.get("markdown") or content.get("text")
+                            if piece:
+                                pieces.append(piece)
+                        elif event == "done":
+                            break
+        except Exception as exc:  # noqa: BLE001
+            raise ProviderUnavailable("stream failed: %s: %s" % (type(exc).__name__, exc)) from exc
+
+        text = "".join(pieces).strip()
+        if not text:
+            raise ProviderUnavailable("empty completion (filtered or timed out)")
+        return text
+
+    def _usage(self, prompt: str, text: str) -> Dict[str, int]:
+        """Estimated: the endpoint returns no usage. Provenance `estimate` wherever reported."""
+        input_tokens = max(1, len(prompt) // 4)
+        output_tokens = max(1, len(text) // 4)
+        return {"input_tokens": input_tokens, "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens}
+
+
+def extract_citations(text: str, valid_chunk_ids) -> List[str]:
+    """Pull `[chunk-id]` markers out of a generated answer, keeping only ids we retrieved."""
+    import re
+
+    valid = set(valid_chunk_ids or ())
+    found = []
+    for match in re.findall(r"\[([A-Za-z0-9_.\-]+:\d{4})\]", text or ""):
+        if match in valid and match not in found:
+            found.append(match)
+    return found
+
+
 class OpenAICompatibleProvider:
     """Thin client for a chat-completions endpoint. Opt-in only (never the CI path)."""
 

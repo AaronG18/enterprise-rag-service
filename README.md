@@ -77,6 +77,12 @@ maps each target to a verification command and an owning issue.
 which composes answers from verbatim retrieved sentences. They establish the pipeline floor
 (never fabricates, always cites, refuses when it should), not the behaviour of a real model.
 
+The repository also carries a **model-backed lane** (`model-backed` provenance): 180 real model
+calls over 2 model versions x 3 retrieval configurations. Under real generation faithfulness is
+0.64-0.72 and compliance 0.73-0.90 - i.e. two targets are **not** met, and that is recorded
+rather than hidden. See [`docs/eval/model-backed.md`](docs/eval/model-backed.md) and
+[ADR 0004](docs/adr/0004-model-version-tradeoff.md).
+
 ## 5. Evidence policy (read this before trusting any number here)
 
 Every metric in this repository carries a **provenance tag**. The distinction is enforced,

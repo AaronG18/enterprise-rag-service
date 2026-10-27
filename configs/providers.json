@@ -1,0 +1,11 @@
+{
+  "_comment": "Endpoints for opt-in, non-hermetic providers. No credentials here by design: the local CLI process carries its own key. base_url must be loopback - the adapter refuses anything else.",
+  "codebuddy-serve": {
+    "hy3": {
+      "base_url": "http://127.0.0.1:8788"
+    },
+    "deepseek-v4.1-flash": {
+      "base_url": "http://127.0.0.1:8789"
+    }
+  }
+}

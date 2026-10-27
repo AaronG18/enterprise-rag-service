@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 
 from ..cache import ResponseCache
 from ..corpus.builder import CorpusConfig, build_corpus
+from ..generation.providers import CodeBuddyServeProvider
 from ..retrieval.pipeline import RetrievalConfig
 from ..service import GenerationConfig, RagService
 from . import metrics as M
@@ -32,18 +33,22 @@ def _relevant_chunk_ids(result, expected_doc_id: Optional[str]) -> List[str]:
 
 
 def evaluate_configuration(corpus, cases: List[Dict], retrieval_overrides: Dict,
-                           generation: GenerationConfig, retrieval_base: RetrievalConfig) -> Dict:
+                           generation: GenerationConfig, retrieval_base: RetrievalConfig,
+                           provider=None) -> Dict:
     """One configuration, one pass. No cache: measuring a warmed cache is not a measurement."""
     retrieval = RetrievalConfig(**dict(retrieval_base.__dict__, **retrieval_overrides))
-    service = RagService(corpus, retrieval, generation)
+    service = RagService(corpus, retrieval, generation, provider=provider)
+    return evaluate_with_service(service, cases, generation.max_answer_chars)
+
+
+def evaluate_with_service(service, cases: List[Dict], max_chars: int) -> Dict:
     rows = []
     for case in cases:
         started = time.perf_counter()
         result = service.answer(case["query"])
         elapsed_ms = (time.perf_counter() - started) * 1000.0
-        compliance = M.answer_compliance(result, generation.max_answer_chars)
-        style = M.style_score(result.answer.text, bool(result.answer.citations),
-                              generation.max_answer_chars)
+        compliance = M.answer_compliance(result, max_chars)
+        style = M.style_score(result.answer.text, bool(result.answer.citations), max_chars)
         relevant = _relevant_chunk_ids(result, case.get("expected_doc_id"))
         rows.append({
             "query": case["query"],
@@ -191,6 +196,76 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) ->
         for name in CONFIGURATIONS:
             for row in all_rows[name]:
                 fh.write(json.dumps(dict(row, configuration=name), ensure_ascii=False,
+                                    sort_keys=True) + "\n")
+    payload["artifacts"] = artifacts
+    return payload
+
+
+def run_model_backed(root: str, out_dir: str, models, provider_config_path: str,
+                     cases_path: str | None = None, max_cases: int = 0) -> Dict:
+    """Real-generation evaluation: models x retrieval configurations x cases.
+
+    Written next to the deterministic baseline, never over it. Provenance is `model-backed`,
+    and token counts are estimates because the endpoint reports no usage.
+    """
+    import time as _time
+
+    configs = os.path.join(root, "configs")
+    corpus_cfg = CorpusConfig.from_json(os.path.join(configs, "corpus.json"))
+    retrieval_base = RetrievalConfig.from_json(os.path.join(configs, "retrieval.json"))
+    generation = GenerationConfig.from_json(os.path.join(configs, "generation.json"))
+
+    with open(provider_config_path, "r", encoding="utf-8") as fh:
+        provider_cfg = json.load(fh).get("codebuddy-serve", {})
+
+    cases_path = cases_path or os.path.join(root, "eval", "eval_cases.json")
+    cases = load_cases(cases_path)
+    if max_cases and max_cases < len(cases):
+        cases = cases[:max_cases]
+    corpus = build_corpus(corpus_cfg)
+
+    comparison: Dict[str, Dict[str, float]] = {}
+    all_rows: Dict[str, List[Dict]] = {}
+    for model in models:
+        entry = provider_cfg.get(model)
+        if not entry:
+            raise ValueError("no endpoint configured for model %r" % model)
+        for config_name, overrides in CONFIGURATIONS.items():
+            key = "%s | %s" % (model, config_name)
+            retrieval = RetrievalConfig(**dict(retrieval_base.__dict__, **overrides))
+            provider = CodeBuddyServeProvider(entry["base_url"], model)
+            service = RagService(corpus, retrieval, generation, provider=provider)
+            outcome = evaluate_with_service(service, cases, generation.max_answer_chars)
+            comparison[key] = outcome["metrics"]
+            all_rows[key] = outcome["rows"]
+
+    run_id = _time.strftime("%Y%m%d-%H%M%S")
+    target = os.path.join(out_dir, "eval-model", run_id)
+    os.makedirs(target, exist_ok=True)
+    payload = {
+        "run_metadata": {
+            "corpus_version": corpus.manifest["corpus_version"],
+            "provider": "codebuddy-serve",
+            "models": list(models),
+            "configurations": list(CONFIGURATIONS),
+            "case_count": len(cases),
+            "provenance": "model-backed",
+            "token_usage_provenance": "estimate (endpoint returns no usage)",
+            "note": "model output varies between runs; treat differences below a few points as noise",
+        },
+        "comparison": comparison,
+    }
+    artifacts = {
+        "metrics": os.path.join(target, "metrics.json"),
+        "scored_cases": os.path.join(target, "scored_cases.jsonl"),
+    }
+    with open(artifacts["metrics"], "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(payload, fh, ensure_ascii=False, sort_keys=True, indent=2)
+        fh.write("\n")
+    with open(artifacts["scored_cases"], "w", encoding="utf-8", newline="\n") as fh:
+        for key, rows in all_rows.items():
+            for row in rows:
+                fh.write(json.dumps(dict(row, configuration=key), ensure_ascii=False,
                                     sort_keys=True) + "\n")
     payload["artifacts"] = artifacts
     return payload

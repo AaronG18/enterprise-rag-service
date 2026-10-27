@@ -21,6 +21,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 | 8 | Diagnosis cases | >= 2 regressions with log evidence and >= 10% post-fix gain | done |
 | 9 | Delivery documentation | log dictionary, sample logs, architecture decision records, final report | done |
 | 10 | Harness retro and iteration | fold lessons learned back into RULES and skills | done |
+| 11 (#36) | Model-backed evaluation lane | real generation via local CLI serve; 2 models x 3 configs x 30 cases | done |
 
 ---
 
@@ -68,6 +69,13 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 
 - [x] #35 harness retro
 
+## EPIC 11 (#36) children
+
+- [x] #37 CodeBuddy serve provider adapter with loopback-only safety
+- [x] #38 model-backed evaluation run (2 models x 3 configs x 30 cases)
+- [x] #39 latency and cost under real generation
+- [x] #40 ADR 0004 - measured model-version trade-off
+
 ## EPIC 4 children
 
 - [x] #17 grounded generation with resolvable citations
@@ -79,6 +87,13 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 ## Change log (reverse chronological)
 
 Entries follow: issue, then change, then evidence status.
+
+* **#37-#40 / EPIC 11 (#36)** CLOSED (2026-10-28). Real-generation lane: loopback-only provider
+  adapter (no credentials in the repo, non-loopback endpoints refused), hermetic tests against a
+  fake local server, 180 real calls over hy3 and deepseek-v4.1-flash across three retrieval
+  configurations. Retrieval metrics proved generator-independent; faithfulness dropped from 1.0
+  to 0.64-0.72 and compliance to 0.73-0.90 under real generation - both recorded as unmet
+  targets, not smoothed over. ADR 0004 picks the flash-tier model on measured evidence.
 
 * **#33 #34 / EPIC 9** CLOSED (2026-10-28). `docs/deliverables.md` maps every required
   deliverable to a file and command; sample logs are generated (`scripts/sample_logs.py`)

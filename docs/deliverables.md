@@ -10,9 +10,10 @@ Every required deliverable, where it lives, and the command that reproduces it.
 | Log field dictionary | `docs/logging/log_fields.md` | enforced by `test_log_field_dictionary_covers_emitted_fields` |
 | Sample logs | `docs/logging/sample_logs.md` | `python scripts/sample_logs.py` |
 | Latency / concurrency evidence | `docs/performance.md` + `artifacts/bench/<run>/bench.json` | `python scripts/run_bench.py --concurrency 5 --requests 30 --assert` |
+| Model-backed (real generation) evaluation | `docs/eval/model-backed.md` + `artifacts/eval-model/<run>/` | `python scripts/run_eval.py --provider codebuddy-serve --models hy3,deepseek-v4.1-flash` (requires the local CLI serve) |
 | Incident diagnosis (>= 2 cases, >= 10% gain) | `docs/diagnosis/INC-001-refusal-gate.md`, `docs/diagnosis/INC-002-ocr-penalty.md` | `python scripts/diagnose.py --all --assert` |
 | Metric definitions and calibration | `docs/metrics/metrics.md` | scorers in `src/ragserve/evaluation/metrics.py` |
-| Architecture decisions | `docs/adr/` | see `docs/adr/README.md` |
+| Architecture decisions | `docs/adr/` | see `docs/adr/README.md` (ADR 0004 records the measured model-version trade-off) |
 | Labelled evaluation set | `eval/eval_cases.json` (30 cases: 26 answerable, 4 refusal, 3 marked `ocr_target`) | used by `run_eval.py` |
 
 ## Commands a reviewer should run, in order

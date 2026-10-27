@@ -10,7 +10,12 @@ from .corpus.builder import build_corpus
 from .generation.answer import Answer
 from .generation.context import resolve_query
 from .generation.pii import redact_text
-from .generation.providers import DeterministicProvider, OpenAICompatibleProvider
+from .generation.providers import (
+    CodeBuddyServeProvider,
+    DeterministicProvider,
+    OpenAICompatibleProvider,
+    extract_citations,
+)
 from .generation.safety import (
     build_refusal,
     decide_refusal,
@@ -219,8 +224,17 @@ class RagService:
         prompt = self.build_prompt(resolved, retrieved)
         trace["injection_detected"] = bool(self.last_trace.get("injection_detected"))
 
-        text, citations, usage, _coverage = self.provider.generate(
-            resolved, retrieved, self.generation.max_sentences, self.generation.max_answer_chars)
+        if hasattr(self.provider, "generate_from_prompt"):
+            # Model-backed path: the provider sees the assembled prompt, and citations are
+            # parsed back out of what it wrote. A generated answer with no resolvable
+            # citation is refused below - that is the generative quality control.
+            text, usage = self.provider.generate_from_prompt(
+                prompt, retrieved, self.generation.max_answer_chars)
+            citations = extract_citations(text, [c.chunk_id for c in retrieved])
+        else:
+            text, citations, usage, _coverage = self.provider.generate(
+                resolved, retrieved, self.generation.max_sentences,
+                self.generation.max_answer_chars)
 
         if self.generation.citations_required and not citations:
             text, guidance = build_refusal("low_confidence")
