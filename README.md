@@ -78,10 +78,14 @@ which composes answers from verbatim retrieved sentences. They establish the pip
 (never fabricates, always cites, refuses when it should), not the behaviour of a real model.
 
 The repository also carries a **model-backed lane** (`model-backed` provenance): 180 real model
-calls over 2 model versions x 3 retrieval configurations. Under real generation faithfulness is
-0.64-0.72 and compliance 0.73-0.90 - i.e. two targets are **not** met, and that is recorded
-rather than hidden. See [`docs/eval/model-backed.md`](docs/eval/model-backed.md) and
-[ADR 0004](docs/adr/0004-model-version-tradeoff.md).
+calls over 2 model versions x 3 retrieval configurations. Real generation initially missed the
+targets (faithfulness 0.64-0.72, compliance 0.73-0.90) - two defects in our own pipeline were
+found and fixed as a result (INC-003), and the best configuration now meets every advanced target:
+**hy3 + hybrid, faithfulness 0.8913, refusal appropriateness 0.9000, style 0.8957, compliance
+0.965**. See [`docs/eval/model-backed.md`](docs/eval/model-backed.md),
+[`docs/diagnosis/INC-003-real-generation-quality.md`](docs/diagnosis/INC-003-real-generation-quality.md)
+and [ADR 0004](docs/adr/0004-model-version-tradeoff.md) - which records a recommendation
+reversal once the measurements were corrected.
 
 ## 5. Evidence policy (read this before trusting any number here)
 
