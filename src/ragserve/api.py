@@ -61,7 +61,7 @@ class ApiServer:
 
     def __init__(self, root: str, host: str = "127.0.0.1", port: int = 8124,
                  log_sink=None, provider: str = "deterministic", model_version: str = "",
-                 endpoint: str = ""):
+                 endpoint: str = "", cache_enabled: bool = True):
         self.root = root
         self.host = host
         self.port = port
@@ -69,7 +69,8 @@ class ApiServer:
 
         self.events = EventLog()
         self.logger = StructuredLogger(sink=log_sink or self.events.append)
-        self.cache = ResponseCache()
+        self.cache = ResponseCache() if cache_enabled else None
+        self.cache_enabled = cache_enabled
 
         build_started = time.perf_counter()
         self.corpus = build_corpus(CorpusConfig.from_json(os.path.join(root, "configs", "corpus.json")))
@@ -230,7 +231,12 @@ class ApiServer:
         }
 
     # -- server -------------------------------------------------------------
-    def serve(self, open_browser: bool = False) -> None:
+    def start(self):
+        """Bind the HTTP server without blocking. Returns the httpd so callers can stop it."""
+        return self._build_httpd()
+
+    def _build_httpd(self):
+        server = self
         server = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -311,13 +317,23 @@ class ApiServer:
 
         httpd = ThreadingHTTPServer((self.host, self.port), Handler)
         httpd.daemon_threads = True
+        self.httpd = httpd
+        return httpd
+
+    def start(self):
+        """Bind the HTTP server without blocking. Returns the httpd so callers can stop it."""
+        return self._build_httpd()
+
+    def serve(self, open_browser: bool = False) -> None:
+        httpd = self._build_httpd()
         url = "http://%s:%d" % (self.host, httpd.server_address[1])
         print("Enterprise RAG Service listening on %s" % url)
         print("  UI      %s/" % url)
         print("  health  %s/api/health" % url)
-        print("  corpus  %s (%d documents, %d chunks, index built in %.1f ms)"
+        print("  corpus  %s (%d documents, %d chunks, index built in %.1f ms, cache %s)"
               % (self.service.corpus_version, len(self.corpus.documents),
-                 len(self.service.pipeline.chunks), self.index_build_ms))
+                 len(self.service.pipeline.chunks), self.index_build_ms,
+                 "on" if self.cache_enabled else "off"))
         if open_browser:
             try:
                 webbrowser.open(url)

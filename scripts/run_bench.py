@@ -17,7 +17,12 @@ import time
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-from ragserve.evaluation.bench import LATENCY_BOUND_MS, render_bench_text, run_benchmark  # noqa: E402
+from ragserve.evaluation.bench import (  # noqa: E402
+    LATENCY_BOUND_MS,
+    render_bench_text,
+    run_benchmark,
+    run_benchmark_http,
+)
 from ragserve.evaluation.cost import estimate_from_usage, load_pricing, render_cost_text  # noqa: E402
 
 
@@ -26,11 +31,17 @@ def main() -> int:
     parser.add_argument("--concurrency", type=int, default=5)
     parser.add_argument("--requests", type=int, default=30)
     parser.add_argument("--out", default=os.path.join(REPO_ROOT, "artifacts"))
+    parser.add_argument("--http", action="store_true",
+                        help="drive real HTTP requests against the API server (cache disabled)")
     parser.add_argument("--assert", dest="do_assert", action="store_true",
                         help="exit non-zero when p90 exceeds the bound or any request errored")
     args = parser.parse_args()
 
-    summary = run_benchmark(REPO_ROOT, concurrency=args.concurrency, requests=args.requests)
+    if args.http:
+        summary = run_benchmark_http(REPO_ROOT, concurrency=args.concurrency,
+                                     requests=args.requests)
+    else:
+        summary = run_benchmark(REPO_ROOT, concurrency=args.concurrency, requests=args.requests)
 
     run_id = time.strftime("%Y%m%d-%H%M%S")
     target = os.path.join(args.out, "bench", run_id)

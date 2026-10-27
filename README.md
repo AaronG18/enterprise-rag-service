@@ -116,12 +116,30 @@ harness/             the AI working harness: RULES.md, ROLES.md, skills/
 ## 7. Quickstart
 
 ```bash
-python scripts/run_tests.py          # hermetic test suite, zero third-party deps
-python scripts/run_eval.py --all     # retrieval comparison + generative scoring + ops report
+python scripts/start.py              # serves the API + UI on http://127.0.0.1:8124
 ```
 
-Requires **Python 3.11+** and nothing else. No `pip install`, no network, no credentials:
-the default provider is deterministic so that CI and a fresh clone produce identical numbers.
+One command: the corpus is generated deterministically, indexed in memory (~19 ms measured),
+and the service starts. **No database, no embedding model, no `pip install`, no network.**
+Full guide: [`docs/deployment.md`](docs/deployment.md).
+
+Then either click around the UI, or:
+
+```bash
+python scripts/run_tests.py          # hermetic test suite, zero third-party deps
+python scripts/run_eval.py --all     # retrieval comparison + generative scoring + ops report
+python scripts/run_bench.py --http --concurrency 5 --assert   # service-level load test
+```
+
+To use a **real model** instead of the deterministic default, either start the local CodeBuddy
+serve, or bring your own OpenAI-compatible endpoint and key (used per request, never stored):
+
+```bash
+python scripts/start.py --provider openai-compatible \
+    --endpoint https://api.example.com/v1 --model your-model   # key from $OPENAI_API_KEY
+```
+
+Requires **Python 3.11+** and nothing else.
 
 ## 8. The harness
 
