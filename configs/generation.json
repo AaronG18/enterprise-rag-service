@@ -1,0 +1,12 @@
+{
+  "provider": "deterministic",
+  "model_version": "stub-deterministic-1",
+  "endpoint": "",
+  "api_key_env": "OPENAI_API_KEY",
+  "max_answer_chars": 600,
+  "max_sentences": 3,
+  "min_confidence": 0.3,
+  "out_of_scope_coverage": 0.08,
+  "citations_required": true,
+  "redact_pii": true
+}

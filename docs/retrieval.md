@@ -49,6 +49,11 @@ reranker replaces the default without callers changing (INV-2).
 Provenance: `deterministic`. The three configurations tie on this set, and the single miss is
 the same in all three ("maximum payload size accepted by the ingest endpoint").
 
+**Measured caveat about the embeddings:** hashing vectors collide, so an unrelated query still
+scores ~0.11 against unrelated chunks while true matches start around 0.14. That margin is too
+thin to threshold on, so no score cut-off is applied here; weak collision hits are handled
+downstream by the coverage gate in EPIC 4.
+
 **That tie is the honest result, not a bug being hidden.** With 10 cases the set cannot
 discriminate between configurations - a tie is the expected outcome. EPIC #6 must expand the
 labelled set and switch to graded metrics (MRR / nDCG) before any claim like "hybrid beats
