@@ -16,26 +16,34 @@ Candidates: `hy3` and `deepseek-v4.1-flash`, both taken from the CLI's documente
 
 ## Measured comparison
 
-| Axis | hy3 | deepseek-v4.1-flash | Winner |
+Best configuration per model, after the INC-003 fixes (180 calls, corpus `bea626ce863a0e44`):
+
+| Axis | hy3 (hybrid) | flash (hybrid) | Winner |
 |---|---|---|---|
-| Faithfulness | 0.639-0.684 | 0.667-0.717 | flash |
-| Answer compliance | 0.733-0.743 | 0.882-0.904 | **flash (clearly)** |
-| Refusal appropriateness | 0.733-0.833 | 0.833-0.900 | **flash** |
-| Style consistency | 0.819-0.822 | 0.964-0.971 | **flash (clearly)** |
-| Retrieval metrics | identical (generator-independent) | identical | tie |
-| p50 latency | 1988-3307 ms | 1749-1911 ms | flash |
-| p95 latency | 4938-6147 ms | 2421-2698 ms | **flash** |
-| Tokens per call (est.) | 322-328 | 321-329 | tie |
+| Faithfulness | **0.8913** | 0.7609 | **hy3 (clearly)** |
+| Answer compliance | **0.965** | 0.887 | **hy3 (clearly)** |
+| Refusal appropriateness | 0.9000 | 0.9000 | tie |
+| Style consistency | 0.8957 | **0.9565** | flash |
+| Retrieval metrics | identical | identical | tie |
+| p50 latency | 2519 ms | 1749 ms | flash |
+| p95 latency | 6147 ms | 2466 ms | **flash** |
+| Tokens per call (est.) | 328 | 328 | tie |
 | Monetary cost | **N/A** | **N/A** | unknown |
 
 ## Decision
 
-Use the **flash-tier model** as the default for the model-backed lane: it wins on every axis we
-could measure - compliance, refusal appropriateness, style, and it is roughly 2x faster at p95.
+Use **hy3 with hybrid retrieval** as the default for the model-backed lane: it is the only
+configuration that meets all advanced targets (faithfulness >= 0.85, refusal appropriateness >=
+0.90, style >= 0.85, compliance 0.965).
 
-Keep `hy3` as the escalation option: it is the main-tier model and may win on harder, longer or
-more reasoning-heavy questions, which this 30-case factual policy set does not exercise. That is
-stated as a hypothesis, not a finding.
+Use **flash** when latency dominates: it is roughly 2.5x faster at p95 and scores higher on style
+consistency, at the cost of faithfulness (0.76 vs 0.89) and compliance (0.89 vs 0.97).
+
+This reverses the earlier recommendation in this ADR, which favoured flash. That earlier call was
+made on the first model-backed run, before two defects in our own pipeline (wrong refusals and a
+Sources line counted as a claim, see INC-003) were fixed. Once those were fixed hy3's answers
+scored substantially better, so the recommendation follows the corrected measurement - and the
+reversal is recorded rather than the old text quietly edited.
 
 ## What is measured and what is not
 

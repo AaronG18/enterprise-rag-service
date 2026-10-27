@@ -22,6 +22,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 | 9 | Delivery documentation | log dictionary, sample logs, architecture decision records, final report | done |
 | 10 | Harness retro and iteration | fold lessons learned back into RULES and skills | done |
 | 11 (#36) | Model-backed evaluation lane | real generation via local CLI serve; 2 models x 3 configs x 30 cases | done |
+| 12 (#41) | Real-generation quality fix | evidence attribution + Sources-line stripping; INC-003 | done |
 
 ---
 
@@ -76,6 +77,11 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #39 latency and cost under real generation
 - [x] #40 ADR 0004 - measured model-version trade-off
 
+## EPIC 12 (#41) children
+
+- [x] #42 evidence attribution + Sources-line stripping (INC-003)
+- [x] #43 re-measure the cross and record the delta
+
 ## EPIC 4 children
 
 - [x] #17 grounded generation with resolvable citations
@@ -87,6 +93,13 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 ## Change log (reverse chronological)
 
 Entries follow: issue, then change, then evidence status.
+
+* **#42 #43 / EPIC 12 (#41)** CLOSED (2026-10-28). INC-003: 32 wrong refusals (attribution
+  fallback) + a Sources line being scored as an unsupported claim (stripped before scoring).
+  hy3+hybrid now meets every advanced target under real generation: faithfulness 0.8913,
+  refusal appropriateness 0.9000, style 0.8957, compliance 0.965. flash+hybrid+rerank
+  faithfulness regressed (0.7174 -> 0.6159) and is recorded as an unexplained negative result.
+  ADR 0004 recommendation reversed from flash to hy3, with the reversal documented.
 
 * **#37-#40 / EPIC 11 (#36)** CLOSED (2026-10-28). Real-generation lane: loopback-only provider
   adapter (no credentials in the repo, non-loopback endpoints refused), hermetic tests against a

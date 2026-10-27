@@ -15,16 +15,62 @@ Model output varies between runs; differences of a few points should be read as 
 This table sits **next to** the deterministic baseline in
 [`retrieval-comparison.md`](retrieval-comparison.md). It does not replace it.
 
-## Quality
+## Quality (current run, after INC-003 fixes)
+
+Run: `artifacts/eval-model/20261028-021149` - 180 real calls.
 
 | Configuration | recall@5 | mrr | ndcg | context_precision | faithfulness | refusal_appropriateness | style | compliance |
 |---|---|---|---|---|---|---|---|---|
-| hy3, vector-only | 0.9231 | 0.8526 | 0.8704 | 0.9491 | 0.6842 | 0.7667 | 0.8211 | 0.737 |
-| hy3, hybrid | 0.9615 | 0.9167 | 0.9281 | 0.9484 | 0.6627 | 0.8333 | 0.8190 | 0.743 |
-| hy3, hybrid+rerank | 0.9231 | 0.9231 | 0.9231 | 0.9815 | 0.6389 | 0.7333 | 0.8222 | 0.733 |
-| flash, vector-only | 0.9231 | 0.8526 | 0.8704 | 0.9485 | 0.6667 | 0.8667 | 0.9636 | 0.882 |
-| flash, hybrid | 0.9615 | 0.9167 | 0.9281 | 0.9484 | 0.6723 | 0.8333 | 0.9714 | 0.886 |
-| flash, hybrid+rerank | 0.9231 | 0.9231 | 0.9231 | 0.9420 | 0.7174 | 0.9000 | 0.9652 | 0.904 |
+| hy3, vector-only | 0.9231 | 0.8526 | 0.8704 | 0.9485 | 0.8182 | 0.8667 | 0.8818 | 0.955 |
+| **hy3, hybrid** | 0.9615 | 0.9167 | 0.9281 | 0.9529 | **0.8913** | **0.9000** | **0.8957** | **0.965** |
+| hy3, hybrid+rerank | 0.9231 | 0.9231 | 0.9231 | 0.9420 | 0.8696 | 0.9000 | 0.9043 | 0.965 |
+| flash, vector-only | 0.9231 | 0.8526 | 0.8704 | 0.9485 | 0.7955 | 0.8667 | 0.9455 | 0.900 |
+| flash, hybrid | 0.9615 | 0.9167 | 0.9281 | 0.9529 | 0.7609 | 0.9000 | 0.9565 | 0.887 |
+| flash, hybrid+rerank | 0.9231 | 0.9231 | 0.9231 | 0.9420 | 0.6159 | 0.9000 | 0.9652 | 0.861 |
+
+**All advanced targets are met by `hy3 + hybrid`**: faithfulness 0.8913 (>= 0.85), refusal
+appropriateness 0.9000 (>= 0.90), style consistency 0.8957 (>= 0.85), compliance 0.965.
+
+## History of this measurement
+
+Three runs exist, and the middle one is the reason the third one is trustworthy:
+
+| Run | What changed | hy3/hybrid faithfulness | Wrong refusals |
+|---|---|---|---|
+| `20261028-014423` | first real run | 0.6627 | 32 of 180 calls |
+| `20261028-020000` | attribution fallback added | 0.4710 | 3 of 180 calls |
+| `20261028-021149` | Sources line stripped before scoring | 0.8913 | 3 of 180 calls |
+
+The middle run is a regression that this repository caused and then measured (see
+[`../diagnosis/INC-003-real-generation-quality.md`](../diagnosis/INC-003-real-generation-quality.md)):
+asking the model for a `Sources:` line made the scorer count that line as an unsupported claim.
+Both the wrong refusals and the regression were only visible because a real model was in the
+loop.
+
+**Unexplained negative result, recorded rather than smoothed:** flash + hybrid+rerank faithfulness
+fell from 0.7174 to 0.6159 across these runs. With 30 cases per run that cannot be separated from
+noise, and no causal story has been established, so it stays in the table.
+
+## Latency and token usage
+
+See `20261028-021149` in `artifacts/eval-model/`. Sequential, cache disabled:
+
+| Configuration | p50 | p95 | refused | tokens/call (est.) |
+|---|---|---|---|---|
+| hy3, vector-only | ~3.3 s | ~5.2 s | 4/30 | ~322 |
+| hy3, hybrid | ~2.5 s | ~6.1 s | 3/30 | ~328 |
+| hy3, hybrid+rerank | ~2.0 s | ~4.9 s | 3/30 | ~328 |
+| flash, hybrid | ~1.7 s | ~2.5 s | 3/30 | ~328 |
+| flash, hybrid+rerank | ~1.8 s | ~2.7 s | 3/30 | ~329 |
+
+Worst p95 6.15 s - inside the 10 s bound with real generation, but the margin is seconds.
+
+## Honest limits
+
+* 30 cases per configuration; differences of a few points are noise.
+* Token counts are `estimate` (the endpoint reports no usage).
+* No monetary cost: no price list was available, `configs/pricing.json` stays null.
+* Model output varies run to run, so single-run comparisons should not be over-read.
 
 ## Latency and token usage (sequential, cache disabled)
 
