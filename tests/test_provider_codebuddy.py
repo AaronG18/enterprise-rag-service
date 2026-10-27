@@ -17,6 +17,7 @@ from ragserve.generation.providers import (
     attribute_evidence,
     extract_citations,
     is_loopback,
+    strip_sources_line,
 )
 
 SSE_BODY = (
@@ -101,6 +102,27 @@ class TestProtocolHandling(unittest.TestCase):
         provider = CodeBuddyServeProvider("http://127.0.0.1:1", "fake-model")
         with self.assertRaises(ProviderUnavailable):
             provider.generate_from_prompt("question?")
+
+
+class TestSourcesLineStripping(unittest.TestCase):
+    """The Sources line is metadata; scoring it as a claim was a measured regression."""
+
+    def test_trailing_sources_line_is_removed(self):
+        text = "Employees accrue 15 days.\n\nSources: [handbook-en-00:0000]"
+        self.assertEqual(strip_sources_line(text), "Employees accrue 15 days.")
+
+    def test_answer_without_sources_line_is_untouched(self):
+        text = "Employees accrue 15 days."
+        self.assertEqual(strip_sources_line(text), text)
+
+    def test_chinese_label_variant_is_removed(self):
+        text = "员工每年享有 15 天年假。\n\n来源：[handbook-zh-00:0000]"
+        self.assertNotIn("来源", strip_sources_line(text))
+
+    def test_stripped_answer_ends_in_sentence_punctuation(self):
+        """Without this, style consistency lost a check on every model answer."""
+        text = "Employees accrue 15 days.\n\nSources: [handbook-en-00:0000]"
+        self.assertTrue(strip_sources_line(text).endswith("."))
 
 
 class TestEvidenceAttribution(unittest.TestCase):

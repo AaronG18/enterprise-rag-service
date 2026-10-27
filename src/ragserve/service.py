@@ -16,6 +16,7 @@ from .generation.providers import (
     OpenAICompatibleProvider,
     attribute_evidence,
     extract_citations,
+    strip_sources_line,
 )
 from .generation.safety import (
     build_refusal,
@@ -236,6 +237,9 @@ class RagService:
                 prompt, retrieved, self.generation.max_answer_chars)
             citations = extract_citations(text, [c.chunk_id for c in retrieved])
             trace["citation_source"] = "explicit" if citations else None
+            # Strip the Sources line before scoring or attributing: it is metadata, and leaving
+            # it in made the scorer treat it as an unsupported claim (measured regression).
+            text = strip_sources_line(text)
             if not citations:
                 # The answer may still be fully grounded but written without markers. Attribute
                 # it to evidence instead of refusing it: refusing here caused 32 wrong refusals.

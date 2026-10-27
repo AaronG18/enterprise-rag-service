@@ -192,6 +192,26 @@ class CodeBuddyServeProvider:
                 "total_tokens": input_tokens + output_tokens}
 
 
+SOURCES_LINE = re.compile(r"(?im)^\s*(?:sources?|来源|参考)\s*[:：].*$")
+
+
+def strip_sources_line(text: str) -> str:
+    """Remove a trailing `Sources: [id] [id]` line from an answer.
+
+    Measured reason this exists: asking the model for a Sources line (to make citations
+    explicit) caused the scorer to count that line as an answer *claim*. It never appears in
+    the cited chunk, so every answer lost one claim mechanically - faithfulness fell from
+    ~0.67 to ~0.45 on identical cases - and the answer no longer ended in sentence
+    punctuation, which also cost style consistency. Citations are parsed before stripping, so
+    no information is lost.
+    """
+    if not text:
+        return text
+    cleaned = SOURCES_LINE.sub("", text)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    return cleaned
+
+
 def attribute_evidence(text: str, retrieved: List, sentences_fn=None) -> List[str]:
     """Attribute each answer sentence to its best-matching retrieved chunk.
 
