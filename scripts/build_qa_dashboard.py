@@ -52,6 +52,9 @@ artefacts. Deterministic provenance: <b>@@DETPROV@@</b>. Model-backed provenance
 <h2>Concurrency benchmark (cache disabled, single instance)</h2>
 @@BENCH_TABLE@@
 
+<h2>Service-level benchmark over HTTP (cache disabled)</h2>
+@@BENCH_HTTP_TABLE@@
+
 <h2>Documented incidents (>= 10% improvement asserted)</h2>
 @@DIAG_TABLE@@
 
@@ -80,6 +83,13 @@ def main() -> int:
     det = load(latest("eval/*/metrics.json"))
     model = load(latest("eval-model/*/metrics.json"))
     bench = load(latest("bench/*/bench.json"))
+    bench_http = load(latest("bench/*/bench.json"))
+    # Prefer the HTTP (service-level) measurement when present; keep both visible.
+    http_runs = sorted(glob.glob(os.path.join(REPO_ROOT, "artifacts", "bench", "*", "bench.json")))
+    for path in http_runs:
+        payload = load(path)
+        if payload.get("transport") == "http":
+            bench_http = payload
     inc1 = load(os.path.join(REPO_ROOT, "artifacts", "diagnosis", "refusal-gate", "report.json"))
     inc2 = load(os.path.join(REPO_ROOT, "artifacts", "diagnosis", "ocr-penalty", "report.json"))
 
@@ -158,6 +168,11 @@ def main() -> int:
                                               "refusal_appropriateness", "style"]),
         "@@OPS_TABLE@@": table(ops_rows, ["field", "value"]),
         "@@BENCH_TABLE@@": table(bench_rows, ["field", "value"]),
+        "@@BENCH_HTTP_TABLE@@": table(
+            [[k, bench_http.get(k)] for k in ("transport", "concurrency", "requests",
+                                              "p50_latency_ms", "p90_latency_ms", "p95_latency_ms",
+                                              "throughput_rps", "errors", "within_bound")],
+            ["field", "value"]),
         "@@DIAG_TABLE@@": table(diag_rows, ["incident", "metric", "before", "after",
                                             "change", "verdict"]),
         "@@MATRIX_TABLE@@": table(matrix_rows, ["id", "requirement", "evidence", "status"]),

@@ -38,8 +38,8 @@ artefacts. Deterministic provenance: <b>deterministic</b>. Model-backed provenan
 <h2>Operations report (deterministic lane)</h2>
 <table>
 <tr><th>field</th><th>value</th></tr>
-<tr><td>p50_latency_ms</td><td>5.706</td></tr>
-<tr><td>p95_latency_ms</td><td>12.308</td></tr>
+<tr><td>p50_latency_ms</td><td>4.466</td></tr>
+<tr><td>p95_latency_ms</td><td>6.14</td></tr>
 <tr><td>token_usage_total</td><td>1588</td></tr>
 <tr><td>cache_hit_rate</td><td>0.3833</td></tr>
 <tr><td>refusal_rate</td><td>0.2333</td></tr>
@@ -51,10 +51,24 @@ artefacts. Deterministic provenance: <b>deterministic</b>. Model-backed provenan
 <tr><th>field</th><th>value</th></tr>
 <tr><td>concurrency</td><td>5</td></tr>
 <tr><td>requests</td><td>30</td></tr>
-<tr><td>p50_latency_ms</td><td>6.964</td></tr>
-<tr><td>p90_latency_ms</td><td>31.51</td></tr>
-<tr><td>p95_latency_ms</td><td>41.726</td></tr>
-<tr><td>throughput_rps</td><td>140.491</td></tr>
+<tr><td>p50_latency_ms</td><td>32.532</td></tr>
+<tr><td>p90_latency_ms</td><td>144.008</td></tr>
+<tr><td>p95_latency_ms</td><td>161.526</td></tr>
+<tr><td>throughput_rps</td><td>92.341</td></tr>
+<tr><td>errors</td><td>0</td></tr>
+<tr><td>within_bound</td><td>True</td></tr>
+</table>
+
+<h2>Service-level benchmark over HTTP (cache disabled)</h2>
+<table>
+<tr><th>field</th><th>value</th></tr>
+<tr><td>transport</td><td>http</td></tr>
+<tr><td>concurrency</td><td>5</td></tr>
+<tr><td>requests</td><td>30</td></tr>
+<tr><td>p50_latency_ms</td><td>32.532</td></tr>
+<tr><td>p90_latency_ms</td><td>144.008</td></tr>
+<tr><td>p95_latency_ms</td><td>161.526</td></tr>
+<tr><td>throughput_rps</td><td>92.341</td></tr>
 <tr><td>errors</td><td>0</td></tr>
 <tr><td>within_bound</td><td>True</td></tr>
 </table>

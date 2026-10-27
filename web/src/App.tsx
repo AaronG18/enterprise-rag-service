@@ -82,6 +82,13 @@ const PROVIDERS = [
   },
 ] as const;
 
+const ERROR_TITLES: Record<string, string> = {
+  bad_request: "Request incomplete",
+  provider_unavailable: "Provider unavailable",
+  network_error: "Network error",
+  internal_error: "Server error",
+};
+
 const SAMPLE_QUESTIONS = [
   "How many days of annual leave do full-time employees accrue?",
   "How often must third-party vendors be reassessed?",
@@ -269,7 +276,7 @@ export default function App() {
                         <Alert
                           type="warning"
                           showIcon
-                          message={turn.error.error}
+                          message={ERROR_TITLES[turn.error.error] ?? turn.error.error}
                           description={
                             <Space direction="vertical" size={4}>
                               {turn.error.detail ? <Text>{turn.error.detail}</Text> : null}
