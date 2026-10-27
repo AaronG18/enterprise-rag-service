@@ -1,0 +1,10 @@
+{
+  "mode": "hybrid",
+  "top_k": 5,
+  "candidate_k": 20,
+  "rerank_enabled": true,
+  "rerank_candidates": 10,
+  "rrf_k": 60,
+  "vector_dim": 512,
+  "seed": 20261027
+}

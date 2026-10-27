@@ -1,0 +1,52 @@
+[
+  {
+    "query": "How many days of annual leave do full-time employees accrue each year?",
+    "expected_doc_id": "handbook-en-00",
+    "language": "en"
+  },
+  {
+    "query": "How many unused leave days can be carried into the next year?",
+    "expected_doc_id": "handbook-en-00",
+    "language": "en"
+  },
+  {
+    "query": "全职员工每年有多少天年假",
+    "expected_doc_id": "handbook-zh-00",
+    "language": "zh"
+  },
+  {
+    "query": "What is the p95 latency target of the query service?",
+    "expected_doc_id": "techspec-en-00",
+    "language": "en"
+  },
+  {
+    "query": "429 Retry-After queue depth ingestion",
+    "expected_doc_id": "techspec-en-02",
+    "language": "en"
+  },
+  {
+    "query": "访问令牌多久过期，刷新令牌呢",
+    "expected_doc_id": "techspec-zh-03",
+    "language": "zh"
+  },
+  {
+    "query": "How often must third-party vendors be reassessed?",
+    "expected_doc_id": "compliance-en-03",
+    "language": "en"
+  },
+  {
+    "query": "语义缓存的 TTL 是多少秒",
+    "expected_doc_id": "architecture-zh-02",
+    "language": "zh"
+  },
+  {
+    "query": "How many retries before a batch goes to the dead-letter store?",
+    "expected_doc_id": "architecture-en-00",
+    "language": "en"
+  },
+  {
+    "query": "What is the maximum payload size accepted by the ingest endpoint?",
+    "expected_doc_id": "techspec-en-02",
+    "language": "en"
+  }
+]
