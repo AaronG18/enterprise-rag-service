@@ -1,0 +1,7 @@
+{
+  "cache_enabled": true,
+  "exact_ttl_s": 300,
+  "semantic_ttl_s": 60,
+  "max_entries": 512,
+  "log_dir": "artifacts/logs"
+}

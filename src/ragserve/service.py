@@ -57,12 +57,27 @@ class ServiceResult:
 class RagService:
     def __init__(self, corpus, retrieval_config: RetrievalConfig,
                  generation_config: Optional[GenerationConfig] = None,
-                 provider=None):
+                 provider=None, logger=None, cache=None):
         self.generation = generation_config or GenerationConfig()
         self.pipeline = RetrievalPipeline(corpus, retrieval_config)
         self.retrieval_config = retrieval_config
         self.provider = provider or self._build_provider()
+        self.logger = logger
+        self.cache = cache
+        self.corpus_version = getattr(corpus, "manifest", {}).get("corpus_version", "unknown")
+        self._workflow_counter = 0
         self.last_trace: Dict[str, object] = {"injection_detected": False}
+
+    def _emit(self, stage: str, event: str, workflow_id: str, **fields):
+        if self.logger is None:
+            return
+        self.logger.emit(stage, event, workflow_id, **fields)
+
+    def _new_workflow_id(self) -> str:
+        if self.logger is not None:
+            return self.logger.new_workflow_id()
+        self._workflow_counter += 1
+        return "wf-%06d" % self._workflow_counter
 
     def _build_provider(self):
         if self.generation.provider == "deterministic":
@@ -122,14 +137,46 @@ class RagService:
         return round(0.6 * coverage + 0.4 * share, 4)
 
     # -- main --------------------------------------------------------------
-    def answer(self, query: str, history: Optional[Sequence[Tuple[str, str]]] = None) -> ServiceResult:
+    def answer(self, query: str, history: Optional[Sequence[Tuple[str, str]]] = None,
+               workflow_id: Optional[str] = None) -> ServiceResult:
+        workflow = workflow_id or self._new_workflow_id()
         resolved, rewritten = resolve_query(query, history)
         self.last_trace = {
             "injection_detected": detect_injection(query),
             "query_rewritten": rewritten,
+            "workflow_id": workflow,
         }
+        self._emit("request", "request_start", workflow, query=query,
+                   resolved_query=resolved, query_rewritten=rewritten,
+                   corpus_version=self.corpus_version)
+
+        cached = None
+        if self.cache is not None:
+            cached = self.cache.get(resolved, self.retrieval_config.mode,
+                                    self.retrieval_config.rerank_enabled,
+                                    self.corpus_version,
+                                    getattr(self.provider, "version", self.generation.model_version))
+        if cached is not None:
+            payload = cached["payload"]
+            answer = Answer(**payload["answer"])
+            retrieved = [self.pipeline.by_id[cid] for cid in payload["retrieved_chunk_ids"]
+                         if cid in self.pipeline.by_id]
+            trace = dict(payload["trace"])
+            trace.update({"cache_hit": True, "cache_layer": cached["layer"],
+                          "workflow_id": workflow})
+            self._emit("response", "response_done", workflow, refused=answer.refused,
+                       citations=list(answer.citations), text=answer.text, cache_hit=True,
+                       cache_layer=cached["layer"])
+            self.last_trace = trace
+            return ServiceResult(answer=answer, retrieved=retrieved, trace=trace,
+                                 resolved_query=resolved)
 
         retrieved = self.pipeline.retrieve(resolved)
+        self._emit("retrieval", "retrieval_done", workflow,
+                   retrieval_mode=self.retrieval_config.mode,
+                   rerank_enabled=self.retrieval_config.rerank_enabled,
+                   retrieved_count=len(retrieved),
+                   retrieved_chunk_ids=[r.chunk_id for r in retrieved])
         coverage = self._coverage(resolved, retrieved)
         confidence = self._confidence(retrieved, coverage)
 
@@ -149,6 +196,9 @@ class RagService:
             "corpus_version": getattr(self.pipeline, "corpus_version", None),
         })
 
+        self._emit("decision", "decision_done", workflow, coverage=round(coverage, 4),
+                   confidence=confidence, refusal_reason=reason)
+
         if reason is not None:
             text, guidance = build_refusal(reason)
             answer = Answer(text=text, citations=[], refused=True, reason_code=reason,
@@ -160,6 +210,9 @@ class RagService:
                             model_version=getattr(self.provider, "version",
                                                   self.generation.model_version))
             trace["refusal_reason"] = reason
+            self._emit("response", "response_done", workflow, refused=True,
+                       reason_code=reason, citations=[], text=text, cache_hit=False,
+                       usage=answer.usage)
             return ServiceResult(answer=answer, retrieved=retrieved, trace=trace,
                                 resolved_query=resolved)
 
@@ -178,6 +231,9 @@ class RagService:
                             model_version=getattr(self.provider, "version",
                                                   self.generation.model_version))
             trace["refusal_reason"] = "low_confidence"
+            self._emit("response", "response_done", workflow, refused=True,
+                       reason_code="low_confidence", citations=[], text=text, cache_hit=False,
+                       usage=answer.usage)
             return ServiceResult(answer=answer, retrieved=retrieved, trace=trace,
                                 resolved_query=resolved)
 
@@ -188,6 +244,19 @@ class RagService:
                         usage=usage, provider=self.provider.name,
                         model_version=getattr(self.provider, "version",
                                               self.generation.model_version))
+        self._emit("generation", "generation_done", workflow, citations=list(citations),
+                   usage=usage, provider=answer.provider, model_version=answer.model_version)
+        self._emit("response", "response_done", workflow, refused=False,
+                   citations=list(citations), text=text, cache_hit=False, usage=usage)
+
+        if self.cache is not None:
+            self.cache.put(resolved, self.retrieval_config.mode,
+                           self.retrieval_config.rerank_enabled, self.corpus_version,
+                           answer.model_version,
+                           payload={"answer": answer.to_dict(),
+                                    "retrieved_chunk_ids": [r.chunk_id for r in retrieved],
+                                    "trace": dict(trace)})
+
         self.last_trace = trace
         return ServiceResult(answer=answer, retrieved=retrieved, trace=trace,
                              resolved_query=resolved)
