@@ -130,3 +130,23 @@ class RetrievalPipeline:
 # How much of the fused ranking survives reranking. Kept small on purpose: if this were 1.0
 # the reranker would be decoration.
 WEIGHT_PRIOR = 0.10
+
+
+def retrieved_to_dict(item: "Retrieved") -> Dict:
+    return {
+        "chunk_id": item.chunk_id,
+        "doc_id": item.doc_id,
+        "family": item.family,
+        "language": item.language,
+        "section": item.section,
+        "text": item.text,
+        "ocr": item.ocr,
+        "vector_score": item.vector_score,
+        "lexical_score": item.lexical_score,
+        "fused_score": item.fused_score,
+        "rerank_score": item.rerank_score,
+    }
+
+
+def retrieved_from_dict(data: Dict) -> "Retrieved":
+    return Retrieved(**{k: v for k, v in data.items() if k in Retrieved.__dataclass_fields__})

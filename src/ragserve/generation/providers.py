@@ -287,9 +287,32 @@ class OpenAICompatibleProvider:
                      "Authorization": "Bearer " + self._api_key()},
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            body = json.loads(response.read().decode("utf-8"))
-        return body["choices"][0]["message"]["content"]
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                body = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raise ProviderUnavailable("HTTP %s: %s" % (exc.code, exc.read().decode("utf-8", "ignore")[:200])) from exc
+        except Exception as exc:  # noqa: BLE001 - surfaced as a clear provider error
+            raise ProviderUnavailable("%s: %s" % (type(exc).__name__, exc)) from exc
+        try:
+            return body["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise ProviderUnavailable("unexpected response shape: %s" % str(body)[:200]) from exc
+
+    def generate_from_prompt(self, prompt: str, retrieved: List | None = None,
+                             max_chars: int | None = None):
+        """Same interface as the CodeBuddy provider, so the service can dispatch uniformly.
+
+        Returns the text and a usage estimate tagged as such - the caller decides how to
+        present it.
+        """
+        text = self.generate(prompt)
+        if max_chars and len(text) > max_chars:
+            text = text[:max_chars].rstrip() + "..."
+        input_tokens = max(1, len(prompt) // 4)
+        output_tokens = max(1, len(text) // 4)
+        return text, {"input_tokens": input_tokens, "output_tokens": output_tokens,
+                      "total_tokens": input_tokens + output_tokens}
 
 
 def _sentences(text: str) -> List[str]:

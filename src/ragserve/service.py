@@ -24,7 +24,7 @@ from .generation.safety import (
     detect_injection,
     neutralise,
 )
-from .retrieval.pipeline import RetrievalConfig, RetrievalPipeline, Retrieved
+from .retrieval.pipeline import RetrievalConfig, RetrievalPipeline, Retrieved, retrieved_from_dict, retrieved_to_dict
 from .retrieval.text import tokenize
 
 CONTEXT_DELIMITER_OPEN = "<<<RETRIEVED_CONTENT>>>"
@@ -169,8 +169,12 @@ class RagService:
         if cached is not None:
             payload = cached["payload"]
             answer = Answer(**payload["answer"])
-            retrieved = [self.pipeline.by_id[cid] for cid in payload["retrieved_chunk_ids"]
-                         if cid in self.pipeline.by_id]
+            # Replay must return Retrieved objects, not raw Chunks: callers serialise scores,
+            # and a cache hit that crashes on serialisation is worse than no cache.
+            retrieved = [retrieved_from_dict(d) for d in payload.get("retrieved", [])]
+            if not retrieved:
+                retrieved = [self.pipeline.by_id[cid] for cid in payload["retrieved_chunk_ids"]
+                             if cid in self.pipeline.by_id]
             trace = dict(payload["trace"])
             trace.update({"cache_hit": True, "cache_layer": cached["layer"],
                           "workflow_id": workflow})
@@ -283,6 +287,7 @@ class RagService:
                            answer.model_version,
                            payload={"answer": answer.to_dict(),
                                     "retrieved_chunk_ids": [r.chunk_id for r in retrieved],
+                                    "retrieved": [retrieved_to_dict(r) for r in retrieved],
                                     "trace": dict(trace)})
 
         self.last_trace = trace

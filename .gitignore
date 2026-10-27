@@ -20,6 +20,13 @@ htmlcov/
 /scratch/
 _notes/
 
+# Frontend: source is tracked, dependencies are not, but the BUILT UI is committed on
+# purpose - a reviewer must be able to run the service without an npm install step.
+/web/node_modules/
+web/dist/*
+!web/dist/index.html
+!web/dist/assets/
+
 # OS / editor
 .DS_Store
 Thumbs.db
