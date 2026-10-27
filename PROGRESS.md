@@ -11,7 +11,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 
 | # | Title | Scope in one line | State |
 |---|---|---|---|
-| 1 | Repository bootstrap and harness foundation | layout, rules, roles, skills, CI, issue templates | in-progress |
+| 1 | Repository bootstrap and harness foundation | layout, rules, roles, skills, CI, issue templates | done |
 | 2 | Corpus and ingestion pipeline | synthetic bilingual corpus, chunking, OCR-noise subset | todo |
 | 3 | Retrieval layer | vector-only, hybrid (RRF), pluggable reranker, config switching | todo |
 | 4 | Generation, grounding, refusal, PII | prompt-injection defense, citations, refusal with guidance, redaction | todo |
@@ -28,6 +28,8 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 
 Entries follow: issue, then change, then evidence status.
 
+* **#1** CLOSED (2026-10-27). Bootstrap + contract tests; CI green on 3.11/3.12/3.13
+  (run 40482559462), 6/6 hermetic contract tests pass. Evidence in issue #1.
 * **#1** Initial repository bootstrap: layout, `PROJECT.md`, `CONTRIBUTING.md`, `AGENTS.md`,
   `harness/RULES.md`, `harness/ROLES.md`, three skills, issue and PR templates, CI workflow,
   requirements traceability matrix.
