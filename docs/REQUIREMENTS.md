@@ -1,0 +1,84 @@
+# Requirements Traceability
+
+Every requirement below is traced back to a clause it came from, restated as a
+testable acceptance criterion, and mapped to a verification command and an owning issue.
+Nothing ships without a row here.
+
+**Provenance:** the source brief is generic engineering scope; no employer-specific or
+role-specific content is reproduced anywhere in this repository.
+
+Legend for verification: `AUTO` = asserted by automated test, `EVAL` = produced by
+`scripts/run_eval.py` artifact, `MANUAL` = documented in `docs/` and reviewed.
+
+---
+
+## A. Global constraints
+
+| ID | Requirement (source clause) | Acceptance criterion | Verification | Owner issue |
+|---|---|---|---|---|
+| R-01 | 90% of QA requests complete end-to-end within 10 s | p90 latency <= 10 s under the standard load profile | `scripts/run_bench.py` (AUTO + EVAL) | #7 |
+| R-02 | Support >= 5 concurrent requests on a single instance | 5 in-flight requests, p90 stays within bound, no error rate increase | `scripts/run_bench.py --concurrency 5` (EVAL) | #7 |
+| R-03 | Token-cost estimate per 1,000 calls | cost table per configuration with stated price list | `scripts/run_eval.py --cost` (EVAL, provenance: `estimate`) | #7 |
+| R-04 | Model-version selection rationale with explicit trade-offs | ADR comparing >= 2 model versions on quality/cost/latency | `docs/adr/` (MANUAL + EVAL) | #7 |
+| R-05 | Structured logs sufficient for monitoring and issue diagnosis | log dictionary covers every emitted field; single-request reconstruction works from logs alone | `docs/logging/` + test (AUTO) | #5, #9 |
+| R-06 | Minimal prompt-injection defense | adversarial corpus subset with test asserting no policy-breaking answer | test + eval (AUTO) | #4 |
+| R-07 | Basic PII handling | PII redacted in **answer payload** and in **log record**; both tested | test (AUTO) | #4 |
+| R-08 | Answers strictly grounded to retrieved context | unfaithful claim rate bounded; unsupported answers must refuse | test + eval (AUTO) | #4, #6 |
+
+## B. Functional requirements
+
+| ID | Requirement | Acceptance criterion | Verification | Owner issue |
+|---|---|---|---|---|
+| R-09 | At least two retrieval modes: vector-only and hybrid | both modes selectable; behavioral difference demonstrated | eval comparison (EVAL) | #3, #6 |
+| R-10 | Reranker toggled by configuration, not code change | toggling is a config diff only; test asserts both paths | test (AUTO) | #3 |
+| R-11 | Refusal with guidance on low confidence / out-of-scope / safety trigger | refusal response carries reason code + guidance text; all three triggers covered | test (AUTO) | #4 |
+| R-12 | Operational report: p50/p95 latency, token usage, cache hit rate, refusal rate, answer compliance rate | report emitted as text **and** CSV, all six fields populated | `scripts/run_eval.py --report` (EVAL) | #6 |
+| R-13 | Multi-turn interaction support | conversational follow-up resolves references from prior turns | test (AUTO) | #4 |
+
+## C. Quantitative quality targets
+
+| ID | Metric | Baseline target | Advanced target | Verification | Owner issue |
+|---|---|---|---|---|---|
+| R-14 | Faithfulness | >= 0.85 | - | eval (EVAL) | #6 |
+| R-15 | Context Precision | >= 0.70 | - | eval (EVAL) | #6 |
+| R-16 | Answer Compliance | >= 0.80 | >= 0.90 | eval (EVAL) | #6 |
+| R-17 | Refusal Appropriateness | >= 0.80 | >= 0.90 | eval (EVAL) | #6 |
+| R-18 | Style Consistency | >= 0.80 | >= 0.85 | eval (EVAL) | #6 |
+
+Each metric needs three things before any number may be published:
+**(1)** a written definition, **(2)** an implemented scorer, **(3)** a rubric calibration
+set (hand-labelled examples). See `docs/metrics/`.
+
+## D. Non-functional requirements
+
+| ID | Requirement | Acceptance criterion | Verification | Owner issue |
+|---|---|---|---|---|
+| R-19 | Compare vector-only / hybrid / hybrid+rerank quantitatively | side-by-side table + written conclusion stating which wins on which axis | `docs/eval/retrieval-comparison.md` (EVAL + MANUAL) | #6 |
+| R-20 | Evolvability: retrieval strategy swap, model version swap, metric/logging extension | each swap performed as a config change in CI-visible test; each extension does not require touching core modules | test (AUTO) | #3, #5, #7 |
+| R-21 | Document >= 2 issues with log/metric evidence, fix rationale, >= 10% post-fix improvement | two cases, each with before metric, root cause from logs, fix diff reference, after metric, delta >= 10% | `docs/diagnosis/` (EVAL + MANUAL) | #8 |
+
+## E. Deliverables
+
+| ID | Deliverable | Location | Owner issue |
+|---|---|---|---|
+| R-22 | Complete code and configs | `src/`, `configs/` | #2, #3, #4, #5 |
+| R-23 | One-click evaluation script | `scripts/run_eval.py` | #6 |
+| R-24 | Evaluation report with before/after comparisons | `docs/eval/` | #6, #9 |
+| R-25 | Log field dictionary and sample logs | `docs/logging/`, `artifacts/logs/` | #5, #9 |
+
+## Notes on derivation
+
+Three requirements in the source brief are under-specified in a way that changes the
+verification design, so the interpretation is recorded explicitly rather than silently:
+
+1. **"90% within 10 s" under which load?** Latency is load-dependent, so R-01 is defined
+   under the same concurrency used for R-02 (>= 5 concurrent). Sequential p90 alone would
+   be easy to pass and meaningless.
+2. **"Faithfulness >= 0.85" - measured how?** Claim-level entailment. LLM-judged scores are
+   not reproducible for CI, so the repository ships a deterministic claim-alignment scorer
+   as the enforceable baseline, with the LLM judge as a separate, tagged comparison
+   (`model-backed`). Both are reported, never mixed.
+3. **"Style Consistency" - consistent with what?** A fixed style rubric (structure, citation
+   format, tone, verbosity bound) written in `docs/metrics/`, scored on every answer of a
+   run. Consistency is variance across answers, so it is computed on a distribution,
+   not per answer.

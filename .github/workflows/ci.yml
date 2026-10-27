@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  hermetic-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: No third-party packages needed
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Run hermetic test suite
+        run: python scripts/run_tests.py -v
+
+  no-secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject internal classification markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The repository must stay publishable: fail if internal classification
+          # marker SHAPES appear in tracked content. Patterns below intentionally
+          # match the generic shapes only, so this file itself never contains a
+          # company name.
+          #   shape 1: "[<Word> - INTERNAL]" style footer marks
+          #   shape 2: Microsoft Information Protection label properties
+          if git grep -nIEi '\[[A-Za-z0-9]+ - (INTERNAL|RESTRICTED|CONFIDENTIAL)\]|MSIP_Label_[0-9a-f-]{36}_' -- . ; then
+            echo "::error::internal classification marker shape found in tracked content"
+            exit 1
+          fi
+          echo "clean"

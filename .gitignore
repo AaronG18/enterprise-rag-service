@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Test / coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated artifacts (rebuilt by scripts/, never hand-edited)
+/artifacts/
+!.gitkeep
+
+# Local scratch, deliberately NOT using a bare "data/" rule:
+# a bare rule silently swallows legitimate package directories deeper in the tree.
+/scratch/
+_notes/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/settings.json
+*.~lock.*
