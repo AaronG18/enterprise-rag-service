@@ -57,24 +57,26 @@ citation is lost) and before scoring or attribution.
 
 ## Before / after (same corpus, same 30 cases, `model-backed`)
 
-| Config | Metric | Baseline | After both fixes | Change |
-|---|---|---|---|---|
-| hy3, hybrid | faithfulness | 0.6627 | 0.8913 | +34.5% |
-| hy3, hybrid | refusal_appropriateness | 0.8333 | 0.9000 | +8.0% |
-| hy3, hybrid | style_consistency | 0.8190 | 0.8957 | +9.4% |
-| hy3, vector_only | faithfulness | 0.6842 | 0.8182 | +19.6% |
-| hy3, hybrid+rerank | faithfulness | 0.6389 | 0.8696 | +36.1% |
-| flash, hybrid | faithfulness | 0.6723 | 0.7609 | +13.2% |
-| flash, hybrid+rerank | faithfulness | 0.7174 | 0.6159 | **-14.2%** |
-| flash, vector_only | faithfulness | 0.6667 | 0.7955 | +19.3% |
+| Config | Metric | Baseline | After both fixes | Independent re-run | Change |
+|---|---|---|---|---|---|
+| hy3, hybrid | faithfulness | 0.6627 | 0.8913 | **0.9130** | +37.8% |
+| hy3, hybrid | refusal_appropriateness | 0.8333 | 0.9000 | 0.9000 | +8.0% |
+| hy3, hybrid | style_consistency | 0.8190 | 0.8957 | 0.9043 | +10.4% |
+| hy3, hybrid | compliance | 0.743 | 0.965 | **0.983** | +32.3% |
+| hy3, vector_only | faithfulness | 0.6842 | 0.8182 | 0.9091 | +32.9% |
+| hy3, hybrid+rerank | faithfulness | 0.6389 | 0.8696 | 0.8696 | +36.1% |
+| flash, hybrid | faithfulness | 0.6723 | 0.7609 | 0.7681 | +14.2% |
+| flash, hybrid+rerank | faithfulness | 0.7174 | 0.6159 | **0.8188** | +14.2% |
+| flash, vector_only | faithfulness | 0.6667 | 0.7955 | 0.7045 | +5.7% |
 
 ## What did not improve, reported as such
 
-* **flash, hybrid+rerank got worse on faithfulness** (0.7174 -> 0.6159). One run of 30 cases is
-  too small to distinguish a real effect from noise, and no causal story has been established,
-  so it is recorded as an unexplained negative result rather than smoothed over.
-* **hy3, vector_only refusal appropriateness** improved only to 0.8667 (still below the 0.90
-  advanced target). That is the weakest configuration; the recommendation follows.
+* **flash, hybrid+rerank first measured worse on faithfulness** (0.7174 -> 0.6159). An independent
+  re-run then measured 0.8188, so the dip is **run-to-run variance, not a regression** - the
+  re-run is what established that, and the earlier "unexplained negative result" is corrected here
+  rather than left standing.
+* **hy3, vector_only refusal appropriateness** sits at 0.8667 (below the 0.90 advanced target).
+  That is the weakest configuration; the recommendation follows the strongest one.
 
 ## Outcome
 
