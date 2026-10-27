@@ -34,19 +34,26 @@ class DeterministicProvider:
         scored = []
         for rank, chunk in enumerate(retrieved[:3]):
             for sentence in _sentences(chunk.text):
-                tokens = set(tokenize(sentence))
+                body = _strip_heading(sentence)
+                tokens = set(tokenize(body))
                 if not tokens:
                     continue
                 overlap = len(query_tokens & tokens) / max(1, len(query_tokens))
-                scored.append((overlap, -rank, chunk.chunk_id, sentence))
+                # Retrieval rank must dominate: scoring on overlap alone let a lower-ranked
+                # chunk with incidental term overlap outrank the right answer (measured bug).
+                damped = overlap / (1.0 + 0.5 * rank)
+                scored.append((damped, -rank, chunk.chunk_id, body))
 
         scored.sort(key=lambda item: (-item[0], item[1], item[3]))
         chosen = scored[:max_sentences]
         # Restore document order so the answer reads coherently rather than by score.
         chosen.sort(key=lambda item: item[1])
 
-        text = ". ".join(sentence.strip().rstrip(".") for _o, _r, _cid, sentence in chosen)
-        if text and not text.endswith("."):
+        # Join with a space, not ". ": Chinese sentences already end with their own
+        # punctuation, and joining on ". " produced stray "." fragments that the faithfulness
+        # scorer then counted as unsupported claims.
+        text = " ".join(sentence.strip() for _o, _r, _cid, sentence in chosen)
+        if text and not text.endswith((".", "。", "!", "?", "！", "？")):
             text += "."
         if len(text) > max_chars:
             text = text[:max_chars].rstrip() + "..."
@@ -111,3 +118,10 @@ class OpenAICompatibleProvider:
 
 def _sentences(text: str) -> List[str]:
     return [s.strip() for s in SENTENCE_SPLIT.split(text or "") if s.strip()]
+
+
+def _strip_heading(sentence: str) -> str:
+    """Chunk text starts with heading lines; carrying them into an answer reads like noise."""
+    if "\n" in sentence:
+        sentence = sentence.rsplit("\n", 1)[-1].strip()
+    return sentence
