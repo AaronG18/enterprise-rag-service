@@ -14,7 +14,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 | 1 | Repository bootstrap and harness foundation | layout, rules, roles, skills, CI, issue templates | done |
 | 2 | Corpus and ingestion pipeline | synthetic bilingual corpus, chunking, OCR-noise subset | done |
 | 3 | Retrieval layer | vector-only, hybrid (RRF), pluggable reranker, config switching | done |
-| 4 | Generation, grounding, refusal, PII | prompt-injection defense, citations, refusal with guidance, redaction | todo |
+| 4 | Generation, grounding, refusal, PII | prompt-injection defense, citations, refusal with guidance, redaction | done |
 | 5 | Observability and caching | structured logs, trace/workflow ids, cache with TTL and invalidation | todo |
 | 6 | Evaluation suite and comparison report | one-click eval, metric rubrics, three-config comparison | todo |
 | 7 | Performance, concurrency and cost | p90 <= 10 s, >= 5 concurrent, token cost per 1,000 calls, model trade-offs | todo |
@@ -36,9 +36,24 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #15 BM25 + RRF fusion + config-driven modes
 - [x] #16 pluggable reranker with configuration-only toggle
 
+## EPIC 4 children
+
+- [x] #17 grounded generation with resolvable citations
+- [x] #18 refusal with reason codes and guidance
+- [x] #19 prompt-injection defence
+- [x] #20 PII redaction in answers and logs
+- [x] #21 multi-turn follow-up resolution
+
 ## Change log (reverse chronological)
 
 Entries follow: issue, then change, then evidence status.
+
+* **#17-#21 / EPIC 4** CLOSED (2026-10-28). Generation layer: deterministic provider emitting
+  verbatim grounded sentences, five refusal reason codes with guidance, injection
+  detection/neutralisation (EN+ZH), PII masking in answers and log records, multi-turn
+  resolution. 64/64 tests pass, CI green (run 40537829847). Two measured limitations recorded
+  rather than tuned away: hashing-embedding collisions (~0.11 noise vs ~0.14 true match) and
+  OCR-degraded documents lowering confidence. See `docs/generation.md`.
 
 * **#14 #15 #16 / EPIC 3** CLOSED (2026-10-27). Retrieval layer: bilingual tokeniser, hashing
   embeddings, BM25, RRF fusion, deterministic reranker behind a provider interface, all
