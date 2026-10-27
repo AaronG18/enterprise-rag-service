@@ -61,6 +61,19 @@ result, not a failure to hide.
   nothing. Report p50/p95 (and p90 explicitly) always.
 * **Refusal rate gaming.** A system can trivially reach high Answer Compliance by refusing
   more. Compliance must always be reported **alongside** refusal rate; never alone.
+* **Metrics can be capped by construction.** Check the denominator before blaming the system: with
+  ~2 chunks per document and `top_k=5`, "fraction of retrieved chunks that are relevant" cannot
+  exceed ~0.4, so a 0.70 target is unreachable no matter what. Rank-weighted context precision
+  was adopted for exactly this reason (R12).
+* **Recall saturates on small corpora.** At 53 chunks, recall@5 hit 0.92-0.96 for every
+  configuration and could not rank them. Use MRR / nDCG as the discriminating signal and say
+  plainly when two configurations **tie** - a tie is a result, not a failure to spin.
+* **A metric can be polluted by another failure mode.** Faithfulness collapsed to 0.75 because
+  wrong refusals were being scored as ungrounded answers. Answer-quality metrics are computed
+  over cases the service actually answered; refusal errors belong to refusal appropriateness.
+* **A suite that avoids a document type cannot regress on it.** The labelled set originally had
+  no case pointing at a scanned document, so an OCR reranker bug was invisible until targeted
+  `ocr_target` cases were added. Check what population the suite *excludes*.
 
 ## Fix/gain loop (used by diagnosis work, EPIC #8)
 

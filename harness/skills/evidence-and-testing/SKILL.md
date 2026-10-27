@@ -50,6 +50,17 @@ If any of those moved, the delta is not attributable and must be re-measured.
 * Do not use `Remove-Item` for cleanup here - it stalls on approval. Use
   `python -c "import os; os.remove(r'<abs path>')"`.
 
+## Reconstructing a "before" state
+
+Incident replays need a failing state that can be re-run. Rules learned here:
+
+* Prefer a **reconstructed** pre-fix component (a subclass in the diagnosis module) over
+  reintroducing broken code into the shipped path.
+* Assert that the reconstruction is **measurably worse**. If it is not, the incident attribution
+  is unsupported and must be withdrawn (R13) - do not publish it anyway.
+* Reconstructions that produce identical numbers are information: they mean the measured gain
+  came from something else, and the other candidate changes must be measured separately.
+
 ## Reviewer checklist (use when judging someone else's evidence)
 
 - [ ] Does each claimed test fail without the fix?

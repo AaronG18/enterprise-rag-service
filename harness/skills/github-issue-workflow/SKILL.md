@@ -86,6 +86,11 @@ reason**, never silently.
   one without evidence is not.
 * **`Fixes #n` belongs in the PR body**, not only in prose - automation only reacts to the
   keyword form.
+* **`git add -A` will commit the commit-message scratch file.** Write message files outside the
+  repo (temp dir) or the tree gains `_msg.txt` on the next commit.
+* **A "no company names" guard can itself leak one.** A CI scan pattern that literally spells the
+  internal classification marker defeats its own purpose. Match the generic **shape**
+  (`[<Word> - INTERNAL]`, `MSIP_Label_<guid>_`) and never the real string.
 
 ## Related
 

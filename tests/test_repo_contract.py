@@ -94,6 +94,9 @@ class TestRepositoryContract(unittest.TestCase):
             rules = fh.read()
         self.assertIn("No issue, no code", rules)
         self.assertIn("No evidence, no close", rules)
+        # Added by the EPIC 10 retro: these are the rules the project actually needed.
+        self.assertIn("Metric definitions are part of the change surface", rules)
+        self.assertIn("Attribution must survive reproduction", rules)
 
 
 if __name__ == "__main__":

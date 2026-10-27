@@ -15,12 +15,12 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 | 2 | Corpus and ingestion pipeline | synthetic bilingual corpus, chunking, OCR-noise subset | done |
 | 3 | Retrieval layer | vector-only, hybrid (RRF), pluggable reranker, config switching | done |
 | 4 | Generation, grounding, refusal, PII | prompt-injection defense, citations, refusal with guidance, redaction | done |
-| 5 | Observability and caching | structured logs, trace/workflow ids, cache with TTL and invalidation | todo |
-| 6 | Evaluation suite and comparison report | one-click eval, metric rubrics, three-config comparison | todo |
-| 7 | Performance, concurrency and cost | p90 <= 10 s, >= 5 concurrent, token cost per 1,000 calls, model trade-offs | todo |
-| 8 | Diagnosis cases | >= 2 regressions with log evidence and >= 10% post-fix gain | todo |
-| 9 | Delivery documentation | log dictionary, sample logs, architecture decision records, final report | todo |
-| 10 | Harness retro and iteration | fold lessons learned back into RULES and skills | todo |
+| 5 | Observability and caching | structured logs, trace/workflow ids, cache with TTL and invalidation | done |
+| 6 | Evaluation suite and comparison report | one-click eval, metric rubrics, three-config comparison | done |
+| 7 | Performance, concurrency and cost | p90 <= 10 s, >= 5 concurrent, token cost per 1,000 calls, model trade-offs | done |
+| 8 | Diagnosis cases | >= 2 regressions with log evidence and >= 10% post-fix gain | done |
+| 9 | Delivery documentation | log dictionary, sample logs, architecture decision records, final report | done |
+| 10 | Harness retro and iteration | fold lessons learned back into RULES and skills | done |
 
 ---
 
@@ -36,6 +36,38 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #15 BM25 + RRF fusion + config-driven modes
 - [x] #16 pluggable reranker with configuration-only toggle
 
+## EPIC 5 children
+
+- [x] #22 structured event log with workflow correlation
+- [x] #23 two-layer cache with TTL and hit-rate accounting
+- [x] #24 cache poisoning guards + request reconstruction
+
+## EPIC 6 children
+
+- [x] #25 metric definitions, scorers and calibration sets
+- [x] #26 one-click evaluation script with reproducible artefacts
+- [x] #27 three-config comparison with graded metrics
+- [x] #28 operations report (text and CSV)
+
+## EPIC 7 children
+
+- [x] #29 concurrency benchmark with percentile reporting
+- [x] #30 token cost model and provider ADR
+
+## EPIC 8 children
+
+- [x] #31 INC-001 refusal gate
+- [x] #32 INC-002 OCR penalty + evaluation gap
+
+## EPIC 9 children
+
+- [x] #33 delivery index, final README, sample logs
+- [x] #34 architecture decision records
+
+## EPIC 10 children
+
+- [x] #35 harness retro
+
 ## EPIC 4 children
 
 - [x] #17 grounded generation with resolvable citations
@@ -47,6 +79,23 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 ## Change log (reverse chronological)
 
 Entries follow: issue, then change, then evidence status.
+
+* **#33 #34 / EPIC 9** CLOSED (2026-10-28). `docs/deliverables.md` maps every required
+  deliverable to a file and command; sample logs are generated (`scripts/sample_logs.py`)
+  rather than hand-written; ADRs for retrieval strategy and the synthetic corpus added; README
+  targets table now carries measured values with the deterministic-provider caveat.
+  118 tests, CI green (run 40541966467).
+* **#31 #32 / EPIC 8** CLOSED (2026-10-28). Two reproducible incidents: INC-001 refusal gate
+  (+575% refusal appropriateness) and INC-002 OCR penalty (+100% scanned-document MRR). The
+  suite gap (no case pointed at a scanned document) was closed with 3 `ocr_target` cases. An
+  earlier attribution to rank damping was withdrawn because replay showed no difference.
+  CI green (run 40541310113).
+* **#29 #30 / EPIC 7** CLOSED (2026-10-28). Concurrency benchmark (5 concurrent, p90 10.5 ms,
+  0 errors) and a cost model that refuses to invent prices. Provider ADR states plainly that no
+  hosted model was measured. CI green (run 40540260063).
+* **#22 #23 #24 / EPIC 5** CLOSED (2026-10-28). Structured stage logging with workflow
+  correlation, emit-time redaction, dictionary enforced by test; two-layer cache with
+  config-scoped keys and no refusal caching. CI green (run 40538855567).
 
 * **#17-#21 / EPIC 4** CLOSED (2026-10-28). Generation layer: deterministic provider emitting
   verbatim grounded sentences, five refusal reason codes with guidance, injection

@@ -87,6 +87,22 @@ When something breaks in a way that a rule or skill did not anticipate, update t
 the skill in the same change or in its own follow-up issue. A harness that is not revised
 by its own failures decays into decoration.
 
+## R12 - Metric definitions are part of the change surface
+
+If a metric cannot reach its target **by construction** - a cap imposed by corpus shape, `top_k`
+or the denominator - the definition is the defect, not the system. Replace it, document both
+forms and why the first one was structurally capped, and pin the new one with a test.
+(Observed: "fraction of retrieved chunks that are relevant" could not exceed ~0.4 with ~2 chunks
+per document at top_k=5, so the 0.70 target was unreachable no matter how good retrieval was.)
+
+## R13 - Attribution must survive reproduction
+
+A commit message may claim an improvement only if a command reproduces it. When a reconstruction
+of the "before" state shows **no** difference, the attribution is withdrawn **in writing** - in
+the relevant doc, not silently dropped from the message.
+(Observed: rank damping was credited with fixing wrong-document answers; replaying the pre-fix
+provider gave identical results, so the claim was withdrawn in `docs/diagnosis/INC-002-...`.)
+
 ---
 
 ## Enforcement map
@@ -104,3 +120,5 @@ by its own failures decays into decoration.
 | R9 | review | mixed-purpose commit |
 | R10 | diff review | `_tmp.py` in the tree |
 | R11 | EPIC #10 retro | repeated incident with no rule change |
+| R12 | metric review + `docs/metrics/` | a target that is unreachable by construction |
+| R13 | replay harness (`scripts/diagnose.py`) | improvement claimed with no reproducing command |
