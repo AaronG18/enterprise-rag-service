@@ -1,0 +1,6 @@
+{
+  "seed": 20261027,
+  "ocr_ratio": 0.08,
+  "chunk_target_chars": 220,
+  "chunk_overlap_chars": 44
+}
