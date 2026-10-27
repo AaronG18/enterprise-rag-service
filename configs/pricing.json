@@ -1,0 +1,11 @@
+{
+  "_comment": "Fill in real prices before publishing any cost number. null means 'unknown', and the report will say so instead of printing a fabricated figure.",
+  "stub-deterministic-1": {
+    "input_per_1k_usd": 0.0,
+    "output_per_1k_usd": 0.0
+  },
+  "hosted-model-placeholder": {
+    "input_per_1k_usd": null,
+    "output_per_1k_usd": null
+  }
+}
