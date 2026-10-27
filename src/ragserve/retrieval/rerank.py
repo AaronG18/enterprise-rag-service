@@ -12,6 +12,10 @@ from typing import List
 from .text import tokenize
 
 OCR_PENALTY = 0.12
+# Only demote a scanned chunk when a clean chunk is comparably strong. An unconditional
+# penalty demotes the *only* copy of a scanned document, which measurably dropped MRR on
+# scanned-document queries from 0.78 to 0.33 and produced refusals (see docs/diagnosis/).
+OCR_COMPARABLE_MARGIN = 0.08
 WEIGHTS = {
     "overlap": 0.45,
     "heading": 0.25,
@@ -36,15 +40,24 @@ class DeterministicReranker:
 
         return (WEIGHTS["overlap"] * overlap
                 + WEIGHTS["heading"] * heading
-                + WEIGHTS["proximity"] * _proximity(query, chunk.text)
-                - (OCR_PENALTY if chunk.ocr else 0.0))
+                + WEIGHTS["proximity"] * _proximity(query, chunk.text))
 
     def rerank(self, query: str, candidates: List) -> List:
-        scored = [(candidate, self.score(query, candidate)) for candidate in candidates]
+        scores = [(candidate, self.score(query, candidate)) for candidate in candidates]
+
+        def penalty_for(chunk, base: float) -> float:
+            if not chunk.ocr:
+                return 0.0
+            comparable_clean = any(
+                other is not chunk and not other.ocr and abs(other_base - base) <= OCR_COMPARABLE_MARGIN
+                for other, other_base in scores)
+            return OCR_PENALTY if comparable_clean else 0.0
+
+        adjusted = [(chunk, base - penalty_for(chunk, base)) for chunk, base in scores]
         # Tie-break on chunk_id: Chunk objects are not orderable, and an unstable tie-break
         # would make "deterministic ranking" a lie.
-        scored.sort(key=lambda item: (-item[1], item[0].chunk_id))
-        return scored
+        adjusted.sort(key=lambda item: (-item[1], item[0].chunk_id))
+        return adjusted
 
 
 def _proximity(query: str, text: str) -> float:

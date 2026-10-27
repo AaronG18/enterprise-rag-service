@@ -57,9 +57,9 @@ class ServiceResult:
 class RagService:
     def __init__(self, corpus, retrieval_config: RetrievalConfig,
                  generation_config: Optional[GenerationConfig] = None,
-                 provider=None, logger=None, cache=None):
+                 provider=None, logger=None, cache=None, reranker=None):
         self.generation = generation_config or GenerationConfig()
-        self.pipeline = RetrievalPipeline(corpus, retrieval_config)
+        self.pipeline = RetrievalPipeline(corpus, retrieval_config, reranker=reranker)
         self.retrieval_config = retrieval_config
         self.provider = provider or self._build_provider()
         self.logger = logger

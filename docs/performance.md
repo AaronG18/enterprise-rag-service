@@ -9,11 +9,9 @@ number describes the service rather than the cache.
 |---|---|
 | concurrency | 5 |
 | requests | 30 |
-| p50 latency | 5.127 ms |
-| **p90 latency** | **10.476 ms** (bound: 10,000 ms) |
-| p95 latency | 22.972 ms |
-| max latency | 57.247 ms |
-| throughput | 182.3 req/s |
+| p50 latency | 4.9-5.1 ms |
+| **p90 latency** | **10.5-34.8 ms** across runs (bound: 10,000 ms) |
+| throughput | 171-182 req/s |
 | errors | 0 |
 | within bound | true |
 
