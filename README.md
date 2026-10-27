@@ -41,32 +41,41 @@ documents are shipped. This is an intentional constraint:
 
 ## 3. Deliverables map
 
-| Deliverable asked for | Where it lives | Status |
-|---|---|---|
-| Complete code and configs | `src/`, `configs/` | tracked per issue |
-| One-click evaluation script | `scripts/run_eval.py` | tracked per issue |
-| Evaluation report with before/after | `docs/eval/` | tracked per issue |
-| Log field dictionary and sample logs | `docs/logging/`, `artifacts/logs/` | tracked per issue |
-| Retrieval quality comparison | `docs/eval/retrieval-comparison.md` | tracked per issue |
-| Issue diagnosis (>= 2 cases, >= 10% gain) | `docs/diagnosis/` | tracked per issue |
+See [`docs/deliverables.md`](docs/deliverables.md) for the full map with reproduction commands.
 
-## 4. Targets (the numbers this repo must hit)
+| Deliverable asked for | Where it lives |
+|---|---|
+| Complete code and configs | `src/`, `configs/` |
+| One-click evaluation script | `scripts/run_eval.py` |
+| Evaluation report with before/after | `docs/eval/retrieval-comparison.md` (+ generated `artifacts/eval/<run>/`) |
+| Log field dictionary and sample logs | `docs/logging/log_fields.md`, `docs/logging/sample_logs.md` |
+| Retrieval quality comparison | `docs/eval/retrieval-comparison.md` |
+| Issue diagnosis (>= 2 cases, >= 10% gain) | `docs/diagnosis/INC-001-refusal-gate.md`, `docs/diagnosis/INC-002-ocr-penalty.md` |
+
+## 4. Targets and current measured values
+
+Measured with the deterministic provider on corpus `bea626ce863a0e44`, 30 labelled cases;
+full detail and caveats in [`docs/eval/retrieval-comparison.md`](docs/eval/retrieval-comparison.md).
 
 See [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) for the full traceability matrix that
 maps each target to a verification command and an owning issue.
 
-| Family | Target |
-|---|---|
-| End-to-end latency | p90 <= 10 s |
-| Concurrency | >= 5 concurrent requests, single instance, no degradation of p90 |
-| Faithfulness | >= 0.85 (definition + rubric in `docs/metrics/`) |
-| Context Precision | >= 0.70 |
-| Answer Compliance | >= 0.80 baseline, >= 0.90 advanced target |
-| Refusal Appropriateness | >= 0.80 baseline, >= 0.90 advanced target |
-| Style Consistency | >= 0.80 baseline, >= 0.85 advanced target |
-| Cost | token estimate per 1,000 calls, with model-version trade-off table |
-| Observability | structured logs sufficient for monitoring and single-request diagnosis |
-| Issue diagnosis | >= 2 documented regressions with log evidence and >= 10% post-fix gain |
+| Family | Target | Measured |
+|---|---|---|
+| End-to-end latency | p90 <= 10 s | 10.5-34.8 ms at 5 concurrent |
+| Concurrency | >= 5 concurrent, single instance | 5 concurrent, 0 errors |
+| Faithfulness | >= 0.85 | 1.0 |
+| Context Precision | >= 0.70 | 0.9529 |
+| Answer Compliance | >= 0.80 / 0.90 | 0.9000 |
+| Refusal Appropriateness | >= 0.80 / 0.90 | 0.9000 |
+| Style Consistency | >= 0.80 / 0.85 | 1.0 |
+| Cost | estimate per 1,000 calls | arithmetic provided; `configs/pricing.json` must be filled |
+| Observability | structured logs, single-request reconstruction | 5 stages per request, documented dictionary |
+| Issue diagnosis | >= 2 cases, >= 10% gain | 2 cases: +575%, +100% |
+
+**Read these numbers with the caveat they carry:** they come from the deterministic provider,
+which composes answers from verbatim retrieved sentences. They establish the pipeline floor
+(never fabricates, always cites, refuses when it should), not the behaviour of a real model.
 
 ## 5. Evidence policy (read this before trusting any number here)
 

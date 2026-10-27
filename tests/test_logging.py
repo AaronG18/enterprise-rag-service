@@ -104,6 +104,16 @@ class TestServiceLogging(unittest.TestCase):
         self.assertTrue(decision)
         self.assertEqual(decision[0]["refusal_reason"], "injection_detected")
 
+    def test_committed_sample_logs_demonstrate_redaction(self):
+        """The sample log deliverable must be generated output and must show redaction working."""
+        path = os.path.join(ROOT, "docs", "logging", "sample_logs.md")
+        self.assertTrue(os.path.isfile(path))
+        with open(path, "r", encoding="utf-8") as fh:
+            sample = fh.read()
+        self.assertNotIn("jane.doe@example.com", sample)
+        self.assertIn("***", sample)
+        self.assertIn("safety_trigger", sample)
+
     def test_log_field_dictionary_covers_emitted_fields(self):
         """Every field a line carries must be documented, or the dictionary is fiction."""
         self.service.answer("annual leave", workflow_id="wf-dict")
