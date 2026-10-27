@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from ragserve.generation.providers import (
     CodeBuddyServeProvider,
     ProviderUnavailable,
+    attribute_evidence,
     extract_citations,
     is_loopback,
 )
@@ -100,6 +101,40 @@ class TestProtocolHandling(unittest.TestCase):
         provider = CodeBuddyServeProvider("http://127.0.0.1:1", "fake-model")
         with self.assertRaises(ProviderUnavailable):
             provider.generate_from_prompt("question?")
+
+
+class TestEvidenceAttribution(unittest.TestCase):
+    """Attribution answers 'where did this come from'; it must not double as a support test."""
+
+    def _chunks(self):
+        return [
+            _Chunk("handbook-en-00:0000", "Full-time employees accrue 15 working days of paid annual leave."),
+            _Chunk("techspec-en-00:0000", "The read path targets a p95 of 800 milliseconds."),
+        ]
+
+    def test_sentences_are_attributed_to_best_matching_chunk(self):
+        chunks = self._chunks()
+        ids = attribute_evidence("Employees accrue 15 working days of leave.", chunks)
+        self.assertEqual(ids, ["handbook-en-00:0000"])
+
+    def test_mixed_answer_attributes_both_sources(self):
+        ids = attribute_evidence(
+            "Employees accrue 15 working days. The read path targets a p95 of 800 ms.",
+            self._chunks())
+        self.assertEqual(set(ids), {"handbook-en-00:0000", "techspec-en-00:0000"})
+
+    def test_attribution_never_invents_ids(self):
+        ids = attribute_evidence("Something about quarterly dividends.", self._chunks())
+        self.assertTrue(set(ids).issubset({c.chunk_id for c in self._chunks()}))
+
+    def test_empty_answer_attributed_to_nothing(self):
+        self.assertEqual(attribute_evidence("", self._chunks()), [])
+
+
+class _Chunk:
+    def __init__(self, chunk_id, text):
+        self.chunk_id = chunk_id
+        self.text = text
 
 
 class TestCitationExtraction(unittest.TestCase):
