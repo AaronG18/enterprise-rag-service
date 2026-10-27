@@ -23,6 +23,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 | 10 | Harness retro and iteration | fold lessons learned back into RULES and skills | done |
 | 11 (#36) | Model-backed evaluation lane | real generation via local CLI serve; 2 models x 3 configs x 30 cases | done |
 | 12 (#41) | Real-generation quality fix | evidence attribution + Sources-line stripping; INC-003 | done |
+| 13 (#45) | Submission hardening | HTTP API, React+AntD UI, one-command start, BYO key, service bench | done |
 
 ---
 
@@ -82,6 +83,15 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #42 evidence attribution + Sources-line stripping (INC-003)
 - [x] #43 re-measure the cross and record the delta
 
+## EPIC 13 (#45) children
+
+- [x] #46 HTTP API with health, ask, session-based multi-turn
+- [x] #47 React + AntD frontend with provider selector
+- [x] #48 one-command start and reviewer quickstart
+- [x] #49 service-level benchmark against the HTTP API
+- [x] #50 bring-your-own-key model channel
+- [x] #51 QA re-run and submission evidence
+
 ## EPIC 4 children
 
 - [x] #17 grounded generation with resolvable citations
@@ -94,6 +104,12 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 
 Entries follow: issue, then change, then evidence status.
 
+* **#46-#51 / EPIC 13 (#45)** CLOSED (2026-10-28). Submission hardening: the repository is now a
+  runnable service. `python scripts/start.py` builds the corpus, indexes it in ~19 ms and serves
+  a React + AntD UI plus a stdlib HTTP API on 127.0.0.1:8124. Default path needs no key and no
+  network; a reviewer can bring their own OpenAI-compatible endpoint (key used per request,
+  never stored or logged). Service-level benchmark: 5 concurrent HTTP requests, p90 148 ms,
+  0 errors. Five UI screenshots committed. 144 tests, CI green.
 * **#42 #43 / EPIC 12 (#41)** CLOSED (2026-10-28). INC-003: 32 wrong refusals (attribution
   fallback) + a Sources line being scored as an unsupported claim (stripped before scoring).
   hy3+hybrid now meets every advanced target under real generation: faithfulness 0.8913,
