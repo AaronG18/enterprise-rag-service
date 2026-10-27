@@ -13,7 +13,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 |---|---|---|---|
 | 1 | Repository bootstrap and harness foundation | layout, rules, roles, skills, CI, issue templates | done |
 | 2 | Corpus and ingestion pipeline | synthetic bilingual corpus, chunking, OCR-noise subset | done |
-| 3 | Retrieval layer | vector-only, hybrid (RRF), pluggable reranker, config switching | todo |
+| 3 | Retrieval layer | vector-only, hybrid (RRF), pluggable reranker, config switching | done |
 | 4 | Generation, grounding, refusal, PII | prompt-injection defense, citations, refusal with guidance, redaction | todo |
 | 5 | Observability and caching | structured logs, trace/workflow ids, cache with TTL and invalidation | todo |
 | 6 | Evaluation suite and comparison report | one-click eval, metric rubrics, three-config comparison | todo |
@@ -30,9 +30,21 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #12 OCR-noise transform (scanned subset)
 - [x] #13 chunking with metadata + artifact writer
 
+## EPIC 3 children
+
+- [x] #14 deterministic embeddings + vector index
+- [x] #15 BM25 + RRF fusion + config-driven modes
+- [x] #16 pluggable reranker with configuration-only toggle
+
 ## Change log (reverse chronological)
 
 Entries follow: issue, then change, then evidence status.
+
+* **#14 #15 #16 / EPIC 3** CLOSED (2026-10-27). Retrieval layer: bilingual tokeniser, hashing
+  embeddings, BM25, RRF fusion, deterministic reranker behind a provider interface, all
+  switches in `configs/retrieval.json`. 37/37 tests pass, CI green (run 40501465970).
+  Measured: all three configurations tie at 9/10 recall on 10 labelled cases - recorded as a
+  limitation, not a win. See `docs/retrieval.md`. Evidence in issues #14, #15, #16, #3.
 
 * **#11 #12 #13 / EPIC 2** CLOSED (2026-10-27). Corpus pipeline: 32 bilingual documents,
   53 chunks, 3 OCR-degraded documents; `corpus_version = bea626ce863a0e44`.
