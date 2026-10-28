@@ -26,8 +26,13 @@ Every step is mandatory. Skipping the "paste evidence" step means the branch sta
 Reproduce the gate locally before pushing:
 
 ```bash
-python scripts/verify_requirements.py     # the full gate, ~17 s
+python scripts/verify_requirements.py     # the full gate, ~8 s
+python scripts/run_tests.py               # the hermetic suite, ~8 s (runs the classes in parallel)
 ```
+
+Both are parallel by default: the requirement rows and the generators run concurrently, and
+the test classes run in worker processes with work stealing. `--serial` and `--jobs 1` force the
+one-at-a-time path when you need to compare.
 
 A red gate is the loop working. Fix on the branch and push again; do not weaken the gate to get
 green - if a row is wrong, that is its own issue with its own evidence.

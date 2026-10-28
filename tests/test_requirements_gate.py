@@ -70,6 +70,77 @@ class TestFailureReporting(unittest.TestCase):
         self.assertEqual(summary["passed"], 1)
 
 
+class TestTestRowSelections(unittest.TestCase):
+    """A test row must fail when it names a test class that does not exist.
+
+    Measured: seven selections in the manifest matched zero tests, and `run_tests.py -k`
+    exits 0 when nothing matches - so those rows were passing vacuously.
+    """
+
+    def test_a_row_naming_a_missing_class_fails(self):
+        row = {"id": "R-98", "kind": "test", "tests": ["TestThisClassDoesNotExist"],
+               "owner": "#1"}
+        outcome = check_requirement(row, {})
+        self.assertFalse(outcome["ok"], "a missing test class must not pass")
+        self.assertIn("no test class", outcome["detail"].lower())
+
+    def test_a_row_naming_an_existing_class_passes(self):
+        row = {"id": "R-97", "kind": "test", "tests": ["TestRefusal"], "owner": "#1"}
+        outcome = check_requirement(row, {})
+        self.assertTrue(outcome["ok"], outcome["detail"])
+
+
+class TestRunnerJsonOutput(unittest.TestCase):
+    """The test runner must be able to report per-class results to the gate."""
+
+    def _run(self, *args):
+        import subprocess
+        import sys
+
+        return subprocess.run([sys.executable, os.path.join(REPO_ROOT, "scripts", "run_tests.py")] +
+                              list(args), cwd=REPO_ROOT, capture_output=True, text=True,
+                              encoding="utf-8", errors="ignore")
+
+    def test_json_output_reports_per_class_results(self):
+        proc = self._run("--json", "--classes", "TestRefusal")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        payload = json.loads(proc.stdout)
+        self.assertTrue(payload["ok"])
+        self.assertIn("TestRefusal", payload["classes"])
+        self.assertGreater(payload["classes"]["TestRefusal"]["total"], 0)
+
+    def test_missing_class_is_reported_and_exits_non_zero(self):
+        proc = self._run("--json", "--classes", "TestNoSuchClass")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("no test class", (proc.stdout + proc.stderr).lower())
+
+    def test_parallel_run_reports_the_same_tests_as_a_serial_run(self):
+        """Parallelism must not lose or duplicate a test."""
+        classes = "TestRefusal,TestMultiTurn,TestVectorRetrieval,TestHybridAndFusion"
+        serial = json.loads(self._run("--json", "--jobs", "1", "--classes", classes).stdout)
+        parallel = json.loads(self._run("--json", "--jobs", "4", "--classes", classes).stdout)
+        self.assertEqual(serial["total"], parallel["total"])
+        self.assertEqual(sorted(serial["classes"]), sorted(parallel["classes"]))
+        for name, entry in serial["classes"].items():
+            self.assertEqual(entry["total"], parallel["classes"][name]["total"], name)
+
+
+class TestParallelEquivalence(unittest.TestCase):
+    """Concurrency must not change a verdict."""
+
+    def test_parallel_and_serial_agree(self):
+        manifest = load_manifest()
+        serial = verify(manifest, only=["R-14", "R-16", "R-19"], use_generators=False, jobs=1)
+        parallel = verify(manifest, only=["R-14", "R-16", "R-19"], use_generators=False, jobs=4)
+        self.assertEqual([(r["id"], r["ok"]) for r in serial["requirements"]],
+                         [(r["id"], r["ok"]) for r in parallel["requirements"]])
+
+    def test_results_keep_manifest_order(self):
+        manifest = load_manifest()
+        summary = verify(manifest, only=["R-19", "R-14", "R-16"], use_generators=False, jobs=4)
+        self.assertEqual([r["id"] for r in summary["requirements"]], ["R-14", "R-16", "R-19"])
+
+
 class TestMetricRows(unittest.TestCase):
     def test_metric_reads_a_named_section_and_config(self):
         with tempfile.TemporaryDirectory() as tmp:

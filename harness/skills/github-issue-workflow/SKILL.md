@@ -126,6 +126,13 @@ the only way in.
   `{"merged": true}` while `mergeable_state` was `blocked`.
 * **Prove the gate blocks, not just that it reports.** A red check that nobody tries to merge
   past has not been shown to block anything. Merge a red PR on purpose and record the refusal.
+* **A filter that matches nothing exits 0.** `unittest -k` with a name that no test has is a
+  *pass*, not a failure - seven requirement rows were green while asserting nothing. Make the
+  runner fail on an empty selection, and report how many tests each row really ran.
+* **Parallelism must not change a verdict.** When the suite runs in worker processes, keep the
+  report in a deterministic order and assert that the parallel and serial runs agree on the
+  same set of tests. Work stealing beats static partitioning when the cost is concentrated in
+  a few slow tests.
 
 ## Related
 

@@ -114,6 +114,12 @@ A pattern in a gate must not match a legitimate file, and the rule must bind the
 normally bypasses it: `enforce_admins` is on, so the owner cannot merge a red change. Both
 were found by running the gate for real - see `docs/qa/harness-gate.md`.
 
+**A check that cannot fail is not a check.** Seven requirement rows were passing while
+asserting nothing, because `unittest -k` exits 0 when the filter matches no test. A gate row
+must fail when it cannot find its evidence, and it must report how much evidence it actually
+ran. Speed work found this: counting the tests each row really executed made the empty rows
+visible.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or

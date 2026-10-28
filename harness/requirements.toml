@@ -72,21 +72,21 @@ owner = "#5"
 id = "R-06"
 title = "minimal prompt-injection defense"
 kind = "test"
-run = "python scripts/run_tests.py -k TestInjectionDefence"
+tests = ["TestInjectionDefence"]
 owner = "#4"
 
 [[requirement]]
 id = "R-07"
 title = "PII redacted in answers and in log records"
 kind = "test"
-tests = ["TestPiiRedaction", "TestRedactionOfLogRecords"]
+tests = ["TestRedaction", "TestRecordRedaction"]
 owner = "#4"
 
 [[requirement]]
 id = "R-08"
 title = "answers strictly grounded to retrieved context"
 kind = "test"
-run = "python scripts/run_tests.py -k TestGrounding"
+tests = ["TestGroundedAnswers"]
 owner = "#4"
 
 # ------------------------------------------------------------ functional requirements
@@ -94,7 +94,7 @@ owner = "#4"
 id = "R-09"
 title = "vector-only and hybrid modes both selectable and measurably different"
 kind = "test"
-tests = ["TestModesAreConfigDriven", "TestVectorRetrieval", "TestHybridAndFusion"]
+tests = ["TestVectorRetrieval", "TestHybridAndFusion"]
 owner = "#3"
 
 [[requirement]]
@@ -108,7 +108,7 @@ owner = "#3"
 id = "R-11"
 title = "refusal with guidance on all three triggers"
 kind = "test"
-run = "python scripts/run_tests.py -k TestRefusal"
+tests = ["TestRefusal"]
 owner = "#4"
 
 [[requirement]]
@@ -127,7 +127,7 @@ note = "Presence of all six fields is asserted by the report writer tests; this 
 id = "R-13"
 title = "multi-turn follow-up resolution"
 kind = "test"
-run = "python scripts/run_tests.py -k TestMultiTurn"
+tests = ["TestMultiTurn"]
 owner = "#4"
 
 # ------------------------------------------------------- quantitative quality targets
@@ -199,7 +199,8 @@ owner = "#6"
 id = "R-20"
 title = "evolvability: retrieval/model/metrics swaps without touching core modules"
 kind = "test"
-tests = ["TestModesAreConfigDriven", "TestProviderInterface", "TestEvidenceAttribution"]
+tests = ["TestVectorRetrieval", "TestRerankerToggle", "TestProtocolHandling",
+         "TestEvaluationRun", "TestMetricRows"]
 owner = "#3"
 
 [[requirement]]
@@ -237,7 +238,7 @@ owner = "#6"
 id = "R-25"
 title = "log field dictionary and sample logs"
 kind = "test"
-tests = ["TestLogFieldDictionary", "TestCommittedSampleLogs"]
+tests = ["TestServiceLogging", "TestRepositoryContract"]
 owner = "#5"
 
 # ------------------------------------------------------- model-backed lane (documented)
