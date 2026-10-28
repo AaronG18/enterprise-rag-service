@@ -51,9 +51,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Hermetic test suite
-        run: python scripts/run_tests.py
-
       - name: Tree hygiene - no scratch or temp files
         run: |
           set -euo pipefail
@@ -81,6 +78,9 @@ jobs:
             exit 1
           fi
           echo "clean"
+
+      - name: Hermetic test suite
+        run: python scripts/run_tests.py
 
       - name: Hermetic - no third-party imports in shipped code
         run: |
