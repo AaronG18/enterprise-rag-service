@@ -19,17 +19,23 @@ Python 3.11+ and nothing else. Regenerating the corpus is possible
 ### If the port is already taken
 
 The default port is 8174, and if any requested port is occupied by another local service the
-server **moves to a free port and prints the real URL** rather than dying or silently sharing the
-address:
+server **moves to the first free port above it and prints the real URL** rather than dying or
+silently sharing the address:
 
 ```
-NOTE: port 8174 is already in use by another service on this machine; choosing a free port instead.
-Enterprise RAG Service listening on http://127.0.0.1:49510
+port 8174 is already in use by another service on this machine; using 8175 instead
+Enterprise RAG Service listening on http://127.0.0.1:8175
 ```
+
+The scan is deterministic (`find_free_port` in `src/ragserve/api.py`): 8174 -> 8175 -> 8176 ...,
+so the fallback is a port a reviewer can retype rather than a random ephemeral one. `--port 0`
+asks the OS for any free port, and if the whole 20-port span is taken the OS is asked as a last
+resort. A bind-race (port taken between the check and the bind) also falls back rather than
+raising.
 
 This matters because a bind to an occupied port can *appear* to succeed on Windows when both
 sockets carry `SO_REUSEADDR`, which would leave the reviewer looking at somebody else's
-application. The port is therefore probed before binding, and a taken port is skipped.
+application. The port is therefore probed before it is trusted, not after a failed bind.
 
 ## What you get
 

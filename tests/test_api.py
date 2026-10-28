@@ -220,6 +220,64 @@ class TestPortFallback(unittest.TestCase):
             if blocker is not None:
                 blocker.close()
 
+    def test_busy_port_resolves_to_the_next_free_port_deterministically(self):
+        """8174 taken -> 8175, not a random ephemeral port the reviewer cannot retype."""
+        import socket
+
+        base = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        base.bind(("127.0.0.1", 0))
+        first = base.getsockname()[1]
+        base.close()
+        second = first + 1
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.bind(("127.0.0.1", second))
+        probe.close()
+
+        blockers = []
+        try:
+            for port in (first, second):
+                blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                blocker.bind(("127.0.0.1", port))
+                blocker.listen(1)
+                blockers.append(blocker)
+
+            _b, httpd, thread, actual = self._serve_on(first, occupy=False)
+            try:
+                self.assertEqual(actual, second + 1,
+                                 "expected the next free port above the taken ones")
+            finally:
+                httpd.shutdown()
+                httpd.server_close()
+                thread.join(timeout=3)
+        finally:
+            for blocker in blockers:
+                blocker.close()
+
+    def test_whole_span_busy_falls_back_to_os_port(self):
+        import socket
+
+        from ragserve.api import PORT_SCAN_SPAN, find_free_port
+
+        base = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        base.bind(("127.0.0.1", 0))
+        first = base.getsockname()[1]
+        base.close()
+
+        blockers = []
+        try:
+            for port in range(first, first + PORT_SCAN_SPAN):
+                blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                blocker.bind(("127.0.0.1", port))
+                blocker.listen(1)
+                blockers.append(blocker)
+            self.assertEqual(find_free_port("127.0.0.1", first), 0,
+                             "an exhausted span must ask the OS for a port")
+        finally:
+            for blocker in blockers:
+                blocker.close()
+
 
 class TestKeySafety(_ServerFixture):
     def test_api_key_never_appears_in_logs(self):

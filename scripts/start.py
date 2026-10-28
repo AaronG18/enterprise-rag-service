@@ -3,6 +3,7 @@
 
     python scripts/start.py                 # 127.0.0.1:8174, deterministic provider
     python scripts/start.py --port 9000
+    python scripts/start.py --port 0        # let the OS pick any free port
     python scripts/start.py --provider codebuddy-serve --endpoint http://127.0.0.1:8788 --model hy3
     python scripts/start.py --provider openai-compatible --endpoint https://api.example.com/v1 \\
         --model my-model --api-key-env OPENAI_API_KEY
@@ -10,15 +11,14 @@
 The default path needs no key, no network and no database: the corpus is generated
 deterministically and indexed in memory at startup.
 
-If the requested port is already taken by another service, a free port is chosen instead and
-the real URL is printed - a reviewer must never end up looking at somebody else's application.
+Port selection is deterministic: if the requested port is taken by another service, the first
+free port above it is used (8174 -> 8175 -> ...) and the real URL is printed. A reviewer must
+never end up looking at somebody else's application.
 """
 from __future__ import annotations
 
 import argparse
-import errno
 import os
-import socket
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,16 +29,11 @@ DEFAULT_PORT = 8174
 from ragserve.api import create_server  # noqa: E402
 
 
-def port_is_free(host: str, port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        probe.settimeout(0.5)
-        return probe.connect_ex((host, port)) != 0
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT,
+                        help="preferred port; if it is taken the next free port is used (0 = any)")
     parser.add_argument("--provider", default="deterministic",
                         choices=("deterministic", "codebuddy-serve", "openai-compatible"))
     parser.add_argument("--endpoint", default="",
@@ -51,11 +46,6 @@ def main() -> int:
 
     if args.provider in ("codebuddy-serve", "openai-compatible") and not args.endpoint:
         parser.error("--endpoint is required for %s" % args.provider)
-
-    requested_port = args.port
-    if not port_is_free(args.host, requested_port):
-        print("NOTE: port %d is already in use by another service on this machine; "
-              "choosing a free port instead." % requested_port)
 
     api_key = os.environ.get(args.api_key_env, "") if args.provider == "openai-compatible" else ""
     if args.provider == "openai-compatible" and not api_key:
