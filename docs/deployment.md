@@ -10,11 +10,26 @@ That single command:
 
 1. generates the corpus if it is not already built (deterministic, seeded - no download);
 2. indexes it **in memory** - measured at ~19 ms for 32 documents / 53 chunks;
-3. serves the API and the built UI on `http://127.0.0.1:8124` and opens your browser.
+3. serves the API and the built UI on `http://127.0.0.1:8174` and opens your browser.
 
 There is no database, no embedding model, no ETL step and no `pip install`. The reviewer needs
 Python 3.11+ and nothing else. Regenerating the corpus is possible
 (`python scripts/build_corpus.py`) but never required.
+
+### If the port is already taken
+
+The default port is 8174, and if any requested port is occupied by another local service the
+server **moves to a free port and prints the real URL** rather than dying or silently sharing the
+address:
+
+```
+NOTE: port 8174 is already in use by another service on this machine; choosing a free port instead.
+Enterprise RAG Service listening on http://127.0.0.1:49510
+```
+
+This matters because a bind to an occupied port can *appear* to succeed on Windows when both
+sockets carry `SO_REUSEADDR`, which would leave the reviewer looking at somebody else's
+application. The port is therefore probed before binding, and a taken port is skipped.
 
 ## What you get
 
@@ -28,8 +43,8 @@ Python 3.11+ and nothing else. Regenerating the corpus is possible
 Example:
 
 ```bash
-curl -s http://127.0.0.1:8124/api/health
-curl -s -X POST http://127.0.0.1:8124/api/ask \
+curl -s http://127.0.0.1:8174/api/health
+curl -s -X POST http://127.0.0.1:8174/api/ask \
   -H 'Content-Type: application/json' \
   -d '{"question":"How many days of annual leave do full-time employees accrue?"}'
 ```

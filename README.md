@@ -116,7 +116,7 @@ harness/             the AI working harness: RULES.md, ROLES.md, skills/
 ## 7. Quickstart
 
 ```bash
-python scripts/start.py              # serves the API + UI on http://127.0.0.1:8124
+python scripts/start.py              # serves the API + UI on http://127.0.0.1:8174
 ```
 
 One command: the corpus is generated deterministically, indexed in memory (~19 ms measured),

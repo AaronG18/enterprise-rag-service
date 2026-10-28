@@ -155,6 +155,72 @@ class TestAsk(_ServerFixture):
         self.assertNotIn("Traceback", json.dumps(result))
 
 
+class TestPortFallback(unittest.TestCase):
+    """A busy port must never leave the reviewer looking at a different application."""
+
+    def _serve_on(self, port: int, occupy: bool):
+        """Start our server on `port`. With `occupy=True`, another local service holds the port
+        first - including SO_REUSEADDR, which mirrors a real service (Node sets it) and is the
+        case where a plain bind succeeds but the traffic goes elsewhere."""
+        import socket
+        import threading
+        from http.server import ThreadingHTTPServer
+
+        blocker = None
+        if occupy:
+            blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            blocker.bind(("127.0.0.1", port))
+            blocker.listen(1)
+
+        server = ApiServer(ROOT, host="127.0.0.1", port=port, cache_enabled=False)
+        httpd = server.start()
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        return blocker, httpd, thread, httpd.server_address[1]
+
+    def test_taken_port_is_skipped_and_our_service_answers(self):
+        import json
+        import socket
+        import urllib.request
+
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.bind(("127.0.0.1", 0))
+        busy_port = probe.getsockname()[1]
+        probe.close()
+
+        blocker, httpd, thread, actual = self._serve_on(busy_port, occupy=True)
+        try:
+            self.assertNotEqual(actual, busy_port)
+            with urllib.request.urlopen("http://127.0.0.1:%d/api/health" % actual, timeout=15) as r:
+                health = json.loads(r.read().decode("utf-8"))
+            self.assertEqual(health["status"], "ok")
+            self.assertEqual(health["provider"], "deterministic")
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=3)
+            blocker.close()
+
+    def test_free_port_is_used_as_requested(self):
+        import socket
+
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.bind(("127.0.0.1", 0))
+        free_port = probe.getsockname()[1]
+        probe.close()
+
+        blocker, httpd, thread, actual = self._serve_on(free_port, occupy=False)
+        try:
+            self.assertEqual(actual, free_port)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=3)
+            if blocker is not None:
+                blocker.close()
+
+
 class TestKeySafety(_ServerFixture):
     def test_api_key_never_appears_in_logs(self):
         secret = "sk-super-secret-value-1234567890"

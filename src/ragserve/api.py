@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import os
+import errno
 import threading
 import time
 import urllib.parse
@@ -235,6 +236,23 @@ class ApiServer:
         """Bind the HTTP server without blocking. Returns the httpd so callers can stop it."""
         return self._build_httpd()
 
+    def _port_available(self, port: int) -> bool:
+        """Probe the port before binding.
+
+        Binding alone is not a sufficient test: on Windows, when both sockets carry
+        SO_REUSEADDR (which http.server sets), a bind to a port another service is actively
+        listening on can *succeed* - and then the requests go to the other service while this
+        one believes it owns the address. That is exactly how a reviewer ends up looking at a
+        different application. So the port is probed first, and a taken port is skipped.
+        """
+        import socket
+
+        if port <= 0:
+            return True
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            probe.settimeout(0.5)
+            return probe.connect_ex((self.host, port)) != 0
+
     def _build_httpd(self):
         server = self
         server = self
@@ -315,7 +333,19 @@ class ApiServer:
                 status = 200 if "error" not in result else 503
                 self._json(status, result)
 
-        httpd = ThreadingHTTPServer((self.host, self.port), Handler)
+        if not self._port_available(self.port):
+            # A busy port must never kill the service or, worse, leave the reviewer looking at
+            # another application that already owns the address. Bind a free port instead.
+            print("port %d is already in use by another service on this machine" % self.port)
+            self.port = 0
+
+        try:
+            httpd = ThreadingHTTPServer((self.host, self.port), Handler)
+        except OSError as exc:
+            if exc.errno not in (errno.EADDRINUSE, getattr(errno, "WSAEADDRINUSE", 10048)):
+                raise
+            print("port %d is already in use by another service on this machine" % self.port)
+            httpd = ThreadingHTTPServer((self.host, 0), Handler)
         httpd.daemon_threads = True
         self.httpd = httpd
         return httpd
