@@ -63,7 +63,10 @@ jobs:
             echo "::error::credential-shaped string in tracked content"
             exit 1
           fi
-          offenders=$(git ls-files | grep -E '(^|/)_[^/]*\.(py|txt|json)$|(^|/)scratch/|\.tmp$|^_msg\.txt$' || true)
+          # The second character must not be an underscore: otherwise `__init__.py` matches
+          # (a leading `_` plus `[^/]*`), and the gate fails on a legitimate package marker.
+          # Found by the gate itself during the SUB 59 demo.
+          offenders=$(git ls-files | grep -E '(^|/)_[^_/][^/]*\.(py|txt|json)$|(^|/)scratch/|\.tmp$|^_msg\.txt$' || true)
           if [ -n "$offenders" ]; then
             echo "::error::scratch files tracked: $offenders"
             exit 1
