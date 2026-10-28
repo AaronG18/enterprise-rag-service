@@ -80,6 +80,50 @@ PUT  /pulls/63/merge -> 200 {"merged": true, "sha": "b6597a8"}
 
 So the enforced rule now reads exactly as intended: **red blocks the merge, green allows it**.
 
+## How fast the gate is, and why it is fast enough
+
+The gate is the thing every pull request waits for, so its runtime is part of its design.
+
+| Stage | Before | After | How |
+|---|---|---|---|
+| hermetic suite (160 tests) | 24.4 s | **7.8 s** | the test classes run in parallel worker processes with work stealing |
+| the three generators (eval, bench, diagnosis) | 3.4 s | **1.5 s** | they are independent, so they run concurrently |
+| the requirement rows | one process per test row | **one shared run** | all test rows read one machine-readable report |
+
+Two design decisions matter:
+
+* **Work stealing, not static partitioning.** The suite's cost is concentrated in four classes
+  (each starts a server or runs the whole evaluation). A fixed split puts the slow classes in
+  one worker while the others idle; pulling classes off a shared list makes the wall-clock time
+  approach the slowest single class. The claim is atomic (exclusive file creation), so no class
+  is run twice or left unrun.
+* **One test run, many rows.** Ten requirement rows used to start ten interpreters, each paying
+  for test discovery. They now share a single `--json` run and ask it per-class verdicts.
+
+Measured on this machine (8 cores): 1 worker 24.4 s, 4 workers 9.0 s, 6 workers 6.5 s, 8 workers
+6.5 s. The default is `min(6, cpu_count)`; beyond six the discovery overhead cancels the gain.
+
+Two properties are preserved on purpose: the report is in manifest order regardless of which
+row finished first, and concurrency never changes a verdict (a test asserts that the parallel
+and serial runs report the same tests).
+
+## A fourth defect the speed-up found: rows that passed without running anything
+
+While measuring, seven of the seventeen test selections in the manifest were found to match
+**zero** tests - `unittest` exits 0 when a filter matches nothing, so those requirement rows
+were passing while asserting nothing. The names were also wrong (`TestGrounding` instead of
+`TestGroundedAnswers`).
+
+Fixed on both sides:
+
+* the runner now reports per-class results (`--json --classes ...`) and **fails when a requested
+  class does not exist**, instead of running an empty selection;
+* the manifest names real classes, and each row now reports how many tests it actually ran
+  (`R-08  PASS TestGroundedAnswers: 5 test(s) passed`).
+
+A requirement row that cannot find its evidence is now a failure, which is the whole point of a
+gate.
+
 ## What the gate cannot prove
 
 * **That a test failed before the fix** (RULES R4). CI can only observe the final state. The

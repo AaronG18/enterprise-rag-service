@@ -179,7 +179,13 @@ def build_corpus(config: CorpusConfig | None = None) -> BuiltCorpus:
 
 
 def write_artifacts(corpus: BuiltCorpus, root: str) -> Dict[str, str]:
-    """Write documents.jsonl / chunks.jsonl / manifest.json under `root/corpus/<version>`."""
+    """Write documents.jsonl / chunks.jsonl / manifest.json under `root/corpus/<version>`.
+
+    Writes are atomic (temp file + os.replace): the CI gate runs the evaluation, benchmark and
+    diagnosis generators concurrently, and all three rebuild the same corpus. A plain
+    `open(path, "w")` truncates before it writes, so two writers can interleave and leave a torn
+    artifact - and a torn artifact is silently wrong evidence.
+    """
     target = os.path.join(root, "corpus", str(corpus.manifest["corpus_version"]))
     os.makedirs(target, exist_ok=True)
     paths = {
@@ -187,14 +193,28 @@ def write_artifacts(corpus: BuiltCorpus, root: str) -> Dict[str, str]:
         "chunks": os.path.join(target, "chunks.jsonl"),
         "manifest": os.path.join(target, "manifest.json"),
     }
-    with open(paths["documents"], "w", encoding="utf-8", newline="\n") as fh:
-        for doc in sorted(corpus.documents, key=lambda d: d.doc_id):
-            fh.write(json.dumps(document_to_dict(doc), ensure_ascii=False, sort_keys=True) + "\n")
-    with open(paths["chunks"], "w", encoding="utf-8", newline="\n") as fh:
-        for chunk in sorted(corpus.chunks, key=lambda c: c.chunk_id):
-            fh.write(json.dumps(chunk_to_dict(chunk), ensure_ascii=False, sort_keys=True) + "\n")
-    with open(paths["manifest"], "w", encoding="utf-8", newline="\n") as fh:
-        json.dump(corpus.manifest, fh, ensure_ascii=False, sort_keys=True, indent=2)
-        fh.write("\n")
+    _atomic_write_lines(paths["documents"],
+                         [json.dumps(document_to_dict(doc), ensure_ascii=False, sort_keys=True)
+                          for doc in sorted(corpus.documents, key=lambda d: d.doc_id)])
+    _atomic_write_lines(paths["chunks"],
+                         [json.dumps(chunk_to_dict(chunk), ensure_ascii=False, sort_keys=True)
+                          for chunk in sorted(corpus.chunks, key=lambda c: c.chunk_id)])
+    _atomic_write_json(paths["manifest"], corpus.manifest)
     paths["dir"] = target
     return paths
+
+
+def _atomic_write_lines(path: str, lines) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
+        for line in lines:
+            fh.write(line + "\n")
+    os.replace(tmp, path)
+
+
+def _atomic_write_json(path: str, payload) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(payload, fh, ensure_ascii=False, sort_keys=True, indent=2)
+        fh.write("\n")
+    os.replace(tmp, path)
