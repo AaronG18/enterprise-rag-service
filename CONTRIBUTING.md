@@ -7,10 +7,30 @@ no issue describing it, the change does not exist yet.
 
 ```
 open/refine issue  ->  branch  ->  test first (red)  ->  implement (green)
-      ->  commit with issue ref  ->  paste evidence into the issue  ->  close
+      ->  commit with issue ref  ->  push  ->  PR  ->  harness gate green
+      ->  paste evidence into the issue  ->  close
 ```
 
 Every step is mandatory. Skipping the "paste evidence" step means the branch stays open.
+
+## 1a. The harness gate
+
+`main` is protected. A change reaches it only through a pull request whose checks are green:
+
+| Check | What it proves |
+|---|---|
+| `requirements-gate` | every row in `harness/requirements.toml` verified; failures are reported by row ID |
+| `contract-gate` | hermetic tests, no scratch files, no credential shapes, publishable content, standard-library-only shipped code |
+| `pr-hygiene` | branch name shape, every commit references an issue, PR body carries the evidence block |
+
+Reproduce the gate locally before pushing:
+
+```bash
+python scripts/verify_requirements.py     # the full gate, ~17 s
+```
+
+A red gate is the loop working. Fix on the branch and push again; do not weaken the gate to get
+green - if a row is wrong, that is its own issue with its own evidence.
 
 ## 2. Issue tree structure
 

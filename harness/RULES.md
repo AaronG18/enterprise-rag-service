@@ -81,6 +81,35 @@ merge. Reviews that have to ask "is this intentional?" are reviews that failed.
 Scratch scripts, temp dumps, one-off probes: deleted before the commit. If a script earned
 its keep, it goes in `scripts/` with a test and a line in `PROJECT.md`.
 
+## R14 - Branch and PR, never direct to main
+
+Every change lands through a branch named `<type>/<issue>-<slug>` (e.g. `feature/57-cache-eviction`)
+and a pull request. Direct commits to `main` are not part of the workflow: `main` is protected and
+requires the harness checks. A branch that cannot be merged yet is the expected state while work
+is in progress - fix on the branch, push, re-run.
+
+## R15 - The harness gate is the definition of done
+
+`harness/requirements.toml` lists every requirement with its verification. A change is not done
+because the author says so; it is done when `.github/workflows/harness.yml` is green:
+
+* `requirements-gate` - every row verified, failing rows reported by ID
+* `contract-gate` - tests, tree hygiene (no scratch files, no credential shapes), publishable
+  content, standard-library-only shipped code
+* `pr-hygiene` - branch name shape, every commit references an issue, PR body carries the
+  evidence block
+
+What the gate **cannot** prove, and therefore what still requires a human or a separate agent:
+that the test failed before the fix (R4), and that the doer did not grade the doing (R5). Those
+are quoted in the PR body, not inferred by CI.
+
+## R16 - The gate itself is code, and code needs tests
+
+Changes to `harness/requirements.toml`, the verifier or the workflow require their own issue and
+tests, like any other change. A gate that cannot fail is decoration; a gate that fails for the
+wrong reason is worse than none. A new row must be red before it is green - the demo in SUB 58
+exists to prove exactly that.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or
@@ -120,5 +149,8 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 | R9 | review | mixed-purpose commit |
 | R10 | diff review | `_tmp.py` in the tree |
 | R11 | EPIC #10 retro | repeated incident with no rule change |
+| R14 | branch protection + `pr-hygiene` job | a commit landing on `main` without a branch |
+| R15 | `.github/workflows/harness.yml` | a merged PR whose harness checks were red or absent |
+| R16 | `tests/test_requirements_gate.py` | a manifest row added with no failing state first |
 | R12 | metric review + `docs/metrics/` | a target that is unreachable by construction |
 | R13 | replay harness (`scripts/diagnose.py`) | improvement claimed with no reproducing command |

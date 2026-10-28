@@ -85,9 +85,6 @@ jobs:
           # R7: the default path must run on a cold clone with no package index access.
           python - <<'PY'
           import ast, pathlib, sys
-          stdlib_ok = {
-              "antd",  # not python: guarded below, this set is python-side only
-          }
           allowed_roots = set(sys.stdlib_module_names) | {"ragserve"}
           offenders = []
           for path in pathlib.Path("src").rglob("*.py"):
@@ -134,16 +131,24 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          if [ -z "${BASE_SHA:-}" ]; then BASE_SHA=$(git rev-list --max-parents=0 HEAD | head -1); fi
+          # On a PR, compare against the base branch. On a branch push, compare against the
+          # merge-base with main, so only the commits this branch introduces are checked -
+          # history written before the rule existed is not this change's fault.
+          if [ -n "${BASE_SHA:-}" ]; then
+            range="$BASE_SHA..$HEAD_SHA"
+          else
+            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-list --max-parents=0 HEAD | head -1)
+            range="$base..HEAD"
+          fi
           missing=0
-          for sha in $(git rev-list "$BASE_SHA..$HEAD_SHA" 2>/dev/null || git rev-list HEAD); do
+          for sha in $(git rev-list "$range"); do
             subject=$(git log -1 --format=%s "$sha")
             if ! echo "$subject" | grep -Eq '^#[0-9]+[ :]'; then
               echo "::error::commit ${sha:0:7} does not start with an issue reference: $subject"
               missing=1
             fi
           done
-          [ "$missing" -eq 0 ] && echo "every commit references an issue"
+          [ "$missing" -eq 0 ] && echo "every commit on this change references an issue"
 
       - name: PR body carries the evidence block
         if: github.event_name == 'pull_request'

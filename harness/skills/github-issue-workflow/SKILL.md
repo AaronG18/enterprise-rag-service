@@ -66,12 +66,29 @@ Impact: closes the loop on acceptance criterion 2 of EPIC #3.
 
 Do not summarise output into prose. Paste it.
 
-## Step 5 - Close
+## Step 5 - Branch, PR, gate, close
 
 An issue may close only when: its own criteria all pass, every child issue is closed (for
 EPICs), and the evidence comment above exists. A partial win gets a new child issue, not a
 close. If reality changed and the goal is no longer correct, close it **with a stated
 reason**, never silently.
+
+The change reaches `main` through a branch and a PR, and the harness gate decides when it is
+done:
+
+```bash
+git switch -c feature/57-cache-eviction      # <type>/<issue>-<slug>, always
+# ... work, commits each starting with "#57 "
+git push -u origin feature/57-cache-eviction
+gh pr create --base main --fill              # body must carry the evidence block
+```
+
+Then iterate **on the branch** until `.github/workflows/harness.yml` is green:
+`requirements-gate`, `contract-gate`, `pr-hygiene`. A red gate is the loop working, not an
+obstacle - read the failing row ID, fix it, push again. `main` is protected, so a green gate is
+the only way in.
+
+## Gotchas
 
 ## Gotchas
 
@@ -91,6 +108,14 @@ reason**, never silently.
 * **A "no company names" guard can itself leak one.** A CI scan pattern that literally spells the
   internal classification marker defeats its own purpose. Match the generic **shape**
   (`[<Word> - INTERNAL]`, `MSIP_Label_<guid>_`) and never the real string.
+* **On a branch push, check only the branch's own commits.** Comparing against the repository
+  root makes history written before the rule existed fail the gate. Use
+  `git merge-base origin/main HEAD` as the range base.
+* **`run_tests.py -k` takes one substring.** A verification row that needs several test classes
+  is a list in `harness/requirements.toml` (`tests = [...]`), not one `-k` with several names.
+* **A metric row must name its section.** Eval metrics live under `comparison` (per
+  configuration) or `operations`; bench artefacts are flat. Guessing reads a stale or absent key
+  and reports a failure that is not real.
 
 ## Related
 
