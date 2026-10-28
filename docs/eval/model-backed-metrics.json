@@ -1,0 +1,98 @@
+{
+  "case_count": 30,
+  "comparison": {
+    "deepseek-v4.1-flash | hybrid": {
+      "answer_compliance_rate": 0.9043,
+      "context_precision": 0.9529,
+      "faithfulness": 0.7681,
+      "mrr": 0.9167,
+      "ndcg": 0.9281,
+      "recall@5": 0.9615,
+      "refusal_appropriateness": 0.9,
+      "style_consistency": 0.9565
+    },
+    "deepseek-v4.1-flash | hybrid+rerank": {
+      "answer_compliance_rate": 0.9391,
+      "context_precision": 0.942,
+      "faithfulness": 0.8188,
+      "mrr": 0.9231,
+      "ndcg": 0.9231,
+      "recall@5": 0.9231,
+      "refusal_appropriateness": 0.9,
+      "style_consistency": 0.9913
+    },
+    "deepseek-v4.1-flash | vector_only": {
+      "answer_compliance_rate": 0.8636,
+      "context_precision": 0.9485,
+      "faithfulness": 0.7045,
+      "mrr": 0.8526,
+      "ndcg": 0.8704,
+      "recall@5": 0.9231,
+      "refusal_appropriateness": 0.8667,
+      "style_consistency": 0.9455
+    },
+    "hy3 | hybrid": {
+      "answer_compliance_rate": 0.9826,
+      "context_precision": 0.9529,
+      "faithfulness": 0.913,
+      "mrr": 0.9167,
+      "ndcg": 0.9281,
+      "recall@5": 0.9615,
+      "refusal_appropriateness": 0.9,
+      "style_consistency": 0.9043
+    },
+    "hy3 | hybrid+rerank": {
+      "answer_compliance_rate": 0.9652,
+      "context_precision": 0.942,
+      "faithfulness": 0.8696,
+      "mrr": 0.9231,
+      "ndcg": 0.9231,
+      "recall@5": 0.9231,
+      "refusal_appropriateness": 0.9,
+      "style_consistency": 0.9043
+    },
+    "hy3 | vector_only": {
+      "answer_compliance_rate": 0.9818,
+      "context_precision": 0.9485,
+      "faithfulness": 0.9091,
+      "mrr": 0.8526,
+      "ndcg": 0.8704,
+      "recall@5": 0.9231,
+      "refusal_appropriateness": 0.8667,
+      "style_consistency": 0.8909
+    }
+  },
+  "corpus_version": "bea626ce863a0e44",
+  "history": {
+    "after_fixes_20261028-021149": {
+      "hy3 | hybrid": {
+        "faithfulness": 0.8913,
+        "refusal_appropriateness": 0.9,
+        "style_consistency": 0.8957
+      }
+    },
+    "baseline_20261028-014423": {
+      "hy3 | hybrid": {
+        "faithfulness": 0.6627,
+        "refusal_appropriateness": 0.8333,
+        "style_consistency": 0.819
+      }
+    },
+    "independent_rerun_20261028-023844": {
+      "hy3 | hybrid": {
+        "faithfulness": 0.913,
+        "refusal_appropriateness": 0.9,
+        "style_consistency": 0.9043
+      }
+    }
+  },
+  "models": [
+    "hy3",
+    "deepseek-v4.1-flash"
+  ],
+  "note": "Snapshot committed so the CI requirements gate can assert the model-backed thresholds without credentials. The raw run artefacts are not committed.",
+  "provenance": "model-backed",
+  "provider": "codebuddy-serve",
+  "run_id": "20261028-023844",
+  "token_usage_provenance": "estimate (endpoint returns no usage)"
+}

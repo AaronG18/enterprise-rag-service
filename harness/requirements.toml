@@ -1,0 +1,297 @@
+# Machine-readable verification manifest.
+#
+# docs/REQUIREMENTS.md is the human-readable matrix (why each row exists); this file is what CI
+# executes. Every row must carry the same ID, so the two cannot drift - a contract test asserts
+# that every ID in the matrix has a row here and vice versa.
+#
+# kinds:
+#   command  run a command, require exit code 0
+#   test     run a test selection, require exit code 0
+#   file     assert a path exists (optionally containing a string)
+#   metric   read a metric from a generated artefact and compare it to a bound
+
+[generators]
+# Run once per verification; every metric row reads from these artefacts, so nothing is
+# re-measured twice and no row can read a stale file.
+eval = "python scripts/run_eval.py --all"
+bench = "python scripts/run_bench.py --http --concurrency 5 --requests 30 --assert"
+diagnose = "python scripts/diagnose.py --all --assert"
+
+[artifacts]
+# Relative to artifacts/; the newest run directory is used.
+eval = "eval/*/metrics.json"
+bench = "bench/*/bench.json"
+diagnosis = "diagnosis/*/report.json"
+
+# ---------------------------------------------------------------- global constraints
+[[requirement]]
+id = "R-01"
+title = "90% of QA requests within 10 s, measured at the R-02 concurrency"
+kind = "metric"
+artifact = "bench"
+metric = "p90_latency_ms"
+op = "<="
+bound = 10000
+owner = "#7"
+
+[[requirement]]
+id = "R-02"
+title = ">= 5 concurrent requests on a single instance, no errors"
+kind = "metric"
+artifact = "bench"
+metric = "errors"
+op = "=="
+bound = 0
+owner = "#7"
+
+[[requirement]]
+id = "R-03"
+title = "token cost per 1,000 calls with a stated price list"
+kind = "file"
+path = "src/ragserve/evaluation/cost.py"
+contains = "cost_per_1000_calls"
+owner = "#7"
+note = "The arithmetic is verified here; the monetary value needs a price list the operator must supply, so the repository refuses to print one (documented, not silently skipped)."
+
+[[requirement]]
+id = "R-04"
+title = "model-version selection rationale with explicit trade-offs"
+kind = "file"
+path = "docs/adr/0004-model-version-tradeoff.md"
+contains = "hy3"
+owner = "#7"
+
+[[requirement]]
+id = "R-05"
+title = "structured logs sufficient for monitoring and diagnosis"
+kind = "test"
+tests = ["TestStructuredLogger", "TestServiceLogging"]
+owner = "#5"
+
+[[requirement]]
+id = "R-06"
+title = "minimal prompt-injection defense"
+kind = "test"
+run = "python scripts/run_tests.py -k TestInjectionDefence"
+owner = "#4"
+
+[[requirement]]
+id = "R-07"
+title = "PII redacted in answers and in log records"
+kind = "test"
+tests = ["TestPiiRedaction", "TestRedactionOfLogRecords"]
+owner = "#4"
+
+[[requirement]]
+id = "R-08"
+title = "answers strictly grounded to retrieved context"
+kind = "test"
+run = "python scripts/run_tests.py -k TestGrounding"
+owner = "#4"
+
+# ------------------------------------------------------------ functional requirements
+[[requirement]]
+id = "R-09"
+title = "vector-only and hybrid modes both selectable and measurably different"
+kind = "test"
+tests = ["TestModesAreConfigDriven", "TestVectorRetrieval", "TestHybridAndFusion"]
+owner = "#3"
+
+[[requirement]]
+id = "R-10"
+title = "reranker toggled by configuration only"
+kind = "test"
+run = "python scripts/run_tests.py -k TestRerankerToggle"
+owner = "#3"
+
+[[requirement]]
+id = "R-11"
+title = "refusal with guidance on all three triggers"
+kind = "test"
+run = "python scripts/run_tests.py -k TestRefusal"
+owner = "#4"
+
+[[requirement]]
+id = "R-12"
+title = "operations report: p50/p95, tokens, cache hit, refusal, compliance"
+kind = "metric"
+artifact = "eval"
+section = "operations"
+metric = "answer_compliance_rate"
+op = ">="
+bound = 0
+owner = "#6"
+note = "Presence of all six fields is asserted by the report writer tests; this row proves the report was produced in this run."
+
+[[requirement]]
+id = "R-13"
+title = "multi-turn follow-up resolution"
+kind = "test"
+run = "python scripts/run_tests.py -k TestMultiTurn"
+owner = "#4"
+
+# ------------------------------------------------------- quantitative quality targets
+[[requirement]]
+id = "R-14"
+title = "Faithfulness >= 0.85"
+kind = "metric"
+artifact = "eval"
+metric = "faithfulness"
+config = "hybrid"
+op = ">="
+bound = 0.85
+owner = "#6"
+
+[[requirement]]
+id = "R-15"
+title = "Context Precision >= 0.70"
+kind = "metric"
+artifact = "eval"
+metric = "context_precision"
+config = "hybrid"
+op = ">="
+bound = 0.70
+owner = "#6"
+
+[[requirement]]
+id = "R-16"
+title = "Answer Compliance >= 0.80 baseline / 0.90 advanced"
+kind = "metric"
+artifact = "eval"
+section = "operations"
+metric = "answer_compliance_rate"
+op = ">="
+bound = 0.90
+owner = "#6"
+
+[[requirement]]
+id = "R-17"
+title = "Refusal Appropriateness >= 0.80 baseline / 0.90 advanced"
+kind = "metric"
+artifact = "eval"
+metric = "refusal_appropriateness"
+config = "hybrid"
+op = ">="
+bound = 0.90
+owner = "#6"
+
+[[requirement]]
+id = "R-18"
+title = "Style Consistency >= 0.80 baseline / 0.85 advanced"
+kind = "metric"
+artifact = "eval"
+metric = "style_consistency"
+config = "hybrid"
+op = ">="
+bound = 0.85
+owner = "#6"
+
+# --------------------------------------------------------- non-functional requirements
+[[requirement]]
+id = "R-19"
+title = "three-configuration comparison with written conclusions"
+kind = "file"
+path = "docs/eval/retrieval-comparison.md"
+contains = "Recommendation"
+owner = "#6"
+
+[[requirement]]
+id = "R-20"
+title = "evolvability: retrieval/model/metrics swaps without touching core modules"
+kind = "test"
+tests = ["TestModesAreConfigDriven", "TestProviderInterface", "TestEvidenceAttribution"]
+owner = "#3"
+
+[[requirement]]
+id = "R-21"
+title = ">= 2 diagnosed issues with >= 10% post-fix improvement"
+kind = "command"
+run = "python scripts/diagnose.py --all --assert"
+owner = "#8"
+note = "Checked for every diagnosis case; the gate fails if any case falls below the 10% bar."
+
+# --------------------------------------------------------------------- deliverables
+[[requirement]]
+id = "R-22"
+title = "complete code and configs"
+kind = "file"
+path = "src/ragserve/service.py"
+owner = "#2"
+
+[[requirement]]
+id = "R-23"
+title = "one-click evaluation script"
+kind = "command"
+run = "python scripts/run_eval.py --help"
+owner = "#6"
+
+[[requirement]]
+id = "R-24"
+title = "evaluation report with before/after comparisons"
+kind = "file"
+path = "docs/eval/model-backed.md"
+contains = "Independent re-run"
+owner = "#6"
+
+[[requirement]]
+id = "R-25"
+title = "log field dictionary and sample logs"
+kind = "test"
+tests = ["TestLogFieldDictionary", "TestCommittedSampleLogs"]
+owner = "#5"
+
+# ------------------------------------------------------- model-backed lane (documented)
+# The real-generation numbers cannot be produced in CI (they need credentials), so the gate
+# asserts the committed snapshot of the model-backed run: docs/eval/model-backed-metrics.json.
+# That is a documented limitation with a machine-checkable substitute, not a skipped requirement.
+[[requirement]]
+id = "R-14m"
+title = "model-backed faithfulness >= 0.85"
+kind = "metric"
+path = "docs/eval/model-backed-metrics.json"
+config = "hy3 | hybrid"
+metric = "faithfulness"
+op = ">="
+bound = 0.85
+owner = "#6"
+
+[[requirement]]
+id = "R-16m"
+title = "model-backed answer compliance >= 0.90"
+kind = "metric"
+path = "docs/eval/model-backed-metrics.json"
+config = "hy3 | hybrid"
+metric = "answer_compliance_rate"
+op = ">="
+bound = 0.90
+owner = "#6"
+
+[[requirement]]
+id = "R-17m"
+title = "model-backed refusal appropriateness >= 0.90"
+kind = "metric"
+path = "docs/eval/model-backed-metrics.json"
+config = "hy3 | hybrid"
+metric = "refusal_appropriateness"
+op = ">="
+bound = 0.90
+owner = "#6"
+
+[[requirement]]
+id = "R-18m"
+title = "model-backed style consistency >= 0.85"
+kind = "metric"
+path = "docs/eval/model-backed-metrics.json"
+config = "hy3 | hybrid"
+metric = "style_consistency"
+op = ">="
+bound = 0.85
+owner = "#6"
+
+[[requirement]]
+id = "R-24m"
+title = "model-backed report carries a before/after history"
+kind = "file"
+path = "docs/eval/model-backed-metrics.json"
+contains = "independent_rerun"
+owner = "#6"

@@ -1,0 +1,161 @@
+name: harness
+
+# The harness gate: every branch push and every pull request.
+#
+# This workflow enforces the rules that harness/RULES.md states in prose - issue traceability,
+# evidence in the PR body, no scratch files, publishable content, and every requirement row in
+# harness/requirements.toml verified. A rule that only exists in a document is a rule that fails
+# exactly when attention is lowest, so the enforceable ones live here.
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  requirements-gate:
+    name: requirements-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: No third-party packages needed
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Verify every requirement row
+        run: python scripts/verify_requirements.py
+
+      - name: Upload the verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: requirements-verification-${{ github.sha }}
+          path: artifacts/verify/
+          retention-days: 30
+
+  contract-gate:
+    name: contract-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Hermetic test suite
+        run: python scripts/run_tests.py
+
+      - name: Tree hygiene - no scratch or temp files
+        run: |
+          set -euo pipefail
+          # R10: scratch scripts are deleted before the commit. These shapes are the ones that
+          # actually leaked during development (a commit-message file in the repo root).
+          if git grep -nIE '^(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,})' -- . ; then
+            echo "::error::credential-shaped string in tracked content"
+            exit 1
+          fi
+          offenders=$(git ls-files | grep -E '(^|/)_[^/]*\.(py|txt|json)$|(^|/)scratch/|\.tmp$|^_msg\.txt$' || true)
+          if [ -n "$offenders" ]; then
+            echo "::error::scratch files tracked: $offenders"
+            exit 1
+          fi
+          echo "tree clean"
+
+      - name: Publishable content - no classification marker shapes
+        run: |
+          set -euo pipefail
+          if git grep -nIEi '\[[A-Za-z0-9]+ - (INTERNAL|RESTRICTED|CONFIDENTIAL)\]|MSIP_Label_[0-9a-f-]{36}_' -- . ; then
+            echo "::error::internal classification marker shape found"
+            exit 1
+          fi
+          echo "clean"
+
+      - name: Hermetic - no third-party imports in shipped code
+        run: |
+          set -euo pipefail
+          # R7: the default path must run on a cold clone with no package index access.
+          python - <<'PY'
+          import ast, pathlib, sys
+          stdlib_ok = {
+              "antd",  # not python: guarded below, this set is python-side only
+          }
+          allowed_roots = set(sys.stdlib_module_names) | {"ragserve"}
+          offenders = []
+          for path in pathlib.Path("src").rglob("*.py"):
+              tree = ast.parse(path.read_text(encoding="utf-8"))
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.Import):
+                      names = [alias.name.split(".")[0] for alias in node.names]
+                  elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                      names = [node.module.split(".")[0]]
+                  else:
+                      continue
+                  for name in names:
+                      if name not in allowed_roots:
+                          offenders.append("%s imports %s" % (path, name))
+          if offenders:
+              print("\n".join(offenders))
+              sys.exit(1)
+          print("shipped code uses the standard library and ragserve only")
+          PY
+
+  pr-hygiene:
+    name: pr-hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Branch name carries an issue number
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          if ! echo "$HEAD_REF" | grep -Eq '^[a-z]+/[0-9]+-[a-z0-9-]+$'; then
+            echo "::error::branch '$HEAD_REF' must look like <type>/<issue>-<slug>, e.g. feature/57-cache-eviction"
+            exit 1
+          fi
+          echo "branch name ok: $HEAD_REF"
+
+      - name: Every commit references an issue
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE_SHA:-}" ]; then BASE_SHA=$(git rev-list --max-parents=0 HEAD | head -1); fi
+          missing=0
+          for sha in $(git rev-list "$BASE_SHA..$HEAD_SHA" 2>/dev/null || git rev-list HEAD); do
+            subject=$(git log -1 --format=%s "$sha")
+            if ! echo "$subject" | grep -Eq '^#[0-9]+[ :]'; then
+              echo "::error::commit ${sha:0:7} does not start with an issue reference: $subject"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] && echo "every commit references an issue"
+
+      - name: PR body carries the evidence block
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          fail=0
+          for needle in "## Evidence" "Commands" "provenance"; do
+            if ! echo "$PR_BODY" | grep -qi "$needle"; then
+              echo "::error::PR body is missing the '$needle' section required by harness/RULES.md R2"
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ] && echo "PR body carries the evidence block"

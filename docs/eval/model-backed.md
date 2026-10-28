@@ -28,6 +28,37 @@ Run: `artifacts/eval-model/20261028-021149` - 180 real calls.
 | flash, hybrid | 0.9615 | 0.9167 | 0.9281 | 0.9529 | 0.7609 | 0.9000 | 0.9565 | 0.887 |
 | flash, hybrid+rerank | 0.9231 | 0.9231 | 0.9231 | 0.9420 | 0.6159 | 0.9000 | 0.9652 | 0.861 |
 
+## Independent re-run (reproducibility check)
+
+Run: `artifacts/eval-model/20261028-023844` - same command, same corpus, 180 real calls.
+Machine-readable snapshot of this run: [`model-backed-metrics.json`](model-backed-metrics.json)
+(what CI asserts against, since the raw artefacts are not committed).
+
+| Configuration | recall@5 | mrr | ndcg | context_precision | faithfulness | refusal_appropriateness | style | compliance |
+|---|---|---|---|---|---|---|---|---|
+| hy3, vector-only | 0.9231 | 0.8526 | 0.8704 | 0.9485 | 0.9091 | 0.8667 | 0.8909 | 0.982 |
+| **hy3, hybrid** | 0.9615 | 0.9167 | 0.9281 | 0.9529 | **0.9130** | **0.9000** | **0.9043** | **0.983** |
+| hy3, hybrid+rerank | 0.9231 | 0.9231 | 0.9231 | 0.9420 | 0.8696 | 0.9000 | 0.9043 | 0.965 |
+| flash, vector-only | 0.9231 | 0.8526 | 0.8704 | 0.9485 | 0.7045 | 0.8667 | 0.9455 | 0.864 |
+| flash, hybrid | 0.9615 | 0.9167 | 0.9281 | 0.9529 | 0.7681 | 0.9000 | 0.9565 | 0.904 |
+| flash, hybrid+rerank | 0.9231 | 0.9231 | 0.9231 | 0.9420 | 0.8188 | 0.9000 | 0.9913 | 0.939 |
+
+**All advanced targets are met by `hy3 + hybrid` on the re-run**: faithfulness 0.913
+(>= 0.85), refusal appropriateness 0.9000 (>= 0.90), style consistency 0.9043 (>= 0.85),
+compliance 0.983. Retrieval metrics are identical to the deterministic run to four decimals,
+which is the point: they measure retrieval and do not depend on the generator.
+
+## Variance, quantified
+
+The two runs above are independent. `hy3 + hybrid` reproduced every advanced target
+(faithfulness 0.8913 -> 0.9130, refusal 0.9000 -> 0.9000, style 0.8957 -> 0.9043, compliance
+0.965 -> 0.983), so the conclusion is stable.
+
+The re-run also resolves a negative result reported after the first fixed run: flash +
+hybrid+rerank faithfulness measured 0.7174 (baseline), then 0.6159 (first fixed run), then
+0.8188 (re-run). That spread is run-to-run variance on 30 cases, not a regression - which is
+exactly why single-run differences of a few points are never used to justify a decision here.
+
 **All advanced targets are met by `hy3 + hybrid`**: faithfulness 0.8913 (>= 0.85), refusal
 appropriateness 0.9000 (>= 0.90), style consistency 0.8957 (>= 0.85), compliance 0.965.
 

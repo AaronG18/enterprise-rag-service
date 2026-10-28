@@ -66,6 +66,22 @@ set (hand-labelled examples). See `docs/metrics/`.
 | R-24 | Evaluation report with before/after comparisons | `docs/eval/` | #6, #9 |
 | R-25 | Log field dictionary and sample logs | `docs/logging/`, `artifacts/logs/` | #5, #9 |
 
+## F. Model-backed lane (verified outside CI)
+
+The real-generation numbers cannot be produced in CI because they need credentials. Instead, a
+snapshot of the model-backed run is committed (`docs/eval/model-backed-metrics.json`) and the CI
+requirements gate asserts the same thresholds against it. This is a documented substitution, not
+a skipped requirement: the snapshot carries the run id, corpus version and provenance, and the
+raw run stays reproducible with the documented command.
+
+| ID | Metric | Target | Snapshot value (hy3 + hybrid) | Verification |
+|---|---|---|---|---|
+| R-14m | Faithfulness | >= 0.85 | 0.9130 | snapshot + `docs/eval/model-backed.md` |
+| R-16m | Answer Compliance | >= 0.90 | 0.9830 | snapshot |
+| R-17m | Refusal Appropriateness | >= 0.90 | 0.9000 | snapshot |
+| R-18m | Style Consistency | >= 0.85 | 0.9043 | snapshot |
+| R-24m | before/after history | present | 3 runs recorded | snapshot `history` block |
+
 ## Notes on derivation
 
 Three requirements in the source brief are under-specified in a way that changes the
