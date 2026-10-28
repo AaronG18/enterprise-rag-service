@@ -111,6 +111,8 @@ def measure_operations(corpus, cases: List[Dict], generation: GenerationConfig,
     cold = RagService(corpus, retrieval, generation)
     latencies = []
     tokens = 0
+    tokens_in = 0
+    tokens_out = 0
     refusal_flags = []
     compliance_scores = []
     for case in cases:
@@ -118,6 +120,10 @@ def measure_operations(corpus, cases: List[Dict], generation: GenerationConfig,
         result = cold.answer(case["query"])
         latencies.append((time.perf_counter() - started) * 1000.0)
         tokens += result.answer.usage.get("total_tokens", 0)
+        # Input and output are recorded separately: a cost model that splits the total by an
+        # assumed ratio would be reporting a guess as if it were a measurement.
+        tokens_in += result.answer.usage.get("input_tokens", 0)
+        tokens_out += result.answer.usage.get("output_tokens", 0)
         refusal_flags.append(result.answer.refused)
         compliance_scores.append(M.answer_compliance(result, generation.max_answer_chars)["score"])
 
@@ -127,7 +133,12 @@ def measure_operations(corpus, cases: List[Dict], generation: GenerationConfig,
         warm.answer(case["query"])
         warm.answer(case["query"])  # second call probes the cache
 
+    # The token total is over these calls, so the number of calls is reported rather than
+    # inferred downstream - an inferred denominator silently understated tokens per call.
     return {
+        "calls_measured": len(cases),
+        "token_usage_input_total": tokens_in,
+        "token_usage_output_total": tokens_out,
         "p50_latency_ms": round(M.percentile(latencies, 50), 3),
         "p95_latency_ms": round(M.percentile(latencies, 95), 3),
         "token_usage_total": tokens,

@@ -27,6 +27,8 @@ def main() -> int:
     parser.add_argument("--provider", default="deterministic",
                         choices=("deterministic", "codebuddy-serve"),
                         help="codebuddy-serve needs the local CLI serve running; not used in CI")
+    parser.add_argument("--cost", action="store_true",
+                        help="print the token-cost estimate per 1,000 calls for this run")
     parser.add_argument("--models", default="",
                         help="comma-separated model versions for --provider codebuddy-serve")
     parser.add_argument("--max-cases", type=int, default=0, help="0 = all (smoke runs use 3)")
@@ -65,6 +67,29 @@ def main() -> int:
         print("  %-16s %s" % (name, metrics))
     print()
     print("artifacts       :", result["artifacts"]["metrics"])
+
+    if args.cost:
+        # The brief asks for a token-cost estimate per 1,000 calls. It is computed from the
+        # tokens this run actually consumed - never from an assumed number - and it says
+        # "no cost" rather than inventing a price.
+        from ragserve.evaluation.cost import (  # noqa: E402
+            estimate_from_usage,
+            load_pricing,
+            render_cost_text,
+        )
+
+        # The number of calls comes from the measurement itself, not from arithmetic here.
+        calls = result["operations"].get("calls_measured", meta["case_count"])
+        total = result["operations"]["token_usage_total"]
+        estimate = estimate_from_usage(
+            {"input_tokens": result["operations"].get("token_usage_input_total", 0),
+             "output_tokens": result["operations"].get("token_usage_output_total", 0)},
+            calls,
+            load_pricing(os.path.join(REPO_ROOT, "configs", "pricing.json")),
+            meta.get("provider", "deterministic"))
+        estimate["token_usage_total"] = total
+        print()
+        print(render_cost_text(estimate))
     return 0
 
 
