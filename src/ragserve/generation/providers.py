@@ -64,12 +64,18 @@ class DeterministicProvider:
                 citations.append(chunk_id)
 
         coverage = chosen[0][0] if chosen else 0.0
-        return text, citations, self._usage(query, text), coverage
+        return text, citations, self._usage(query, text, retrieved), coverage
 
-    def _usage(self, query: str, text: str) -> Dict[str, int]:
-        # Deterministic proxy: 4 characters per token. Tagged as `estimate` wherever reported;
-        # it exists so cost arithmetic has a stable input, not because it is a measurement.
-        input_tokens = max(1, len(query) // 4)
+    def _usage(self, query: str, text: str, retrieved: List | None = None) -> Dict[str, int]:
+        """Deterministic proxy: 4 characters per token. Tagged `estimate` wherever reported.
+
+        The input side counts the **prompt**, not just the question. A RAG prompt is dominated
+        by the retrieved context, so charging only for the query understated input tokens by
+        more than an order of magnitude and made the cost-per-1,000-calls estimate useless for
+        a capacity decision.
+        """
+        prompt = query + "\n" + "\n".join(chunk.text for chunk in (retrieved or []))
+        input_tokens = max(1, len(prompt) // 4)
         output_tokens = max(1, len(text) // 4)
         return {
             "input_tokens": input_tokens,

@@ -48,6 +48,19 @@ class TestGroundedAnswers(unittest.TestCase):
         self.assertTrue(result.answer.model_version)
         self.assertTrue(result.answer.provider)
 
+    def test_input_tokens_cover_the_retrieved_context_not_just_the_question(self):
+        """A RAG prompt is dominated by retrieved context. Counting only the question
+        understated input tokens by more than an order of magnitude, which made the
+        cost-per-1,000-calls estimate useless for a capacity decision.
+        """
+        query = "annual leave"
+        result = self.service.answer(query)
+        context_chars = sum(len(chunk.text) for chunk in result.retrieved)
+        self.assertGreater(context_chars, 0)
+        # The estimate is 4 characters per token, so the prompt cannot be smaller than the
+        # context alone.
+        self.assertGreaterEqual(result.answer.usage["input_tokens"] * 4, context_chars)
+
     def test_confidence_is_in_unit_interval(self):
         for query in ("annual leave", "p95 latency target", "unrelated quantum gardening"):
             result = self.service.answer(query)
