@@ -43,6 +43,26 @@ Running the gate is the only way to find these; both were fixed on `main`:
 A third change was ordering: the cheap checks run before the test suite, so a violation is
 reported in seconds rather than after a 30-second suite (commit `f17c1dd`).
 
+## A third defect the demonstration found: admins could walk through the gate
+
+The first attempt to merge PR #62 **succeeded while the harness check was failing**:
+
+```
+GET /pulls/62      -> mergeable: true, mergeable_state: "blocked"
+PUT /pulls/62/merge -> 200 {"merged": true, "message": "Pull Request successfully merged"}
+```
+
+GitHub knew the pull request was blocked and merged it anyway. The cause was in the protection
+settings this repository had just applied: `enforce_admins: false`, which exempts administrators
+from required checks. The token doing the merge belongs to the repository owner, so the gate was
+bypassed by the one person it was meant to constrain. The proof that this was not a GitHub
+fluke: the scratch file that the tree-hygiene check had rejected landed in `main` with the
+merge.
+
+Fixed by setting `enforce_admins: true` (commit `7b63a29` follows the same repository through
+`main`; the protection update is in the same issue). A gate whose owner can walk through it is
+not a gate, and no amount of green checks proves otherwise.
+
 ## What the gate cannot prove
 
 * **That a test failed before the fix** (RULES R4). CI can only observe the final state. The

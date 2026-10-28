@@ -1,1 +1,0 @@
-deliberate scratch file: proves the tree-hygiene check blocks a merge
