@@ -59,9 +59,26 @@ bypassed by the one person it was meant to constrain. The proof that this was no
 fluke: the scratch file that the tree-hygiene check had rejected landed in `main` with the
 merge.
 
-Fixed by setting `enforce_admins: true` (commit `7b63a29` follows the same repository through
-`main`; the protection update is in the same issue). A gate whose owner can walk through it is
-not a gate, and no amount of green checks proves otherwise.
+Fixed by setting `enforce_admins: true`. A gate whose owner can walk through it is not a gate, and
+no amount of green checks proves otherwise.
+
+The fix was verified immediately, with a probe pull request that carried a scratch file on
+purpose:
+
+```
+GET  /pulls/64      -> mergeable: true, mergeable_state: "blocked"
+PUT  /pulls/64/merge -> 405
+      {"message": "Required status check \"contract-gate\" is failing.",
+       "documentation_url": ".../about-protected-branches"}
+```
+
+and, for contrast, a green pull request merged normally:
+
+```
+PUT  /pulls/63/merge -> 200 {"merged": true, "sha": "b6597a8"}
+```
+
+So the enforced rule now reads exactly as intended: **red blocks the merge, green allows it**.
 
 ## What the gate cannot prove
 

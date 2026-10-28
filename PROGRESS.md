@@ -24,6 +24,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 | 11 (#36) | Model-backed evaluation lane | real generation via local CLI serve; 2 models x 3 configs x 30 cases | done |
 | 12 (#41) | Real-generation quality fix | evidence attribution + Sources-line stripping; INC-003 | done |
 | 13 (#45) | Submission hardening | HTTP API, React+AntD UI, one-command start, BYO key, service bench | done |
+| 14 (#54) | Harness in CI | machine-readable requirements manifest, verifier, harness workflow, branch protection | done |
 
 ---
 
@@ -103,6 +104,17 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 ## Change log (reverse chronological)
 
 Entries follow: issue, then change, then evidence status.
+
+* **#55-#59 / EPIC 14 (#54)** CLOSED (2026-10-28). The harness moved into GitHub Actions.
+  `harness/requirements.toml` is a machine-readable manifest of every requirement; CI runs
+  `scripts/verify_requirements.py` (30 rows, ~17 s) and fails by row ID; the workflow adds
+  `requirements-gate`, `contract-gate` and `pr-hygiene` on every branch push and every pull
+  request. `main` is protected and requires all three. Demonstrated end to end: a red PR is
+  refused with `405 Required status check "contract-gate" is failing`, a green PR merges.
+  Running the gate found three defects in the gate itself (a pattern that matched
+  `__init__.py`, merge commits required to reference an issue, and `enforce_admins: false`
+  letting the owner merge a red change) - all fixed and documented in
+  `docs/qa/harness-gate.md`.
 
 * **#46-#51 / EPIC 13 (#45)** CLOSED (2026-10-28). Submission hardening: the repository is now a
   runnable service. `python scripts/start.py` builds the corpus, indexes it in ~19 ms and serves
