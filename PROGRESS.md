@@ -101,13 +101,29 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #20 PII redaction in answers and logs
 - [x] #21 multi-turn follow-up resolution
 
+## EPIC 14 (#54) children
+
+- [x] #55 machine-readable requirements manifest and verifier
+- [x] #56 harness workflow on every branch and pull request
+- [x] #57 branch protection requiring the harness checks
+- [x] #58 rules, skills and CONTRIBUTING describing the gate
+- [x] #59 the gate demonstrated red to green
+- [x] #67 concurrent gate: parallel requirement rows and test classes
+
 ## Change log (reverse chronological)
 
 Entries follow: issue, then change, then evidence status.
 
+* **#67 / EPIC 14 (#54)** CLOSED (2026-10-28). The gate is now concurrent: the generators
+  and the requirement rows run in parallel, and the hermetic suite runs its test classes in
+  worker processes with work stealing. Measured: suite 24.4 s -> 7.8 s, gate 14.2 s ->
+  8.1 s locally; in CI the slowest job went from 13 s to 11 s. The work also found that
+  seven requirement rows were passing while asserting nothing (`unittest -k` exits 0 when
+  the filter matches no test): the runner now fails on an empty selection, and each row
+  reports how many tests it really ran.
 * **#55-#59 / EPIC 14 (#54)** CLOSED (2026-10-28). The harness moved into GitHub Actions.
   `harness/requirements.toml` is a machine-readable manifest of every requirement; CI runs
-  `scripts/verify_requirements.py` (30 rows, ~17 s) and fails by row ID; the workflow adds
+  `scripts/verify_requirements.py` (30 rows, ~8 s) and fails by row ID; the workflow adds
   `requirements-gate`, `contract-gate` and `pr-hygiene` on every branch push and every pull
   request. `main` is protected and requires all three. Demonstrated end to end: a red PR is
   refused with `405 Required status check "contract-gate" is failing`, a green PR merges.

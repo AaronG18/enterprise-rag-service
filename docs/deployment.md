@@ -1,5 +1,17 @@
 # Running the service
 
+## The harness gate
+
+The same repository carries its own gate, and it runs the same commands a reviewer would:
+
+```bash
+python scripts/verify_requirements.py     # every requirement row, ~8 s
+python scripts/run_tests.py               # the hermetic suite, ~8 s
+```
+
+Both are concurrent: the requirement rows and the generators run in parallel, and the test
+classes run in worker processes. `--serial` and `--jobs 1` force the one-at-a-time path.
+
 ## One command
 
 ```bash
