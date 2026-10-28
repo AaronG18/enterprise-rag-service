@@ -109,6 +109,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #58 rules, skills and CONTRIBUTING describing the gate
 - [x] #59 the gate demonstrated red to green
 - [x] #67 concurrent gate: parallel requirement rows and test classes
+- [x] #70 port tests made robust under the parallel runner
 
 ## Change log (reverse chronological)
 

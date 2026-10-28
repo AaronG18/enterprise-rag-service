@@ -124,6 +124,23 @@ Fixed on both sides:
 A requirement row that cannot find its evidence is now a failure, which is the whole point of a
 gate.
 
+## What the parallel runner exposed: a flaky test
+
+Making the suite parallel turned one test red that had been quietly racy: with six workers,
+`TestPortFallback.test_busy_port_resolves_to_the_next_free_port_deterministically` failed with
+`PermissionError: [WinError 10013]`.
+
+The test took a port from the OS ephemeral range and then assumed the port *after* it was still
+free. Another worker - or any process on the machine - can be handed that port in between, and
+on Windows a second bind of a port someone else holds without `SO_REUSEADDR` is refused with
+access-denied rather than "address in use".
+
+The tests now reserve their ports explicitly, from a range the OS never hands out, and hold them
+for the whole scenario. Three consecutive runs are green.
+
+The general lesson: **a parallel runner turns latent races into visible ones**, which is a
+reason to parallelise rather than a reason not to.
+
 ## What the gate cannot prove
 
 * **That a test failed before the fix** (RULES R4). CI can only observe the final state. The
