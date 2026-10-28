@@ -110,6 +110,10 @@ tests, like any other change. A gate that cannot fail is decoration; a gate that
 wrong reason is worse than none. A new row must be red before it is green - the demo in SUB 58
 exists to prove exactly that.
 
+A pattern in a gate must not match a legitimate file, and the rule must bind the person who
+normally bypasses it: `enforce_admins` is on, so the owner cannot merge a red change. Both
+were found by running the gate for real - see `docs/qa/harness-gate.md`.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or

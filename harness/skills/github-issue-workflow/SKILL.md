@@ -116,6 +116,16 @@ the only way in.
 * **A metric row must name its section.** Eval metrics live under `comparison` (per
   configuration) or `operations`; bench artefacts are flat. Guessing reads a stale or absent key
   and reports a failure that is not real.
+* **A pattern that matches a legitimate file is worse than no pattern.** The scratch-file
+  scan `(^|/)_[^/]*\.(py|txt|json)$` matched `__init__.py` and failed on a clean tree. When a
+  gate blocks a legitimate tree, people learn to ignore it - and then it protects nothing.
+* **Merge commits are exempt from the issue-reference rule.** `git merge` writes its own
+  message; requiring `#<n>` there makes an ordinary merge red. Use `--no-merges` in the range.
+* **A protection rule with `enforce_admins: false` is decoration for the owner.** The owner is
+  an admin, so the one person the gate must constrain can bypass it. Measured: a PR merged with
+  `{"merged": true}` while `mergeable_state` was `blocked`.
+* **Prove the gate blocks, not just that it reports.** A red check that nobody tries to merge
+  past has not been shown to block anything. Merge a red PR on purpose and record the refusal.
 
 ## Related
 
