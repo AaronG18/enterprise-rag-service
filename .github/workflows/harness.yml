@@ -12,6 +12,10 @@ on:
     branches-ignore: [main]
   pull_request:
     branches: [main]
+    # "edited" matters: pr-hygiene checks the pull request body, so a body edit has to
+    # re-run the check. Without it, a body that failed the evidence rule could be fixed
+    # without ever being checked again.
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
