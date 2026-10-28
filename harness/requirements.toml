@@ -295,14 +295,3 @@ kind = "file"
 path = "docs/eval/model-backed-metrics.json"
 contains = "independent_rerun"
 owner = "#6"
-
-[[requirement]]
-id = "R-99"
-title = "deliberately impossible row to prove the gate reports by ID"
-kind = "metric"
-path = "docs/eval/model-backed-metrics.json"
-config = "hy3 | hybrid"
-metric = "faithfulness"
-op = ">="
-bound = 2.0
-owner = "#58"
