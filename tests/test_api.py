@@ -158,6 +158,12 @@ class TestAsk(_ServerFixture):
 class TestPortFallback(unittest.TestCase):
     """A busy port must never leave the reviewer looking at a different application."""
 
+    # The OS hands out ephemeral ports from the high range; a test that assumes "the port after
+    # mine" is free is racing every other process, including the other workers of the parallel
+    # test runner. These ports are below that range, so nothing else claims them.
+    PORT_BLOCK_START = 39200
+    PORT_BLOCK_STRIDE = 200
+
     def _serve_on(self, port: int, occupy: bool):
         """Start our server on `port`. With `occupy=True`, another local service holds the port
         first - including SO_REUSEADDR, which mirrors a real service (Node sets it) and is the
@@ -179,19 +185,41 @@ class TestPortFallback(unittest.TestCase):
         thread.start()
         return blocker, httpd, thread, httpd.server_address[1]
 
+    def _reserve(self, count: int, slot: int):
+        """Bind and listen on `count` consecutive ports and keep them held.
+
+        Returns (base_port, sockets). The sockets stay bound for the whole scenario, so no
+        other process can take the ports in the middle of the test.
+        """
+        import socket
+
+        start = self.PORT_BLOCK_START + slot * self.PORT_BLOCK_STRIDE
+        last_error = None
+        for base in range(start, start + self.PORT_BLOCK_STRIDE):
+            probes = []
+            try:
+                for port in range(base, base + count):
+                    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    probe.bind(("127.0.0.1", port))
+                    probes.append(probe)
+            except OSError as exc:
+                last_error = exc
+                for probe in probes:
+                    probe.close()
+                continue
+            for probe in probes:
+                probe.listen(1)
+            return base, probes
+        raise RuntimeError("could not reserve %d consecutive ports: %s" % (count, last_error))
+
     def test_taken_port_is_skipped_and_our_service_answers(self):
         import json
-        import socket
         import urllib.request
 
-        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        probe.bind(("127.0.0.1", 0))
-        busy_port = probe.getsockname()[1]
-        probe.close()
-
-        blocker, httpd, thread, actual = self._serve_on(busy_port, occupy=True)
+        taken, blockers = self._reserve(1, 0)
+        blocker, httpd, thread, actual = self._serve_on(taken, occupy=False)
         try:
-            self.assertNotEqual(actual, busy_port)
+            self.assertNotEqual(actual, taken)
             with urllib.request.urlopen("http://127.0.0.1:%d/api/health" % actual, timeout=15) as r:
                 health = json.loads(r.read().decode("utf-8"))
             self.assertEqual(health["status"], "ok")
@@ -200,19 +228,21 @@ class TestPortFallback(unittest.TestCase):
             httpd.shutdown()
             httpd.server_close()
             thread.join(timeout=3)
-            blocker.close()
+            if blocker is not None:
+                blocker.close()
+            for held in blockers:
+                held.close()
 
     def test_free_port_is_used_as_requested(self):
         import socket
 
-        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        probe.bind(("127.0.0.1", 0))
-        free_port = probe.getsockname()[1]
-        probe.close()
+        free, blockers = self._reserve(1, 1)
+        for held in blockers:
+            held.close()
 
-        blocker, httpd, thread, actual = self._serve_on(free_port, occupy=False)
+        blocker, httpd, thread, actual = self._serve_on(free, occupy=False)
         try:
-            self.assertEqual(actual, free_port)
+            self.assertEqual(actual, free)
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -222,61 +252,30 @@ class TestPortFallback(unittest.TestCase):
 
     def test_busy_port_resolves_to_the_next_free_port_deterministically(self):
         """8174 taken -> 8175, not a random ephemeral port the reviewer cannot retype."""
-        import socket
-
-        base = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        base.bind(("127.0.0.1", 0))
-        first = base.getsockname()[1]
-        base.close()
+        first, blockers = self._reserve(2, 2)
         second = first + 1
-        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        probe.bind(("127.0.0.1", second))
-        probe.close()
 
-        blockers = []
+        _b, httpd, thread, actual = self._serve_on(first, occupy=False)
         try:
-            for port in (first, second):
-                blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                blocker.bind(("127.0.0.1", port))
-                blocker.listen(1)
-                blockers.append(blocker)
-
-            _b, httpd, thread, actual = self._serve_on(first, occupy=False)
-            try:
-                self.assertEqual(actual, second + 1,
-                                 "expected the next free port above the taken ones")
-            finally:
-                httpd.shutdown()
-                httpd.server_close()
-                thread.join(timeout=3)
+            self.assertEqual(actual, second + 1,
+                             "expected the next free port above the taken ones")
         finally:
-            for blocker in blockers:
-                blocker.close()
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=3)
+            for held in blockers:
+                held.close()
 
     def test_whole_span_busy_falls_back_to_os_port(self):
-        import socket
-
         from ragserve.api import PORT_SCAN_SPAN, find_free_port
 
-        base = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        base.bind(("127.0.0.1", 0))
-        first = base.getsockname()[1]
-        base.close()
-
-        blockers = []
+        first, blockers = self._reserve(PORT_SCAN_SPAN, 3)
         try:
-            for port in range(first, first + PORT_SCAN_SPAN):
-                blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                blocker.bind(("127.0.0.1", port))
-                blocker.listen(1)
-                blockers.append(blocker)
             self.assertEqual(find_free_port("127.0.0.1", first), 0,
                              "an exhausted span must ask the OS for a port")
         finally:
-            for blocker in blockers:
-                blocker.close()
+            for held in blockers:
+                held.close()
 
 
 class TestKeySafety(_ServerFixture):
