@@ -39,10 +39,10 @@ Reproduce with `python scripts/run_eval.py --all`.
 
 | Field | Value |
 |---|---|
-| p50 latency | 4.568 ms |
-| p95 latency | 6.528 ms |
-| token usage (30 cases) | 1,588 |
-| cache hit rate | 0.3833 (23 hits / 60 lookups, separate cached pass) |
+| p50 latency | 7.504 ms |
+| p95 latency | 10.946 ms |
+| token usage (30 calls) | 7184 (195.7 input + 43.8 output per call, measured) |
+| cache hit rate | 0.3833 (separate cached pass) |
 | refusal rate | 0.2333 |
 | answer compliance rate | 0.9000 |
 
@@ -56,3 +56,9 @@ quality of a real model. Any model-backed run must be reported separately, tagge
 
 Latency of a few milliseconds reflects a 53-chunk in-memory index on a developer machine; it is
 not a production figure. See `docs/performance.md` for the load-bearing benchmark.
+
+**Why the token totals moved** (from 1,588 to 7184): the first implementation counted only the
+question as input tokens, ignoring the retrieved context that dominates a RAG prompt. The
+estimate understated input tokens by roughly 20x - enough to support a wrong capacity decision -
+so it was fixed and pinned by a test; `calls_measured` and the input/output split are now
+reported by the measurement itself rather than inferred.
