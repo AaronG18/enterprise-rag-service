@@ -64,15 +64,15 @@ Shipped code must use only the Python standard library plus the `ragserve` packa
 third-party imports on the critical path, and CI must run with no `pip install` step. A cold
 clone + `python scripts/run_tests.py` must work with **no API key and no network**.
 
-Real providers (generation, embeddings) live behind adapters that are selectable by config but
+Real providers (generation, embeddings) live behind adapters that are selectable by config and
 are **pinned to the offline deterministic backend inside CI** via the
 `RAGSERVE_EMBEDDING_PROVIDER=deterministic` env var (set in both workflow files and in
-`run_tests.py`). The delivered service defaults to a real OpenAI-compatible embedding backend
-(`embedding_provider: "openai-compatible"` in `configs/retrieval.json`); it raises
-`ProviderUnavailable` loudly when its key is missing rather than silently degrading to the
-deterministic backend. The deterministic backend remains available for fully offline runs
-(`--embedding-provider deterministic`). This keeps production retrieval semantic while the
-hermetic safety net stays key-free.
+`run_tests.py`). The delivered service is **keyless by default**: `configs/retrieval.json` ships
+`embedding_provider: "deterministic"`, so a cold clone starts the service and runs every script
+with no credential at all. A real embedding model is opt-in (config field,
+`--embedding-provider`, or the env var) and raises `ProviderUnavailable` loudly when its key is
+missing rather than silently degrading to the deterministic backend. This keeps the reviewer path
+reproducible for anyone, while swapping models stays a configuration change, never a code change.
 
 ## R8 - Large changes hang off an EPIC
 

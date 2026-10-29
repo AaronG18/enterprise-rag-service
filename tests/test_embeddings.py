@@ -84,5 +84,51 @@ class TestProviderSelection(unittest.TestCase):
             self._with_env(old)
 
 
+class TestKeylessDeliveryDefault(unittest.TestCase):
+    """The shipped configuration must run with no credentials at all: a reviewer clones the
+    repository and starts the service or runs the evaluation without setting any key. A real
+    embedding model is opt-in (config change only), never the keyless default."""
+
+    def _clear_override(self):
+        return os.environ.pop("RAGSERVE_EMBEDDING_PROVIDER", None)
+
+    def _restore(self, saved):
+        if saved is not None:
+            os.environ["RAGSERVE_EMBEDDING_PROVIDER"] = saved
+
+    def test_shipped_config_defaults_to_keyless_backend(self):
+        saved = self._clear_override()
+        try:
+            cfg = RetrievalConfig.from_json(RETRIEVAL_CONFIG)
+            self.assertEqual(cfg.embedding_provider, "deterministic")
+            self.assertEqual(cfg.vector_dim, 512)
+            self.assertIsInstance(build_embedder(cfg), HashingEmbeddings)
+        finally:
+            self._restore(saved)
+
+    def test_index_builds_without_any_credential(self):
+        saved = self._clear_override()
+        try:
+            cfg = RetrievalConfig.from_json(RETRIEVAL_CONFIG)
+            corpus = build_corpus(CorpusConfig.from_json(CORPUS_CONFIG))
+            pipeline = RetrievalPipeline(corpus, cfg)  # must not raise ProviderUnavailable
+            self.assertEqual(len(pipeline.vectors), len(corpus.chunks))
+            self.assertEqual(len(pipeline.vectors[0]), 512)
+        finally:
+            self._restore(saved)
+
+    def test_real_model_preset_is_opt_in_and_wired(self):
+        saved = self._clear_override()
+        try:
+            cfg = RetrievalConfig.from_json(RETRIEVAL_CONFIG)
+            cfg.embedding_provider = "openai-compatible"
+            emb = build_embedder(cfg)
+            self.assertIsInstance(emb, OpenAICompatibleEmbeddings)
+            self.assertEqual(emb.model, "BAAI/bge-m3")
+            self.assertEqual(emb.api_key_env, "SILICONFLOW_API_KEY")
+        finally:
+            self._restore(saved)
+
+
 if __name__ == "__main__":
     unittest.main()
