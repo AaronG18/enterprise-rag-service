@@ -12,11 +12,11 @@ Target as written: p90 <= 10 s with 5 concurrent, 0 errors
 ```
 $ python scripts/run_bench.py --http --concurrency 5 --requests 30 --assert
 concurrency 5, requests 30
-  p50 73.6 ms  p90 187.4 ms  p95 201.1 ms
-  throughput 52.2 req/s  errors 0
+  p50 79.8 ms  p90 166.3 ms  p95 184.0 ms
+  throughput 48.5 req/s  errors 0
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\bench\20261029-105649\bench.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\bench\20261029-130505\bench.json`
 
 ## GC-2 ([09]) - token-cost estimate per 1,000 calls + model-version rationale
 
@@ -25,7 +25,7 @@ Target as written: token arithmetic present; prices need an operator-supplied li
 ```
 $ python scripts/run_eval.py --all --cost
   hybrid+rerank    {'recall@5': 0.962, 'mrr': 0.8911, 'ndcg': 0.9088, 'context_precision': 0.8814, 'faithfulness': 1.0, 'refusal_appropriateness': 0.9529, 'style_consistency': 1.0}
-artifacts       : D:\Projects\AIA\artifacts\eval\20261029-105655\metrics.json
+artifacts       : D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json
 Token cost estimate
 ===================
   model_version:             deterministic
@@ -53,7 +53,7 @@ $ python scripts/run_eval.py --all  (hybrid, deterministic)
 faithfulness = 1.0000  (target >= 0.85)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-105655\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## GC-3b ([11]) - RAG: Context Precision >= 0.70
 
@@ -64,7 +64,7 @@ $ python scripts/run_eval.py --all  (hybrid)
 context_precision = 0.8262  (target >= 0.70)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-105655\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## GC-4 ([12]) - generative standard defined; compliance/style/refusal >= 80%
 
@@ -77,7 +77,7 @@ refusal_appropriateness 0.9059 (>= 0.80)
 style_consistency 1.0000 (>= 0.80)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-105655\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## GC-5 ([14]) - structured logs sufficient for monitoring and diagnosis
 
@@ -85,7 +85,7 @@ Target as written: field dictionary + generated samples, enforced by test
 
 ```
 $ python scripts/sample_logs.py
-log_fields.md 2681 bytes, sample_logs.md 4626 bytes
+log_fields.md 2681 bytes, sample_logs.md 4624 bytes
 ```
 
 Verdict: **PASS** | evidence: `D:\Projects\AIA\docs\logging\log_fields.md`
@@ -98,7 +98,7 @@ Target as written: detection and neutralisation, tested
 $ python scripts/run_tests.py -k TestInjectionDefence
 .....
 ----------------------------------------------------------------------
-Ran 5 tests in 0.281s
+Ran 5 tests in 0.305s
 OK
 ```
 
@@ -125,7 +125,7 @@ $ python scripts/run_tests.py -k TestGroundedAnswers
 faithfulness 1.0000; every answer sentence must be supported by its cited chunks (claim-level scorer)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-105655\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## FR-1 ([21]) - at least two retrieval modes; reranker toggled by configuration only
 
@@ -177,8 +177,8 @@ Target as written: all six fields populated, text and CSV emitted
 
 ```
 $ python scripts/run_eval.py --report
-  p50_latency_ms           12.723
-  p95_latency_ms           14.729
+  p50_latency_ms           13.941
+  p95_latency_ms           16.263
   token_usage_total        22338
   cache_hit_rate           0.4706
   refusal_rate             0.0941
@@ -186,7 +186,7 @@ $ python scripts/run_eval.py --report
   CSV present: True (report.csv)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-105655\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## NFR-1 ([30]) - compare vector-only, hybrid, hybrid+rerank with conclusions
 
@@ -313,7 +313,7 @@ Target as written: python scripts/start.py builds, indexes and serves
 
 ```
 $ python scripts/start.py
-  index built in 54.2 ms, 80 documents, 204 chunks
+  index built in 57.0 ms, 80 documents, 204 chunks
   health: {"status": "ok", "provider": "deterministic", "corpus_version": "a716676ca46bfa44"}
   (no database, no embedding model, no install step)
 ```
@@ -330,8 +330,8 @@ $ python scripts/verify_requirements.py
   R-17m   PASS refusal_appropriateness >= 0.9 (actual 0.9, from eval)
   R-18m   PASS style_consistency >= 0.85 (actual 0.9043, from eval)
   R-24m   PASS docs/eval/model-backed-metrics.json
-30/30 rows passed in 42.4s (jobs=8, generators 13.9s of CPU time)
-report: D:\Projects\AIA\artifacts\verify\20261029-105753
+30/30 rows passed in 48.6s (jobs=8, generators 14.4s of CPU time)
+report: D:\Projects\AIA\artifacts\verify\20261029-130616
 ```
 
 Verdict: **PASS** | evidence: `harness/requirements.toml`

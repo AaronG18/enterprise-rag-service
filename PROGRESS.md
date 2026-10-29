@@ -25,6 +25,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 | 12 (#41) | Real-generation quality fix | evidence attribution + Sources-line stripping; INC-003 | done |
 | 13 (#45) | Submission hardening | HTTP API, React+AntD UI, one-command start, BYO key, service bench | done |
 | 14 (#54) | Harness in CI | machine-readable requirements manifest, verifier, harness workflow, branch protection | done |
+| 15 (#75) | Expand synthetic knowledge base | four families balanced, 80 docs / 204 chunks, meaningful scanned subset, grown eval set, re-measure | done |
 
 ---
 
@@ -110,6 +111,13 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #59 the gate demonstrated red to green
 - [x] #67 concurrent gate: parallel requirement rows and test classes
 - [x] #70 port tests made robust under the parallel runner
+
+## EPIC 15 (#75) children
+
+- [x] #76 expand corpus content across all four families (handbook, compliance, techspec, architecture), seed-deterministic
+- [x] #77 keep scanned-PDF subset meaningful at larger size (6 scanned docs, ratio 0.075, clean originals retained)
+- [x] #78 grow the labelled evaluation set with the corpus (realigned `eval_cases.json` + `retrieval_cases.json`, scanned targets + refusal cases)
+- [x] #79 re-measure everything on the new corpus (recall@5 0.77/0.90/0.96 across configs, bench p90 79 ms, audit 24/24, diagnose green)
 
 ## Change log (reverse chronological)
 
