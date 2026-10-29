@@ -2,7 +2,7 @@
 """Reproduce a documented incident and measure the fix.
 
     python scripts/diagnose.py --case refusal-gate
-    python scripts/diagnose.py --case wrong-document
+    python scripts/diagnose.py --case cross-language
     python scripts/diagnose.py --all --assert     # exit 1 if any case improves by < 10%
 
 Writes artifacts/diagnosis/<case>/{report.json, report.md}.
@@ -16,7 +16,13 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-from ragserve.evaluation.diagnosis import CASES, IMPROVEMENT_THRESHOLD, render_case, run_case  # noqa: E402
+from ragserve.evaluation.diagnosis import (  # noqa: E402
+    CASES,
+    IMPROVEMENT_THRESHOLD,
+    WITHDRAWN_CASES,
+    render_case,
+    run_case,
+)
 
 
 def main() -> int:
@@ -30,6 +36,12 @@ def main() -> int:
     names = sorted(CASES) if args.all else ([args.case] if args.case else [])
     if not names:
         parser.error("use --all or --case <name>")
+
+    if args.all and WITHDRAWN_CASES:
+        print("# Withdrawn cases (measured effect no longer reproduces on the current corpus)")
+        for name, reason in WITHDRAWN_CASES.items():
+            print("  - %s: %s" % (name, reason))
+        print()
 
     failures = []
     for name in names:

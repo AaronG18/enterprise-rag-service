@@ -24,14 +24,14 @@ class TestDiagnosisCases(unittest.TestCase):
             self.assertGreater(report["after"]["refusal_appropriateness"],
                                report["before"]["refusal_appropriateness"])
 
-    def test_ocr_penalty_case_clears_threshold(self):
+    def test_cross_language_case_clears_threshold(self):
         with tempfile.TemporaryDirectory() as tmp:
-            report = run_case("ocr-penalty", ROOT, tmp)
+            report = run_case("cross-language", ROOT, tmp)
             self.assertTrue(report["meets_threshold"],
                             "improvement %s below %s" % (report["improvement"],
                                                           IMPROVEMENT_THRESHOLD))
-            self.assertGreater(report["after"]["ocr_mrr"], report["before"]["ocr_mrr"])
-            self.assertLessEqual(report["after"]["ocr_refusals"], report["before"]["ocr_refusals"])
+            self.assertLess(report["after"]["wrong_language_answers"],
+                            report["before"]["wrong_language_answers"])
 
     def test_refusal_case_carries_log_evidence(self):
         """A diagnosis without log evidence is a story."""
@@ -49,8 +49,10 @@ class TestDiagnosisCases(unittest.TestCase):
     def test_the_legacy_behaviour_really_is_worse(self):
         """Guards against the reconstruction silently matching the fixed behaviour."""
         with tempfile.TemporaryDirectory() as tmp:
-            report = run_case("ocr-penalty", ROOT, tmp)
-            self.assertGreater(report["before"]["ocr_refusals"], 0)
+            report = run_case("cross-language", ROOT, tmp)
+            self.assertGreater(report["before"]["wrong_language_answers"], 0)
+            self.assertGreaterEqual(report["after"]["answer_language_accuracy"],
+                                    report["before"]["answer_language_accuracy"])
 
 
 if __name__ == "__main__":

@@ -26,8 +26,34 @@ CONFUSIONS = {
     "cl": "d",
 }
 
+# CJK confusions. Without these an ASCII-only confusion map leaves a pure Chinese document
+# byte-identical after "scanning" - measured: the corpus grew to mostly Chinese documents and
+# one of them degraded to exactly the original, so the scanned subset did not exist for it.
+# These pairs are the ones real recognisers mix up: visually near-identical glyphs.
+CJK_CONFUSIONS = {
+    "日": "曰",
+    "曰": "日",
+    "己": "已",
+    "已": "己",
+    "人": "入",
+    "入": "人",
+    "未": "末",
+    "末": "未",
+    "士": "土",
+    "土": "士",
+    "千": "干",
+    "干": "千",
+    "贝": "见",
+    "见": "贝",
+    "天": "夭",
+    "大": "犬",
+    "十": "卜",
+    "王": "玉",
+}
+
 SUBSTITUTION_PROBABILITY = 0.30
 SPACE_LOSS_PROBABILITY = 0.15
+DROPOUT_PROBABILITY = 0.02
 FORCED_MUTATIONS = 3
 
 
@@ -37,32 +63,66 @@ def degrade_text(text: str, rng: random.Random) -> str:
     The first `FORCED_MUTATIONS` confusable characters are always changed, so a degraded
     passage is guaranteed to differ from the original (tests assert this).
     """
+    table = _table_for(text)
     out: list[str] = []
     forced = FORCED_MUTATIONS
     index = 0
+    mutated = False
     while index < len(text):
         char = text[index]
         two = text[index:index + 2]
-        if forced > 0 and (two in CONFUSIONS or char in CONFUSIONS):
-            replacement = CONFUSIONS.get(two) if two in CONFUSIONS else CONFUSIONS[char]
+        if forced > 0 and (two in CONFUSIONS or char in table):
+            replacement = CONFUSIONS.get(two) if two in CONFUSIONS else table[char]
             out.append(replacement)
             index += len(two) if two in CONFUSIONS else 1
             forced -= 1
+            mutated = True
             continue
         if two in CONFUSIONS and rng.random() < SUBSTITUTION_PROBABILITY:
             out.append(CONFUSIONS[two])
             index += 2
+            mutated = True
             continue
-        if char in CONFUSIONS and rng.random() < SUBSTITUTION_PROBABILITY:
-            out.append(CONFUSIONS[char])
+        if char in table and rng.random() < SUBSTITUTION_PROBABILITY:
+            out.append(table[char])
             index += 1
+            mutated = True
             continue
         if char == " " and rng.random() < SPACE_LOSS_PROBABILITY:
             index += 1  # spacing collapse: the word boundary disappears
+            mutated = True
+            continue
+        # Dropped glyph: a recogniser that cannot read a character omits it. This is the only
+        # mutation available for text with no confusable character at all, and without it a
+        # "scanned" document could come out byte-identical to the original.
+        if rng.random() < DROPOUT_PROBABILITY:
+            index += 1
+            mutated = True
             continue
         out.append(char)
         index += 1
+
+    if not mutated:
+        # Guarantee the passage differs: drop a character rather than return the original,
+        # because "scanned" text that equals the clean text makes the whole subset a lie.
+        drop = min(len(out) - 1, max(0, rng.randrange(max(1, len(out)))))
+        out.pop(drop)
     return "".join(out)
+
+
+def _table_for(text: str) -> dict:
+    """Use the CJK confusion table for text that is predominantly Chinese, and the union for
+    mixed text: an English document that quotes a Chinese term should degrade like either."""
+    if not text:
+        return CONFUSIONS
+    cjk = sum(1 for char in text if "\u4e00" <= char <= "\u9fff")
+    if cjk == 0:
+        return CONFUSIONS
+    if cjk / len(text) > 0.2:
+        merged = dict(CONFUSIONS)
+        merged.update(CJK_CONFUSIONS)
+        return merged
+    return CONFUSIONS
 
 
 def pick_ocr_documents(doc_ids: list[str], ratio: float, seed: int) -> set:
