@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
 """One-command start: build the corpus if needed, index it, serve the API and the UI.
 
-    python scripts/start.py                 # 127.0.0.1:8174, deterministic provider
+    python scripts/start.py                 # 127.0.0.1:8174; generation deterministic, embeddings real
     python scripts/start.py --port 9000
     python scripts/start.py --port 0        # let the OS pick any free port
     python scripts/start.py --provider codebuddy-serve --endpoint http://127.0.0.1:8788 --model hy3
     python scripts/start.py --provider openai-compatible --endpoint https://api.example.com/v1 \\
         --model my-model --api-key-env OPENAI_API_KEY
 
-The default path needs no key, no network and no database: the corpus is generated
-deterministically and indexed in memory at startup.
+The delivered service defaults to a real OpenAI-compatible embedding backend
+(embedding_provider=openai-compatible in configs/retrieval.json), so production retrieval is
+semantic. That backend needs an API key (OPENAI_API_KEY by default); without it the server
+fails at index build with a clear message. Generation still defaults to the deterministic
+(offline) provider - flip it with --provider for a fully model-backed run. Pass
+--embedding-provider deterministic for a fully offline service. The corpus is generated
+deterministically and indexed in memory at startup either way.
+
+Examples:
+    python scripts/start.py --embedding-provider deterministic          # fully offline
+    python scripts/start.py --provider openai-compatible \
+        --endpoint https://api.openai.com/v1 --model text-embedding-3-small
 
 Port selection is deterministic: if the requested port is taken by another service, the first
 free port above it is used (8174 -> 8175 -> ...) and the real URL is printed. A reviewer must
@@ -26,7 +36,8 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 DEFAULT_PORT = 8174
 
-from ragserve.api import create_server  # noqa: E402
+from ragserve.api import create_server
+from ragserve.retrieval.embeddings import ProviderUnavailable  # noqa: E402
 
 
 def main() -> int:
@@ -36,6 +47,10 @@ def main() -> int:
                         help="preferred port; if it is taken the next free port is used (0 = any)")
     parser.add_argument("--provider", default="deterministic",
                         choices=("deterministic", "codebuddy-serve", "openai-compatible"))
+    parser.add_argument("--embedding-provider", default="openai-compatible",
+                        choices=("deterministic", "openai-compatible"),
+                        help="embedding backend for the delivered service "
+                             "(default: real OpenAI-compatible; deterministic = offline, no key)")
     parser.add_argument("--endpoint", default="",
                         help="required for codebuddy-serve and openai-compatible")
     parser.add_argument("--model", default="", help="model version to report / use")
@@ -51,10 +66,22 @@ def main() -> int:
     if args.provider == "openai-compatible" and not api_key:
         print("NOTE: %s is not set; the server will start but model calls need a key "
               "(supply it per request from the UI, or export it)." % args.api_key_env)
+    if args.embedding_provider == "openai-compatible":
+        emb_key = os.environ.get("OPENAI_API_KEY", "")
+        if not emb_key:
+            print("NOTE: OPENAI_API_KEY is not set; the server will start but the embedding index "
+                  "build needs it. Run with --embedding-provider deterministic for a fully offline "
+                  "service, or export OPENAI_API_KEY.")
 
-    server = create_server(REPO_ROOT, host=args.host, port=args.port,
-                           provider=args.provider, model_version=args.model,
-                           endpoint=args.endpoint)
+    try:
+        server = create_server(REPO_ROOT, host=args.host, port=args.port,
+                               provider=args.provider, model_version=args.model,
+                               endpoint=args.endpoint,
+                               embedding_provider=args.embedding_provider)
+    except ProviderUnavailable as exc:
+        print("embedding provider unavailable: %s" % exc)
+        print("set %s or re-run with: --embedding-provider deterministic" % args.api_key_env)
+        return 1
     server.serve(open_browser=not args.no_browser)
     return 0
 

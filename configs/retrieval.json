@@ -5,6 +5,10 @@
   "rerank_enabled": true,
   "rerank_candidates": 10,
   "rrf_k": 60,
-  "vector_dim": 512,
-  "seed": 20261027
+  "vector_dim": 1536,
+  "seed": 20261027,
+  "embedding_provider": "openai-compatible",
+  "embedding_endpoint": "https://api.openai.com/v1",
+  "embedding_api_key_env": "OPENAI_API_KEY",
+  "embedding_model": "text-embedding-3-small"
 }

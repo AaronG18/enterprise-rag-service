@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# CI must stay hermetic (no API key): pin the embedding backend to the offline deterministic
+# provider. The delivered service leaves this unset and uses the real provider from
+# configs/retrieval.json.
+env:
+  RAGSERVE_EMBEDDING_PROVIDER: deterministic
+
 jobs:
   hermetic-tests:
     runs-on: ubuntu-latest

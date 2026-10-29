@@ -97,7 +97,8 @@ class ApiServer:
 
     def __init__(self, root: str, host: str = "127.0.0.1", port: int = 8124,
                  log_sink=None, provider: str = "deterministic", model_version: str = "",
-                 endpoint: str = "", cache_enabled: bool = True):
+                 endpoint: str = "", embedding_provider: str = None,
+                 cache_enabled: bool = True):
         self.root = root
         self.host = host
         self.port = port
@@ -111,6 +112,10 @@ class ApiServer:
         build_started = time.perf_counter()
         self.corpus = build_corpus(CorpusConfig.from_json(os.path.join(root, "configs", "corpus.json")))
         self.retrieval_config = RetrievalConfig.from_json(os.path.join(root, "configs", "retrieval.json"))
+        if embedding_provider:
+            self.retrieval_config.embedding_provider = embedding_provider
+            if embedding_provider == "deterministic":
+                self.retrieval_config.vector_dim = 512
         self.generation_config = GenerationConfig.from_json(os.path.join(root, "configs", "generation.json"))
         self.service = RagService(self.corpus, self.retrieval_config, self.generation_config,
                                   logger=self.logger, cache=self.cache)
@@ -147,6 +152,7 @@ class ApiServer:
             "status": "ok",
             "provider": self.default_provider,
             "model_version": self.default_model_version,
+            "embedding_provider": self.retrieval_config.embedding_provider,
             "corpus_version": self.service.corpus_version,
             "chunks": len(self.service.pipeline.chunks),
             "documents": len(self.corpus.documents),

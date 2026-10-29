@@ -60,9 +60,19 @@ this rule applies.
 
 ## R7 - Hermetic by default
 
-Nothing on the critical path may require a network call, a credential, or a third-party
-package. `python scripts/run_tests.py` must work on a cold clone. Real providers live
-behind adapters that are off by default, so the default path is always reproducible.
+Shipped code must use only the Python standard library plus the `ragserve` package - no
+third-party imports on the critical path, and CI must run with no `pip install` step. A cold
+clone + `python scripts/run_tests.py` must work with **no API key and no network**.
+
+Real providers (generation, embeddings) live behind adapters that are selectable by config but
+are **pinned to the offline deterministic backend inside CI** via the
+`RAGSERVE_EMBEDDING_PROVIDER=deterministic` env var (set in both workflow files and in
+`run_tests.py`). The delivered service defaults to a real OpenAI-compatible embedding backend
+(`embedding_provider: "openai-compatible"` in `configs/retrieval.json`); it raises
+`ProviderUnavailable` loudly when its key is missing rather than silently degrading to the
+deterministic backend. The deterministic backend remains available for fully offline runs
+(`--embedding-provider deterministic`). This keeps production retrieval semantic while the
+hermetic safety net stays key-free.
 
 ## R8 - Large changes hang off an EPIC
 
