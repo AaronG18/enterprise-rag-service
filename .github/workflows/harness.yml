@@ -173,9 +173,13 @@ jobs:
         run: |
           set -euo pipefail
           fail=0
+          # These are case-insensitive substring checks, not heading checks: the point is that the
+          # body carries the evidence at all, not that the headings are spelled a particular way.
+          # .github/PULL_REQUEST_TEMPLATE.md satisfies all three on purpose (guarded by
+          # tests/test_pr_hygiene.py), so a PR started from the template passes this step.
           for needle in "## Evidence" "Commands" "provenance"; do
             if ! echo "$PR_BODY" | grep -qi "$needle"; then
-              echo "::error::PR body is missing the '$needle' section required by harness/RULES.md R2"
+              echo "::error::PR body does not contain '$needle' (case-insensitive substring) - required by harness/RULES.md R2. Add a section whose text contains it; .github/PULL_REQUEST_TEMPLATE.md already does."
               fail=1
             fi
           done
