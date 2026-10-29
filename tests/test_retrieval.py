@@ -78,10 +78,15 @@ class TestHybridAndFusion(unittest.TestCase):
         self.assertGreaterEqual(hybrid, vector)
 
     def test_lexical_path_finds_exact_terms(self):
-        """Dense retrieval alone loses exact tokens like status codes; BM25 must not."""
+        """Dense retrieval alone loses exact tokens like status codes; BM25 must not.
+
+        Asserts on the *term*, not on a document id: the corpus grows and reorders, and a test
+        that pins an id breaks on content changes rather than on retrieval failures.
+        """
         pipeline = make_pipeline(mode="hybrid", rerank_enabled=False)
         results = pipeline.retrieve("429 Retry-After queue depth")
-        self.assertIn("techspec-en-02", [r.doc_id for r in results])
+        self.assertTrue(results)
+        self.assertIn("429", " ".join(r.text for r in results))
 
     def test_score_provenance_per_mode(self):
         vector = make_pipeline(mode="vector_only", rerank_enabled=False).retrieve("annual leave")

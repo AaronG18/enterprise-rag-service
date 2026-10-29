@@ -23,6 +23,10 @@ class CorpusConfig:
     ocr_ratio: float = 0.08
     chunk_target_chars: int = 320
     chunk_overlap_chars: int = 48
+    # Chinese carries roughly twice the content per character, so a fixed character budget
+    # produced one chunk per Chinese document and three per English one - an asymmetric corpus
+    # that flattered Chinese retrieval (the whole document was the retrieved passage).
+    cjk_chunk_scale: float = 0.55
 
     @classmethod
     def from_json(cls, path: str) -> "CorpusConfig":
@@ -124,8 +128,11 @@ def _make_chunks(documents: List[Document], config: CorpusConfig) -> List[Chunk]
     chunks: List[Chunk] = []
     for doc in documents:
         text, spans = _flatten(doc)
+        scale = config.cjk_chunk_scale if doc.language == "zh" else 1.0
+        target = max(80, int(config.chunk_target_chars * scale))
+        overlap = max(16, int(config.chunk_overlap_chars * scale))
         ordinal = 0
-        for start, end in chunk_text(text, config.chunk_target_chars, config.chunk_overlap_chars):
+        for start, end in chunk_text(text, target, overlap):
             chunks.append(Chunk(
                 chunk_id="%s:%04d" % (doc.doc_id, ordinal),
                 doc_id=doc.doc_id,

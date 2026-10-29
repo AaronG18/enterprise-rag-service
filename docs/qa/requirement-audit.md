@@ -12,11 +12,11 @@ Target as written: p90 <= 10 s with 5 concurrent, 0 errors
 ```
 $ python scripts/run_bench.py --http --concurrency 5 --requests 30 --assert
 concurrency 5, requests 30
-  p50 34.7 ms  p90 306.1 ms  p95 316.1 ms
-  throughput 60.0 req/s  errors 0
+  p50 79.8 ms  p90 166.3 ms  p95 184.0 ms
+  throughput 48.5 req/s  errors 0
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\bench\20261029-050423\bench.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\bench\20261029-130505\bench.json`
 
 ## GC-2 ([09]) - token-cost estimate per 1,000 calls + model-version rationale
 
@@ -24,20 +24,20 @@ Target as written: token arithmetic present; prices need an operator-supplied li
 
 ```
 $ python scripts/run_eval.py --all --cost
-  hybrid+rerank    {'recall@5': 0.9231, 'mrr': 0.9231, 'ndcg': 0.9231, 'context_precision': 0.942, 'faithfulness': 1.0, 'refusal_appropriateness': 0.9, 'style_consistency': 1.0}
-artifacts       : D:\Projects\AIA\artifacts\eval\20261029-050424\metrics.json
+  hybrid+rerank    {'recall@5': 0.962, 'mrr': 0.8911, 'ndcg': 0.9088, 'context_precision': 0.8814, 'faithfulness': 1.0, 'refusal_appropriateness': 0.9529, 'style_consistency': 1.0}
+artifacts       : D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json
 Token cost estimate
 ===================
   model_version:             deterministic
-  calls_measured:            30
-  input_tokens_per_call:     195.7
-  output_tokens_per_call:    43.77
+  calls_measured:            85
+  input_tokens_per_call:     214.22
+  output_tokens_per_call:    48.58
   price_input_per_1k_usd:    None
   price_output_per_1k_usd:   None
   cost_per_1000_calls_usd:   None
   price_provided:            False
   provenance:                estimate
-  token_usage_total:         7184
+  token_usage_total:         22338
   NOTE: no price is configured for this model, so no cost is reported.
   Fill configs/pricing.json rather than accepting a placeholder number.
 ```
@@ -53,7 +53,7 @@ $ python scripts/run_eval.py --all  (hybrid, deterministic)
 faithfulness = 1.0000  (target >= 0.85)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-050424\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## GC-3b ([11]) - RAG: Context Precision >= 0.70
 
@@ -61,10 +61,10 @@ Target as written: >= 0.70, rank-weighted definition documented
 
 ```
 $ python scripts/run_eval.py --all  (hybrid)
-context_precision = 0.9529  (target >= 0.70)
+context_precision = 0.8262  (target >= 0.70)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-050424\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## GC-4 ([12]) - generative standard defined; compliance/style/refusal >= 80%
 
@@ -72,12 +72,12 @@ Target as written: >= 0.80 each
 
 ```
 $ python scripts/run_eval.py --all
-compliance 0.9000 (>= 0.80)
-refusal_appropriateness 0.9000 (>= 0.80)
+compliance 0.9600 (>= 0.80)
+refusal_appropriateness 0.9059 (>= 0.80)
 style_consistency 1.0000 (>= 0.80)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-050424\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## GC-5 ([14]) - structured logs sufficient for monitoring and diagnosis
 
@@ -85,7 +85,7 @@ Target as written: field dictionary + generated samples, enforced by test
 
 ```
 $ python scripts/sample_logs.py
-log_fields.md 2681 bytes, sample_logs.md 4622 bytes
+log_fields.md 2681 bytes, sample_logs.md 4624 bytes
 ```
 
 Verdict: **PASS** | evidence: `D:\Projects\AIA\docs\logging\log_fields.md`
@@ -98,7 +98,7 @@ Target as written: detection and neutralisation, tested
 $ python scripts/run_tests.py -k TestInjectionDefence
 .....
 ----------------------------------------------------------------------
-Ran 5 tests in 0.085s
+Ran 5 tests in 0.305s
 OK
 ```
 
@@ -125,7 +125,7 @@ $ python scripts/run_tests.py -k TestGroundedAnswers
 faithfulness 1.0000; every answer sentence must be supported by its cited chunks (claim-level scorer)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-050424\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## FR-1 ([21]) - at least two retrieval modes; reranker toggled by configuration only
 
@@ -134,14 +134,14 @@ Target as written: mode and rerank_enabled change behaviour with no code change
 ```
 $ configs/retrieval.json: {"mode": "vector_only"|"hybrid", "rerank_enabled": true|false} - no code change
   How many days of annual leave do full-time emp vector_only=['handbook-en-00:0000', 'handbook-en-01:0001']
-                                                 hybrid     =['handbook-en-00:0000', 'handbook-en-01:0001']
-                                                 hybrid+rrk =['handbook-en-00:0000', 'handbook-en-01:0002']
-  What is the p95 latency target of the query se vector_only=['techspec-en-00:0000', 'techspec-en-00:0001']
-                                                 hybrid     =['techspec-en-00:0000', 'techspec-en-00:0001']
-                                                 hybrid+rrk =['techspec-en-00:0000', 'architecture-en-01:0000']
-  年度审计记录需要保存多久？                                  vector_only=['compliance-zh-00:0000', 'techspec-zh-02:0000']
-                                                 hybrid     =['compliance-zh-00:0000', 'techspec-zh-02:0000']
-                                                 hybrid+rrk =['compliance-zh-00:0000', 'architecture-zh-02:0000']
+                                                 hybrid     =['handbook-en-00:0000', 'handbook-en-00:0003']
+                                                 hybrid+rrk =['handbook-en-00:0000', 'compliance-en-06:0000']
+  What is the p95 latency target of the query se vector_only=['compliance-en-06:0000', 'architecture-en-09:0002']
+                                                 hybrid     =['techspec-en-02:0001', 'architecture-en-02:0002']
+                                                 hybrid+rrk =['techspec-en-01:0000', 'architecture-en-01:0002']
+  年度审计记录需要保存多久？                                  vector_only=['compliance-zh-04:0000', 'compliance-zh-09:0000']
+                                                 hybrid     =['compliance-zh-04:0000', 'compliance-zh-09:0000']
+                                                 hybrid+rrk =['compliance-zh-04:0000', 'compliance-zh-00:0001']
   modes differ on 3/3 queries, reranker changes 3/3, rerank_score only when enabled: True
 ```
 
@@ -177,16 +177,16 @@ Target as written: all six fields populated, text and CSV emitted
 
 ```
 $ python scripts/run_eval.py --report
-  p50_latency_ms           4.922
-  p95_latency_ms           8.743
-  token_usage_total        7184
-  cache_hit_rate           0.3833
-  refusal_rate             0.2333
-  answer_compliance_rate   0.9
+  p50_latency_ms           13.941
+  p95_latency_ms           16.263
+  token_usage_total        22338
+  cache_hit_rate           0.4706
+  refusal_rate             0.0941
+  answer_compliance_rate   0.96
   CSV present: True (report.csv)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-050424\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261029-130512\metrics.json`
 
 ## NFR-1 ([30]) - compare vector-only, hybrid, hybrid+rerank with conclusions
 
@@ -195,9 +195,9 @@ Target as written: three configurations measured, conclusion written
 ```
 $ python scripts/run_eval.py --all
   configuration           mrr     ndcg       cp      faith
-  hybrid               0.9167   0.9281   0.9529     1.0000
-  hybrid+rerank        0.9231   0.9231   0.9420     1.0000
-  vector_only          0.8526   0.8704   0.9485     1.0000
+  hybrid               0.8006   0.8254   0.8262     1.0000
+  hybrid+rerank        0.8911   0.9088   0.8814     1.0000
+  vector_only          0.7114   0.7266   0.8376     1.0000
 ```
 
 Verdict: **PASS** | evidence: `D:\Projects\AIA\docs\eval\retrieval-comparison.md`
@@ -245,8 +245,8 @@ Target as written: each case reproduces before/after and asserts the 10% bar
 
 ```
 $ python scripts/diagnose.py --all --assert
-  ocr-penalty        ocr_mrr                0.3333 -> 0.6667  (+100.0%)  meets_threshold=True
-  refusal-gate       refusal_appropriateness 0.1333 -> 0.9000  (+575.2%)  meets_threshold=True
+  cross-language     answer_language_accuracy 0.4828 -> 0.7241  (+50.0%)  meets_threshold=True
+  refusal-gate       refusal_appropriateness 0.1059 -> 0.9529  (+799.8%)  meets_threshold=True
 ```
 
 Verdict: **PASS** | evidence: `D:\Projects\AIA\docs\diagnosis`
@@ -313,8 +313,8 @@ Target as written: python scripts/start.py builds, indexes and serves
 
 ```
 $ python scripts/start.py
-  index built in 15.9 ms, 32 documents, 53 chunks
-  health: {"status": "ok", "provider": "deterministic", "corpus_version": "bea626ce863a0e44"}
+  index built in 57.0 ms, 80 documents, 204 chunks
+  health: {"status": "ok", "provider": "deterministic", "corpus_version": "a716676ca46bfa44"}
   (no database, no embedding model, no install step)
 ```
 
@@ -330,8 +330,8 @@ $ python scripts/verify_requirements.py
   R-17m   PASS refusal_appropriateness >= 0.9 (actual 0.9, from eval)
   R-18m   PASS style_consistency >= 0.85 (actual 0.9043, from eval)
   R-24m   PASS docs/eval/model-backed-metrics.json
-30/30 rows passed in 8.1s (jobs=8, generators 4.1s of CPU time)
-report: D:\Projects\AIA\artifacts\verify\20261029-050443
+30/30 rows passed in 48.6s (jobs=8, generators 14.4s of CPU time)
+report: D:\Projects\AIA\artifacts\verify\20261029-130616
 ```
 
 Verdict: **PASS** | evidence: `harness/requirements.toml`

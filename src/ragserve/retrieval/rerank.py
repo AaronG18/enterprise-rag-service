@@ -16,6 +16,12 @@ OCR_PENALTY = 0.12
 # penalty demotes the *only* copy of a scanned document, which measurably dropped MRR on
 # scanned-document queries from 0.78 to 0.33 and produced refusals (see docs/diagnosis/).
 OCR_COMPARABLE_MARGIN = 0.08
+# Applied when the chunk's language does not match the question's. Measured: after the corpus
+# grew, an English question about rate limits was answered from the Chinese copy of the same
+# specification, because shared numerals gave the wrong-language chunk a higher feature score.
+# A soft penalty rather than a filter: a Chinese answer can legitimately contain the codes an
+# English question asks for.
+LANGUAGE_MISMATCH_PENALTY = 0.22
 WEIGHTS = {
     "overlap": 0.45,
     "heading": 0.25,
@@ -24,18 +30,26 @@ WEIGHTS = {
 }
 
 
+def detect_language(text: str) -> str:
+    """Which language a question is written in, by CJK share."""
+    if not text:
+        return "en"
+    cjk = sum(1 for char in text if "\u4e00" <= char <= "\u9fff")
+    return "zh" if cjk / len(text) > 0.2 else "en"
+
+
 class DeterministicReranker:
     """Feature-based reranker. No model, no network - and every score is explainable, which
     is what EPIC 8 diagnosis needs when a reranker causes a precision change."""
 
     def score(self, query: str, chunk) -> float:
-        query_tokens = set(tokenize(query))
+        query_tokens = set(_stem_all(tokenize(query)))
         if not query_tokens:
             return 0.0
-        chunk_tokens = set(tokenize(chunk.text))
+        chunk_tokens = set(_stem_all(tokenize(chunk.text)))
         overlap = len(query_tokens & chunk_tokens) / len(query_tokens)
 
-        heading_tokens = set(tokenize(chunk.section))
+        heading_tokens = set(_stem_all(tokenize(chunk.section)))
         heading = len(query_tokens & heading_tokens) / len(query_tokens)
 
         return (WEIGHTS["overlap"] * overlap
@@ -44,20 +58,55 @@ class DeterministicReranker:
 
     def rerank(self, query: str, candidates: List) -> List:
         scores = [(candidate, self.score(query, candidate)) for candidate in candidates]
+        question_language = detect_language(query)
 
         def penalty_for(chunk, base: float) -> float:
-            if not chunk.ocr:
-                return 0.0
-            comparable_clean = any(
-                other is not chunk and not other.ocr and abs(other_base - base) <= OCR_COMPARABLE_MARGIN
-                for other, other_base in scores)
-            return OCR_PENALTY if comparable_clean else 0.0
+            penalty = 0.0
+            if getattr(chunk, "language", None) and chunk.language != question_language:
+                penalty += LANGUAGE_MISMATCH_PENALTY
+            return penalty + self._ocr_penalty(chunk, base, scores)
 
         adjusted = [(chunk, base - penalty_for(chunk, base)) for chunk, base in scores]
         # Tie-break on chunk_id: Chunk objects are not orderable, and an unstable tie-break
         # would make "deterministic ranking" a lie.
         adjusted.sort(key=lambda item: (-item[1], item[0].chunk_id))
         return adjusted
+
+    def _ocr_penalty(self, chunk, base: float, scores) -> float:
+        """Demote a scanned chunk only when a clean chunk is comparably strong.
+
+        An unconditional penalty demotes the *only* copy of a scanned document, which measurably
+        dropped MRR on scanned-document queries (see docs/diagnosis/).
+        """
+        if not chunk.ocr:
+            return 0.0
+        comparable_clean = any(
+            other is not chunk and not other.ocr and abs(other_base - base) <= OCR_COMPARABLE_MARGIN
+            for other, other_base in scores)
+        return OCR_PENALTY if comparable_clean else 0.0
+
+
+_SUFFIXES = ("ies", "ing", "ed", "es", "s")
+
+
+def _stem(token: str) -> str:
+    """Crude suffix stripping for the reranker only.
+
+    Measured reason: without it, a question asking "how often are vendors reassessed" did not
+    match the section heading "Reassessment", so a document that merely mentioned "third
+    parties" outranked the document that actually answers the question. The embeddings and the
+    lexical index are left untouched, so this changes reranking only.
+    """
+    if len(token) <= 4:
+        return token
+    for suffix in _SUFFIXES:
+        if token.endswith(suffix) and len(token) - len(suffix) >= 3:
+            return token[: -len(suffix)]
+    return token
+
+
+def _stem_all(tokens) -> List[str]:
+    return [_stem(token) for token in tokens]
 
 
 def _proximity(query: str, text: str) -> float:

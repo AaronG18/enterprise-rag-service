@@ -5,6 +5,7 @@ import os
 import unittest
 
 from ragserve.corpus.builder import CorpusConfig, build_corpus
+from ragserve.evaluation.runner import load_cases
 from ragserve.generation.safety import detect_injection, neutralise
 from ragserve.retrieval.pipeline import RetrievalConfig, RetrievalPipeline, Retrieved
 from ragserve.service import RagService, GenerationConfig
@@ -115,17 +116,38 @@ class TestRefusal(unittest.TestCase):
         self.assertEqual(result.answer.citations, [])
 
 
-class TestOcrEffect(unittest.TestCase):
+class TestOcrHandling(unittest.TestCase):
+    """The corpus includes scanned-PDF-style documents (OCR-degraded copies). The pipeline must
+    (a) actually contain them, (b) keep them retrievable, and (c) answer from them rather than
+    refuse - the OCR penalty is conditional, so it never buries the only copy of a fact."""
+
+    @staticmethod
+    def _corpus():
+        return build_corpus(CorpusConfig.from_json(os.path.join(ROOT, "configs", "corpus.json")))
+
     def setUp(self):
         self.service = make_service()
 
-    def test_ocr_degradation_lowers_confidence(self):
-        """Scanned-style documents answer worse. This is measured, not assumed - it is also the
-        seed of a diagnosis case for EPIC 8 (compliance drop traced to OCR contamination)."""
-        clean = self.service.answer("How many days of annual leave?")
-        degraded = self.service.answer("How often is privileged access reviewed?")
-        self.assertLess(degraded.answer.confidence, clean.answer.confidence)
-        self.assertTrue(any(r.ocr for r in degraded.retrieved) or degraded.answer.refused)
+    def test_corpus_contains_scanned_documents(self):
+        ocr_docs = [d for d in self._corpus().documents if d.ocr]
+        self.assertGreaterEqual(len(ocr_docs), 1)
+
+    def test_scanned_text_differs_from_clean_original(self):
+        ocr_doc = next(d for d in self._corpus().documents if d.ocr)
+        degraded = "".join(s.body for s in ocr_doc.sections)
+        clean = "".join(s.clean_body or "" for s in ocr_doc.sections)
+        self.assertNotEqual(degraded, clean)
+        self.assertTrue(clean)  # the clean original is retained for provenance
+
+    def test_scanned_document_stays_answerable_not_refused(self):
+        """A question whose answer lives only in a scanned document must still be answered."""
+        cases = load_cases(os.path.join(ROOT, "eval", "eval_cases.json"))
+        ocr_targets = [c for c in cases if c.get("ocr_target")]
+        self.assertTrue(ocr_targets)
+        for case in ocr_targets[:1]:
+            result = self.service.answer(case["query"])
+            self.assertFalse(result.answer.refused, case["query"])
+            self.assertTrue(any(r.ocr for r in result.retrieved))
 
 
 class TestInjectionDefence(unittest.TestCase):

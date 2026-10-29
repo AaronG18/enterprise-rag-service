@@ -7,8 +7,8 @@ Each case has three parts, because a diagnosis without all three is a story, not
 3. **Post-fix measurement** - the same command, same corpus version, with a >= 10% improvement
    asserted by the script itself (exit non-zero otherwise).
 
-The pre-fix behaviour of INC-002 is reconstructed here (`LegacySelectionProvider`) rather than
-left in the shipped code path, so reproduction does not require shipping a broken branch.
+Cases that were demonstrated once but no longer reproduce on the current corpus are withdrawn
+in writing (R-13 in RULES.md), not left as green-but-empty assertions. See `WITHDRAWN_CASES`.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from typing import Dict, List
 from ..corpus.builder import CorpusConfig, build_corpus
 from ..observability.events import EventLog, StructuredLogger
 from ..retrieval.pipeline import RetrievalConfig
-from ..retrieval.rerank import OCR_PENALTY, DeterministicReranker
+from ..retrieval.rerank import DeterministicReranker
 from ..service import GenerationConfig, RagService
 from . import metrics as M
 from .runner import load_cases
@@ -28,20 +28,17 @@ from .runner import load_cases
 IMPROVEMENT_THRESHOLD = 0.10
 
 
-class LegacyOcrPenaltyReranker(DeterministicReranker):
-    """Pre-fix reranker: an unconditional penalty on every scanned chunk.
-
-    Reproduces INC-002. The penalty is correct in spirit (scanned text is weaker evidence) but
-    wrong in application: when the scanned document is the only copy of that content, demoting
-    it buries the answer and the confidence gate then refuses the question.
-    """
-
-    def rerank(self, query: str, candidates: List) -> List:
-        scored = [(candidate, self.score(query, candidate)
-                   - (OCR_PENALTY if candidate.ocr else 0.0))
-                  for candidate in candidates]
-        scored.sort(key=lambda item: (-item[1], item[0].chunk_id))
-        return scored
+# Cases withdrawn because the measured effect no longer reproduces on the expanded corpus.
+# Kept here so the audit trail is visible, not silently dropped.
+WITHDRAWN_CASES = {
+    "ocr-penalty": (
+        "INC-002 (unconditional OCR penalty demoting the only copy of a scanned document) was "
+        "real on the 32-document corpus. On the 80-document corpus the scanned documents always "
+        "share a clean twin in the other language, so the conditional penalty never fires: legacy "
+        "vs fixed differ by 0% on the OCR-targeted subset (ocr_mrr 1.0 -> 1.0). The guard itself "
+        "stays in rerank.py; only the quantified attribution is withdrawn."
+    ),
+}
 
 
 def _measure(service, cases: List[Dict], max_chars: int) -> Dict[str, float]:
@@ -130,54 +127,108 @@ def case_refusal_gate(root: str) -> Dict:
     }
 
 
-def _measure_subset(service, cases: List[Dict]) -> Dict[str, float]:
-    """Metrics on the scanned-document subset: the population the incident affected."""
-    mrr = cp = 0.0
-    refusals = 0
-    for case in cases:
-        result = service.answer(case["query"])
-        if result.answer.refused:
-            refusals += 1
-        mrr += M.reciprocal_rank([c.doc_id for c in result.retrieved], case["expected_doc_id"])
-        relevant = [c.chunk_id for c in result.retrieved if c.doc_id == case["expected_doc_id"]]
-        cp += M.context_precision([c.chunk_id for c in result.retrieved], relevant)
-    n = len(cases)
+class LegacyLanguageBlindReranker(DeterministicReranker):
+    """Pre-fix reranker: no notion of whether the chunk is in the language of the question.
+
+    Reproduces INC-004. With one corpus serving both languages, shared numerals and codes give
+    a wrong-language chunk a competitive feature score, so an English question about rate limits
+    was answered from the Chinese copy of the same specification.
+    """
+
+    def rerank(self, query: str, candidates: List) -> List:
+        scores = [(candidate, self.score(query, candidate)
+                   - self._ocr_penalty(candidate, self.score(query, candidate), []))
+                  for candidate in candidates]
+        scores.sort(key=lambda item: (-item[1], item[0].chunk_id))
+        return scores
+
+
+def _measure_language(service, probes: List[str]) -> Dict[str, float]:
+    """Fraction of answers whose top cited document is written in the language of the question.
+
+    Measured over terse, identifier/figure-bearing English questions - the realistic case where a
+    language-blind reranker surfaces the wrong-language copy, because shared numerals and codes
+    give that copy a competitive feature score.
+    """
+    correct = 0
+    for query in probes:
+        result = service.answer(query)
+        languages = [chunk.language for chunk in result.retrieved
+                     if chunk.chunk_id in set(result.answer.citations)]
+        if languages and all(item == "en" for item in languages):
+            correct += 1
     return {
-        "ocr_mrr": round(mrr / n, 4),
-        "ocr_context_precision": round(cp / n, 4),
-        "ocr_refusals": refusals,
-        "ocr_cases": n,
+        "answer_language_accuracy": round(correct / len(probes), 4) if probes else 0.0,
+        "wrong_language_answers": len(probes) - correct,
+        "probes": len(probes),
     }
 
 
-def case_ocr_penalty(root: str) -> Dict:
-    cases = load_cases(os.path.join(root, "eval", "eval_cases.json"))
-    ocr_cases = [c for c in cases if c.get("ocr_target")]
+# Terse English questions that carry the identifiers/figures a bilingual user types. These are
+# exactly the queries where the two language copies share the same codes, so a language-blind
+# reranker answers some of them from the Chinese copy.
+CROSS_LANGUAGE_PROBES = [
+    "429 Retry-After",
+    "429 Retry-After ingestion",
+    "Idempotency Key",
+    "AES TLS",
+    "token normalised",
+    "202 422 status",
+    "200 Accepted POST",
+    "256-bit key",
+    "TTL 300",
+    "p95 800",
+    "15 carry-over",
+    "90 onboarding",
+    "1200 budget",
+    "16 weeks parental",
+    "7 days travel",
+    "24 hours fire drill",
+    "6 months access",
+    "300 cache",
+    "15 minutes token",
+    "10 percent traces",
+    "512 dimensions",
+    "1.2 256 30",
+    "Restrict per minute",
+    "queue depth ingestion",
+    "dead-letter retries",
+    "watermark advance",
+    "concurrency limit generator",
+    "semantic cache TTL",
+    "vector dimensions normalised",
+]
+
+
+def case_cross_language(root: str) -> Dict:
     corpus = build_corpus(CorpusConfig.from_json(os.path.join(root, "configs", "corpus.json")))
     retrieval = RetrievalConfig.from_json(os.path.join(root, "configs", "retrieval.json"))
     generation = GenerationConfig.from_json(os.path.join(root, "configs", "generation.json"))
 
     before_service = RagService(corpus, retrieval, generation,
-                                reranker=LegacyOcrPenaltyReranker())
+                                reranker=LegacyLanguageBlindReranker())
     after_service = RagService(corpus, retrieval, generation)
     return {
-        "case": "ocr-penalty",
-        "symptom": "queries about scanned documents were refused or answered from the wrong "
-                   "document: the OCR penalty demoted the only copy of the scanned text",
-        "before": _measure_subset(before_service, ocr_cases),
-        "after": _measure_subset(after_service, ocr_cases),
+        "case": "cross-language",
+        "symptom": "questions were answered from the copy of the document written in the other "
+                   "language: shared numerals and codes gave a wrong-language chunk a "
+                   "competitive score, so an English question about rate limits was answered "
+                   "from the Chinese specification",
+        "before": _measure_language(before_service, CROSS_LANGUAGE_PROBES),
+        "after": _measure_language(after_service, CROSS_LANGUAGE_PROBES),
         "log_evidence": [],
-        "primary_metric": "ocr_mrr",
-        "fix": "the OCR penalty now applies only when a clean chunk is comparably strong "
-               "(within 0.08 of the scanned chunk's score); otherwise it is suppressed",
-        "fix_rationale": "Scanned text is weaker evidence, but when the scanned document is the "
-                         "only copy of that content, penalising it buries the answer and the "
-                         "confidence gate then refuses the question. Noise must break ties "
-                         "between comparable candidates, never override sole evidence.",
+        "primary_metric": "answer_language_accuracy",
+        "fix": "the reranker penalises a chunk whose language differs from the question's "
+               "(soft penalty of 0.22, not a filter, because a Chinese answer can legitimately "
+               "contain the codes an English question asks for)",
+        "fix_rationale": "One corpus serves both languages, and every topic exists in both. "
+                         "Term overlap alone cannot tell the copies apart, so the answer "
+                         "language was decided by whatever copy happened to score higher "
+                         "instead of by the language the question was asked in.",
     }
 
 
-CASES = {"refusal-gate": case_refusal_gate, "ocr-penalty": case_ocr_penalty}
+CASES = {"refusal-gate": case_refusal_gate, "cross-language": case_cross_language}
 
 
 def _improvement(before: float, after: float) -> float:
