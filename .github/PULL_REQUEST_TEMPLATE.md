@@ -6,15 +6,17 @@ Fixes #__  <!-- the issue that this PR satisfies. No issue, no merge. -->
 
 Short, factual description of behaviour change. Not a list of files.
 
-## Evidence
+## Commands
 
-Mandatory. Paste **unedited** output.
-
-Command(s):
+The exact commands a reviewer runs, copy-pasteable:
 
 ```
 python scripts/run_tests.py -v
 ```
+
+## Evidence
+
+Mandatory. Paste **unedited** output.
 
 Output:
 
