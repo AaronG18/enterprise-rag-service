@@ -120,7 +120,8 @@ python scripts/start.py              # serves the API + UI on http://127.0.0.1:8
 ```
 
 One command: the corpus is generated deterministically, indexed in memory (~19 ms measured),
-and the service starts. **No database, no embedding model, no `pip install`, no network.**
+and the service starts. **No database, no embedding model, no API key, no `pip install`, no
+network.**
 Full guide: [`docs/deployment.md`](docs/deployment.md).
 
 Then either click around the UI, or:
@@ -131,13 +132,35 @@ python scripts/run_eval.py --all     # retrieval comparison + generative scoring
 python scripts/run_bench.py --http --concurrency 5 --assert   # service-level load test
 ```
 
-To use a **real model** instead of the deterministic default, either start the local CodeBuddy
-serve, or bring your own OpenAI-compatible endpoint and key (used per request, never stored):
+### Swapping in a real model (optional, BYO key)
+
+Everything above runs with **no credentials at all**: generation and embeddings both default to
+the offline deterministic backend, so a reviewer can clone this repository and reproduce every
+published number with `python` alone. Real models are opt-in and are swapped by **configuration
+or flags, never by code changes**:
 
 ```bash
+# real embeddings - uses the BGE-M3 preset already in configs/retrieval.json
+python scripts/start.py --embedding-provider openai-compatible
+
+# real generation - the local CodeBuddy serve, or any OpenAI-compatible chat endpoint
+python scripts/start.py --provider codebuddy-serve --endpoint http://127.0.0.1:8788 --model hy3
 python scripts/start.py --provider openai-compatible \
     --endpoint https://api.example.com/v1 --model your-model   # key from $OPENAI_API_KEY
 ```
+
+The embedding preset is three fields in `configs/retrieval.json`:
+
+| field | shipped value | note |
+|---|---|---|
+| `embedding_endpoint` | `https://api.siliconflow.cn/v1` | any OpenAI-compatible `/v1/embeddings` service works |
+| `embedding_model` | `BAAI/bge-m3` | 1024-d, bilingual (CN/EN), free tier; set `vector_dim: 1024` to match it |
+| `embedding_api_key_env` | `SILICONFLOW_API_KEY` | name of the env var holding the key; the key is never logged |
+
+Point those three fields at another service (DashScope/Qwen, a local Ollama, your own
+deployment) to change embedding models. If the key is missing the server **fails loudly**
+(`ProviderUnavailable`) rather than silently degrading, so a misconfigured production path is
+never mistaken for a working one.
 
 Requires **Python 3.11+** and nothing else.
 

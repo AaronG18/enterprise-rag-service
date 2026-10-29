@@ -14,8 +14,10 @@ from .text import tokenize
 
 MODES = ("vector_only", "hybrid")
 EMBEDDING_PROVIDERS = ("deterministic", "openai-compatible")
-# CI and the hermetic test runner set this to keep the cold-clone path key-free; the delivered
-# service leaves it unset so the config's production default (openai-compatible) applies.
+# The delivered default is the keyless deterministic backend, so a reviewer can clone the repo and
+# run every script with no credentials at all. A real embedding model is opt-in: set the provider
+# to "openai-compatible" via config, --embedding-provider or this env var and supply that
+# endpoint's key. CI pins this to "deterministic" to keep the cold-clone path key-free.
 EMBEDDING_PROVIDER_ENV = "RAGSERVE_EMBEDDING_PROVIDER"
 
 
@@ -27,14 +29,18 @@ class RetrievalConfig:
     rerank_enabled: bool = True
     rerank_candidates: int = 10
     rrf_k: int = 60
-    vector_dim: int = 1536
+    vector_dim: int = 512
     seed: int = 20261027
-    # Embedding backend. Default delivery uses a real OpenAI-compatible model; the deterministic
-    # hashing backend stays available and is selected by config or by RAGSERVE_EMBEDDING_PROVIDER.
-    embedding_provider: str = "openai-compatible"
-    embedding_endpoint: str = "https://api.openai.com/v1"
-    embedding_api_key_env: str = "OPENAI_API_KEY"
-    embedding_model: str = "text-embedding-3-small"
+    # Embedding backend. The delivered default is the keyless deterministic hashing backend, so a
+    # clean clone reproduces every published metric with no credentials. A real model is opt-in:
+    # set embedding_provider to "openai-compatible" (config file, --embedding-provider, or
+    # RAGSERVE_EMBEDDING_PROVIDER) and it talks to any OpenAI-compatible /v1/embeddings service.
+    # The fields below are a ready-to-use BGE-M3 preset: free tier, strong on the bilingual
+    # (CN/EN) corpus, 1024-d. Swapping models is a config change, never a code change.
+    embedding_provider: str = "deterministic"
+    embedding_endpoint: str = "https://api.siliconflow.cn/v1"
+    embedding_api_key_env: str = "SILICONFLOW_API_KEY"
+    embedding_model: str = "BAAI/bge-m3"
 
     @classmethod
     def from_json(cls, path: str) -> "RetrievalConfig":

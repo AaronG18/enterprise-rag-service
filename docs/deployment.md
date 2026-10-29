@@ -86,6 +86,22 @@ python scripts/start.py --provider openai-compatible \
 The same key can be pasted into the UI per session; it lives in browser memory only and is sent
 per request.
 
+### Embeddings (opt-in, independent of the generation provider)
+
+Embeddings default to the offline deterministic hashing backend, so the service builds its index
+with **no credential**. To use a real embedding model, set the three fields in
+`configs/retrieval.json` - `embedding_endpoint`, `embedding_model`, `embedding_api_key_env`,
+shipped as a ready BGE-M3 preset - and start with:
+
+```bash
+python scripts/start.py --embedding-provider openai-compatible
+```
+
+Any OpenAI-compatible `/v1/embeddings` service works (SiliconFlow, DashScope, a local Ollama).
+Point the three fields at it to change models; this is a configuration change, never a code
+change. If the key is missing the server fails loudly (`ProviderUnavailable`) instead of silently
+degrading to the deterministic backend.
+
 ## Multi-turn
 
 Send the same `session_id` on follow-up questions. The service keeps the last turns in memory

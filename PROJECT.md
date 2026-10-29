@@ -24,7 +24,7 @@ re-derived by running a command. It is simultaneously:
 |---|---|---|
 | `python scripts/run_tests.py` | hermetic test suite (unit + golden) | none. No network, no credentials, no third-party packages. |
 | `python scripts/run_eval.py --all` | retrieval comparison + generative scoring + ops report | none, in the default `deterministic` provider mode |
-| `python scripts/run_eval.py --all --provider openai` | same evaluation against a real model | `OPENAI_API_KEY` / compatible endpoint configured in `configs/` |
+| `python scripts/run_eval.py --all --provider codebuddy-serve` | same evaluation against a real model | a local CodeBuddy serve on loopback (`--endpoint http://127.0.0.1:8788 --model hy3`) |
 
 Python **3.11+**. If a command above needs `pip install`, that is a regression - open an issue.
 
