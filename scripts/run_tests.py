@@ -74,6 +74,12 @@ def main() -> int:
     if SRC_DIR not in sys.path:
         sys.path.insert(0, SRC_DIR)
 
+    # Keep the test runner hermetic: the delivered retrieval config defaults to a real
+    # (network-backed) embedding provider, but CI / cold clone must need no key. Pin the
+    # embedding backend to the offline deterministic one here; the production service leaves this
+    # unset and uses the real provider from configs/retrieval.json.
+    os.environ.setdefault("RAGSERVE_EMBEDDING_PROVIDER", "deterministic")
+
     if args.worker:
         return _run_worker(args)
 

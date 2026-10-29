@@ -6,13 +6,17 @@ import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from .embeddings import HashingEmbeddings, VectorIndex
+from .embeddings import HashingEmbeddings, OpenAICompatibleEmbeddings, VectorIndex
 from .fusion import reciprocal_rank_fusion
 from .lexical import BM25Index
 from .rerank import DeterministicReranker
 from .text import tokenize
 
 MODES = ("vector_only", "hybrid")
+EMBEDDING_PROVIDERS = ("deterministic", "openai-compatible")
+# CI and the hermetic test runner set this to keep the cold-clone path key-free; the delivered
+# service leaves it unset so the config's production default (openai-compatible) applies.
+EMBEDDING_PROVIDER_ENV = "RAGSERVE_EMBEDDING_PROVIDER"
 
 
 @dataclass
@@ -23,16 +27,45 @@ class RetrievalConfig:
     rerank_enabled: bool = True
     rerank_candidates: int = 10
     rrf_k: int = 60
-    vector_dim: int = 512
+    vector_dim: int = 1536
     seed: int = 20261027
+    # Embedding backend. Default delivery uses a real OpenAI-compatible model; the deterministic
+    # hashing backend stays available and is selected by config or by RAGSERVE_EMBEDDING_PROVIDER.
+    embedding_provider: str = "openai-compatible"
+    embedding_endpoint: str = "https://api.openai.com/v1"
+    embedding_api_key_env: str = "OPENAI_API_KEY"
+    embedding_model: str = "text-embedding-3-small"
 
     @classmethod
     def from_json(cls, path: str) -> "RetrievalConfig":
         if not os.path.isfile(path):
-            return cls()
-        with open(path, "r", encoding="utf-8") as fh:
-            raw = json.load(fh)
-        return cls(**{k: v for k, v in raw.items() if k in cls().__dict__})
+            cfg = cls()
+        else:
+            with open(path, "r", encoding="utf-8") as fh:
+                raw = json.load(fh)
+            cfg = cls(**{k: v for k, v in raw.items() if k in cls().__dict__})
+        override = os.environ.get(EMBEDDING_PROVIDER_ENV)
+        if override:
+            cfg.embedding_provider = override
+            if override == "deterministic":
+                cfg.vector_dim = 512
+        if cfg.embedding_provider not in EMBEDDING_PROVIDERS:
+            raise ValueError("unknown embedding_provider: %r" % cfg.embedding_provider)
+        return cfg
+
+
+def build_embedder(config: "RetrievalConfig"):
+    """Construct the embedder named by the config. Real providers raise ProviderUnavailable
+    (e.g. missing key) rather than silently degrading to the deterministic backend."""
+    if config.embedding_provider == "deterministic":
+        return HashingEmbeddings(dim=config.vector_dim, seed=config.seed)
+    if config.embedding_provider == "openai-compatible":
+        return OpenAICompatibleEmbeddings(
+            endpoint=config.embedding_endpoint,
+            api_key_env=config.embedding_api_key_env,
+            model=config.embedding_model,
+            dim=config.vector_dim)
+    raise ValueError("unknown embedding_provider: %r" % config.embedding_provider)
 
 
 @dataclass
@@ -60,7 +93,7 @@ class RetrievalPipeline:
         self.config = config
         self.chunks = list(corpus.chunks)
         self.by_id: Dict[str, object] = {c.chunk_id: c for c in self.chunks}
-        self.embeddings = embeddings or HashingEmbeddings(dim=config.vector_dim, seed=config.seed)
+        self.embeddings = embeddings or build_embedder(config)
         self.vectors = [self.embeddings.embed_text(c.text) for c in self.chunks]
         self.vector_index = VectorIndex([c.chunk_id for c in self.chunks], self.vectors)
         self.lexical_index = BM25Index([c.chunk_id for c in self.chunks], [c.text for c in self.chunks])
