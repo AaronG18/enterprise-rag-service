@@ -141,6 +141,7 @@ def run_benchmark_http(root: str, concurrency: int = 5, requests: int = 30) -> D
         "p95_latency_ms": round(percentile(latencies, 95), 3),
         "max_latency_ms": round(max(latencies), 3) if latencies else 0.0,
         "throughput_rps": round(requests / wall_seconds, 3) if wall_seconds else 0.0,
+        "mean_latency_ms": round(statistics.fmean(latencies), 3) if latencies else 0.0,
         "errors": len(errors),
         "error_samples": [e["error"] for e in errors[:3]],
         "latency_bound_ms": LATENCY_BOUND_MS,
