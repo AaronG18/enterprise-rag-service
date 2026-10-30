@@ -163,7 +163,14 @@ def build_reranker(config: "RetrievalConfig"):
 
     ``deterministic`` is the hand-written feature scorer, ``cross-encoder`` a real cross-encoder
     served at ``reranker_endpoint``. Same interface either way, so this is a config choice.
+
+    When ``rerank_enabled`` is False the pipeline never reranks (it returns fused order as-is), so
+    no reranker is built or probed - which also avoids marking ``degraded_reranker`` on a backend
+    that the run is not actually using. ``reranker_provider`` only chooses *which* reranker runs
+    when reranking is on; ``rerank_enabled`` decides *whether* it runs at all.
     """
+    if not config.rerank_enabled:
+        return None
     if config.reranker_provider == "cross-encoder":
         reranker = CrossEncoderReranker(endpoint=config.reranker_endpoint,
                                         model=config.reranker_model,
