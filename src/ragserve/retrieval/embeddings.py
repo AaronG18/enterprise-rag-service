@@ -74,6 +74,14 @@ class VectorIndex:
         return scored[:top_n]
 
 
+# Embeddings are deterministic for a given model, and one evaluation builds the same corpus index
+# several times (three configurations plus the operations pass). Sharing the cache across instances
+# turns N passes over the corpus into one - on a CPU-only machine a single chunk costs ~0.34s, so
+# re-embedding 204 chunks per pipeline dominated the run time.
+_SHARED_CACHE: dict = {}
+_SHARED_CACHE_LIMIT = 20000
+
+
 class OpenAICompatibleEmbeddings:
     """Real dense embeddings from an OpenAI-compatible ``/v1/embeddings`` endpoint.
 
@@ -90,7 +98,9 @@ class OpenAICompatibleEmbeddings:
 
     def __init__(self, endpoint: str, api_key_env: str = "OPENAI_API_KEY",
                  model: str = "text-embedding-3-small", dim: int = 1536,
-                 timeout: float = 30.0):
+                 # 120s, not 30s: a CPU-only model server takes a few seconds per chunk under
+                 # load, and a spurious timeout turns a slow run into a failed one.
+                 timeout: float = 120.0):
         if not endpoint:
             raise ProviderUnavailable(
                 "embedding provider %r requires an endpoint (set embedding_endpoint)" % model)
@@ -101,7 +111,21 @@ class OpenAICompatibleEmbeddings:
         self.timeout = timeout
         self._cache: dict = {}
 
-    def _api_key(self) -> str:
+    @property
+    def requires_key(self) -> bool:
+        """Whether this endpoint expects a bearer token.
+
+        A loopback server (the bundled llama.cpp, Ollama, LM Studio) needs no credential at all,
+        which is what makes the model-backed path keyless. An empty ``api_key_env`` is how the
+        config declares "keyless" - distinct from "declared a key but the env var is unset",
+        which must still fail loudly.
+        """
+        return bool(self.api_key_env)
+
+    def _api_key(self):
+        """The bearer token, or None when this endpoint is keyless."""
+        if not self.requires_key:
+            return None
         key = os.environ.get(self.api_key_env, "")
         if not key:
             raise ProviderUnavailable(
@@ -110,6 +134,12 @@ class OpenAICompatibleEmbeddings:
         return key
 
     def embed_text(self, text: str) -> list:
+        # Shared across instances: one evaluation run builds the same corpus index several times,
+        # and re-embedding 204 chunks per build on a CPU-only server dominated the run time.
+        shared_key = (self.endpoint, self.model, text)
+        cached = _SHARED_CACHE.get(shared_key)
+        if cached is not None:
+            return cached
         cached = self._cache.get(text)
         if cached is not None:
             return cached
@@ -117,7 +147,8 @@ class OpenAICompatibleEmbeddings:
         payload = json.dumps({"input": [text], "model": self.model}).encode("utf-8")
         req = urllib.request.Request(self.endpoint + "/embeddings", data=payload, method="POST")
         req.add_header("Content-Type", "application/json")
-        req.add_header("Authorization", "Bearer " + key)
+        if key is not None:
+            req.add_header("Authorization", "Bearer " + key)
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
@@ -132,4 +163,6 @@ class OpenAICompatibleEmbeddings:
             # Honour whatever dimension the model actually returns.
             self.dim = len(vec)
         self._cache[text] = vec
+        if len(_SHARED_CACHE) < _SHARED_CACHE_LIMIT:
+            _SHARED_CACHE[shared_key] = vec
         return vec

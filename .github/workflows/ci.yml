@@ -5,11 +5,13 @@ on:
     branches: [main]
   pull_request:
 
-# CI must stay hermetic (no API key): pin the embedding backend to the offline deterministic
-# provider. The delivered service leaves this unset and uses the real provider from
-# configs/retrieval.json.
+# CI must stay hermetic (no API key, no model server): pin both stages to the offline
+# deterministic backends. The delivered service leaves these unset and uses the real providers
+# from configs/retrieval.json (BGE-M3 embeddings + cross-encoder reranker, both keyless, served
+# locally via scripts/setup_models.py).
 env:
   RAGSERVE_EMBEDDING_PROVIDER: deterministic
+  RAGSERVE_RERANKER_PROVIDER: deterministic
 
 jobs:
   hermetic-tests:

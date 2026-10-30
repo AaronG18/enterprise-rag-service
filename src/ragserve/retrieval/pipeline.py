@@ -3,22 +3,31 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from .embeddings import HashingEmbeddings, OpenAICompatibleEmbeddings, VectorIndex
+from .embeddings import (HashingEmbeddings, OpenAICompatibleEmbeddings, ProviderUnavailable,
+                         VectorIndex)
 from .fusion import reciprocal_rank_fusion
 from .lexical import BM25Index
-from .rerank import DeterministicReranker
+from .rerank import CrossEncoderReranker, DeterministicReranker, RerankerUnavailable
 from .text import tokenize
 
 MODES = ("vector_only", "hybrid")
 EMBEDDING_PROVIDERS = ("deterministic", "openai-compatible")
+RERANKER_PROVIDERS = ("deterministic", "cross-encoder")
+# The dimension the published deterministic baseline was measured at. A fallback must land on it,
+# not on the configured width, or "deterministic" would silently mean two different indexes.
+DETERMINISTIC_DIM = 512
 # The delivered default is the keyless deterministic backend, so a reviewer can clone the repo and
 # run every script with no credentials at all. A real embedding model is opt-in: set the provider
 # to "openai-compatible" via config, --embedding-provider or this env var and supply that
 # endpoint's key. CI pins this to "deterministic" to keep the cold-clone path key-free.
 EMBEDDING_PROVIDER_ENV = "RAGSERVE_EMBEDDING_PROVIDER"
+# Same idea for the reranker: CI pins it to "deterministic" so the cold-clone path needs no
+# model server and no network. The delivered config ships the cross-encoder reranker.
+RERANKER_PROVIDER_ENV = "RAGSERVE_RERANKER_PROVIDER"
 
 
 @dataclass
@@ -31,16 +40,31 @@ class RetrievalConfig:
     rrf_k: int = 60
     vector_dim: int = 512
     seed: int = 20261027
-    # Embedding backend. The delivered default is the keyless deterministic hashing backend, so a
-    # clean clone reproduces every published metric with no credentials. A real model is opt-in:
-    # set embedding_provider to "openai-compatible" (config file, --embedding-provider, or
-    # RAGSERVE_EMBEDDING_PROVIDER) and it talks to any OpenAI-compatible /v1/embeddings service.
-    # The fields below are a ready-to-use BGE-M3 preset: free tier, strong on the bilingual
-    # (CN/EN) corpus, 1024-d. Swapping models is a config change, never a code change.
-    embedding_provider: str = "deterministic"
+    # Embedding backend. The delivered default is a real semantic model served locally
+    # (BGE-M3, keyless - empty api_key_env, so no credential and no third-party package). A clean
+    # clone reproduces every published metric once `scripts/setup_models.py` has been run and the
+    # two servers started per the README; with no model server running it falls back to the
+    # deterministic backend loudly, never silently. The deterministic backend stays selectable for
+    # CI and offline runs via embedding_provider="deterministic" (config, --embedding-provider, or
+    # RAGSERVE_EMBEDDING_PROVIDER); CI pins it so the test gate needs no network or key.
+    embedding_provider: str = "openai-compatible"
     embedding_endpoint: str = "https://api.siliconflow.cn/v1"
     embedding_api_key_env: str = "SILICONFLOW_API_KEY"
     embedding_model: str = "BAAI/bge-m3"
+    # Reranker backend. "deterministic" is the hand-written feature scorer; "cross-encoder" calls
+    # a real cross-encoder at reranker_endpoint (/v1/rerank). The choice is configuration only, so
+    # swapping rerankers is never a code change - which is what FR1 asks for and NFR2 depends on.
+    reranker_provider: str = "deterministic"
+    reranker_endpoint: str = ""
+    reranker_model: str = ""
+    reranker_timeout: float = 20.0
+    # If a model-backed provider is unreachable, drop to the deterministic backend and say so
+    # loudly rather than failing the whole run. CI pins the provider, so this never fires there.
+    allow_deterministic_fallback: bool = True
+    # Runtime flags, never taken from the config file: set when a fallback actually happened, so a
+    # report can claim model-backed provenance only when a model really was used.
+    degraded_embedding: bool = False
+    degraded_reranker: bool = False
 
     @classmethod
     def from_json(cls, path: str) -> "RetrievalConfig":
@@ -54,24 +78,110 @@ class RetrievalConfig:
         if override:
             cfg.embedding_provider = override
             if override == "deterministic":
-                cfg.vector_dim = 512
+                cfg.vector_dim = DETERMINISTIC_DIM
+        rerank_override = os.environ.get(RERANKER_PROVIDER_ENV)
+        if rerank_override:
+            cfg.reranker_provider = rerank_override
         if cfg.embedding_provider not in EMBEDDING_PROVIDERS:
             raise ValueError("unknown embedding_provider: %r" % cfg.embedding_provider)
+        if cfg.reranker_provider not in RERANKER_PROVIDERS:
+            raise ValueError("unknown reranker_provider: %r" % cfg.reranker_provider)
         return cfg
 
 
+def _warn(message: str) -> None:
+    """A fallback has to be noticed.
+
+    stderr, never stdout: `run_tests.py --json` parses stdout, and one stray line turns its output
+    into invalid JSON.
+    """
+    print("WARNING: %s" % message, file=sys.stderr)
+
+
+class _Probe:
+    """Minimal chunk stand-in, used to ask a reranker whether it is actually reachable."""
+
+    chunk_id = "probe"
+    text = "probe"
+    section = ""
+    language = "en"
+    ocr = False
+
+
+# Endpoint reachability, cached per process. A connection attempt against a port nothing listens
+# on costs ~2s on Windows (measured), and one evaluation run constructs a pipeline several times -
+# so probing on every construction turned a 37s suite into a 200s one.
+_REACHABILITY: dict = {}
+
+
+def _check_reachable(kind: str, endpoint: str, probe):
+    """(ok, reason) for one endpoint. The probe itself runs at most once per process."""
+    key = (kind, endpoint)
+    if key in _REACHABILITY:
+        return _REACHABILITY[key]
+    try:
+        probe()
+        result = (True, "")
+    except (ProviderUnavailable, RerankerUnavailable, OSError) as exc:
+        result = (False, str(exc))
+    _REACHABILITY[key] = result
+    return result
+
+
 def build_embedder(config: "RetrievalConfig"):
-    """Construct the embedder named by the config. Real providers raise ProviderUnavailable
-    (e.g. missing key) rather than silently degrading to the deterministic backend."""
+    """Construct the embedder named by the config.
+
+    A real provider is probed once. If it is unreachable - no local model server running, or a
+    missing key on a hosted endpoint - and ``allow_deterministic_fallback`` is set, this drops to
+    the deterministic backend, prints a warning, and marks ``config.degraded_embedding`` so a
+    report cannot claim model-backed numbers that a model did not produce.
+    """
     if config.embedding_provider == "deterministic":
         return HashingEmbeddings(dim=config.vector_dim, seed=config.seed)
     if config.embedding_provider == "openai-compatible":
-        return OpenAICompatibleEmbeddings(
+        embedder = OpenAICompatibleEmbeddings(
             endpoint=config.embedding_endpoint,
             api_key_env=config.embedding_api_key_env,
             model=config.embedding_model,
             dim=config.vector_dim)
+        if config.allow_deterministic_fallback:
+            ok, reason = _check_reachable("embedding", config.embedding_endpoint,
+                                          lambda: embedder.embed_text("probe"))
+            if not ok:
+                _warn("embedding model %r at %s is unavailable (%s); falling back to the "
+                      "deterministic backend. Numbers from this run are NOT model-backed - start "
+                      "the model server (see README) for the model-backed path."
+                      % (config.embedding_model, config.embedding_endpoint, reason))
+                config.degraded_embedding = True
+                return HashingEmbeddings(dim=DETERMINISTIC_DIM, seed=config.seed)
+        return embedder
     raise ValueError("unknown embedding_provider: %r" % config.embedding_provider)
+
+
+def build_reranker(config: "RetrievalConfig"):
+    """Construct the reranker named by the config; mirrors :func:`build_embedder`.
+
+    ``deterministic`` is the hand-written feature scorer, ``cross-encoder`` a real cross-encoder
+    served at ``reranker_endpoint``. Same interface either way, so this is a config choice.
+    """
+    if config.reranker_provider == "cross-encoder":
+        reranker = CrossEncoderReranker(endpoint=config.reranker_endpoint,
+                                        model=config.reranker_model,
+                                        timeout=config.reranker_timeout)
+        if config.allow_deterministic_fallback:
+            ok, reason = _check_reachable("reranker", config.reranker_endpoint,
+                                          lambda: reranker.rerank("probe", [_Probe()]))
+            if not ok:
+                _warn("cross-encoder reranker at %s is unavailable (%s); falling back to the "
+                      "deterministic reranker. Numbers from this run are NOT model-backed - start "
+                      "the model server (see README) for the model-backed path."
+                      % (config.reranker_endpoint, reason))
+                config.degraded_reranker = True
+                return DeterministicReranker()
+        return reranker
+    if config.reranker_provider == "deterministic":
+        return DeterministicReranker()
+    raise ValueError("unknown reranker_provider: %r" % config.reranker_provider)
 
 
 @dataclass
@@ -103,7 +213,7 @@ class RetrievalPipeline:
         self.vectors = [self.embeddings.embed_text(c.text) for c in self.chunks]
         self.vector_index = VectorIndex([c.chunk_id for c in self.chunks], self.vectors)
         self.lexical_index = BM25Index([c.chunk_id for c in self.chunks], [c.text for c in self.chunks])
-        self.reranker = reranker or DeterministicReranker()
+        self.reranker = reranker or build_reranker(config)
 
     # -- internals ---------------------------------------------------------
     def _vector_ranked(self, query: str):

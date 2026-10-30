@@ -9,8 +9,27 @@ from typing import Dict, List, Optional
 from ..cache import ResponseCache
 from ..corpus.builder import CorpusConfig, build_corpus
 from ..generation.providers import CodeBuddyServeProvider
-from ..retrieval.pipeline import RetrievalConfig
+from ..retrieval.pipeline import RetrievalConfig, build_embedder, build_reranker
 from ..service import GenerationConfig, RagService
+
+
+def retrieval_provenance(retrieval: RetrievalConfig, generation) -> str:
+    """What actually produced the numbers in a report.
+
+    Provenance has to be measured, not declared: if the model server was down and the run fell
+    back, claiming `model-backed` would be exactly the kind of number the repo forbids. The
+    degrade flags are set by the factories when a fallback really happened.
+    """
+    real_embedding = (retrieval.embedding_provider != "deterministic"
+                      and not retrieval.degraded_embedding)
+    real_reranker = (retrieval.reranker_provider == "cross-encoder"
+                     and not retrieval.degraded_reranker)
+    real_generation = generation.provider != "deterministic"
+    if real_generation and (real_embedding or real_reranker):
+        return "model-backed"
+    if real_embedding or real_reranker:
+        return "model-backed-retrieval, deterministic-generation"
+    return "deterministic"
 from . import metrics as M
 from .report import OPS_FIELDS, render_csv, render_text
 
@@ -171,6 +190,12 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) ->
         corpus, cases, generation, retrieval_base,
         observability.get("exact_ttl_s", 300), observability.get("semantic_ttl_s", 60))
 
+    # Probe the real providers once against the base config. evaluate_configuration builds copies,
+    # so a fallback detected inside the loop would never reach retrieval_base - and provenance must
+    # report what was really used, not what the file asked for.
+    build_embedder(retrieval_base)
+    build_reranker(retrieval_base)
+
     run_metadata = {
         "corpus_version": corpus.manifest["corpus_version"],
         "config_fingerprint": retrieval_base.__dict__ and json.dumps(
@@ -178,7 +203,7 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) ->
         "provider": generation.provider,
         "model_version": generation.model_version,
         "case_count": len(cases),
-        "provenance": "deterministic",
+        "provenance": retrieval_provenance(retrieval_base, generation),
     }
 
     run_id = time.strftime("%Y%m%d-%H%M%S")

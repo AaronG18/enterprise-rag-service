@@ -64,15 +64,22 @@ Shipped code must use only the Python standard library plus the `ragserve` packa
 third-party imports on the critical path, and CI must run with no `pip install` step. A cold
 clone + `python scripts/run_tests.py` must work with **no API key and no network**.
 
-Real providers (generation, embeddings) live behind adapters that are selectable by config and
-are **pinned to the offline deterministic backend inside CI** via the
-`RAGSERVE_EMBEDDING_PROVIDER=deterministic` env var (set in both workflow files and in
-`run_tests.py`). The delivered service is **keyless by default**: `configs/retrieval.json` ships
-`embedding_provider: "deterministic"`, so a cold clone starts the service and runs every script
-with no credential at all. A real embedding model is opt-in (config field,
-`--embedding-provider`, or the env var) and raises `ProviderUnavailable` loudly when its key is
-missing rather than silently degrading to the deterministic backend. This keeps the reviewer path
-reproducible for anyone, while swapping models stays a configuration change, never a code change.
+The delivered service is **keyless by default**. `configs/retrieval.json` ships the real
+semantic model as the default - `embedding_provider: "openai-compatible"` pointing at a locally
+served BGE-M3, and `reranker_provider: "cross-encoder"` pointing at a locally served
+bge-reranker-v2-m3 - with an **empty `embedding_api_key_env`**, so no credential and no
+third-party Python package are ever needed. A reviewer runs `scripts/setup_models.py` once and
+starts the two servers (both plain executables in `vendor/`, gitignored) to get real semantics;
+with no server running the run falls back to the deterministic backend **loudly** (a `WARNING` to
+stderr, and the config is flagged `degraded_*`) rather than silently, so a report can never claim
+model-backed numbers a model did not produce.
+
+Real providers live behind adapters selectable by config, and are **pinned to the offline
+deterministic backend inside CI** via `RAGSERVE_EMBEDDING_PROVIDER=deterministic` and
+`RAGSERVE_RERANKER_PROVIDER=deterministic` (set in both workflow files and in
+`run_tests.py`). `run_tests.py` also sets the embedding override via `os.environ.setdefault`, so
+the test gate needs no model server and no network. Swapping models stays a configuration change,
+never a code change, which is what FR1 asks for.
 
 ## R8 - Large changes hang off an EPIC
 

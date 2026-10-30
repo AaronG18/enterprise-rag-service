@@ -15,7 +15,9 @@ from ragserve.retrieval.pipeline import (  # noqa: E402
     RetrievalConfig,
     RetrievalPipeline,
     build_embedder,
+    build_reranker,
 )
+from ragserve.retrieval.rerank import DeterministicReranker  # noqa: E402
 from ragserve.corpus.builder import CorpusConfig, build_corpus  # noqa: E402
 
 RETRIEVAL_CONFIG = os.path.join(ROOT, "configs", "retrieval.json")
@@ -85,9 +87,13 @@ class TestProviderSelection(unittest.TestCase):
 
 
 class TestKeylessDeliveryDefault(unittest.TestCase):
-    """The shipped configuration must run with no credentials at all: a reviewer clones the
-    repository and starts the service or runs the evaluation without setting any key. A real
-    embedding model is opt-in (config change only), never the keyless default."""
+    """The shipped configuration must run with no credentials at all.
+
+    The delivered default is now a real semantic model served locally, which is still keyless:
+    `embedding_api_key_env` is empty, so no Authorization header is sent and no key is required.
+    The deterministic backend remains the hermetic safety net, used when the local model server is
+    not running - loudly, and never silently.
+    """
 
     def _clear_override(self):
         return os.environ.pop("RAGSERVE_EMBEDDING_PROVIDER", None)
@@ -96,38 +102,70 @@ class TestKeylessDeliveryDefault(unittest.TestCase):
         if saved is not None:
             os.environ["RAGSERVE_EMBEDDING_PROVIDER"] = saved
 
-    def test_shipped_config_defaults_to_keyless_backend(self):
+    def test_shipped_config_uses_a_real_keyless_model(self):
         saved = self._clear_override()
         try:
             cfg = RetrievalConfig.from_json(RETRIEVAL_CONFIG)
-            self.assertEqual(cfg.embedding_provider, "deterministic")
-            self.assertEqual(cfg.vector_dim, 512)
-            self.assertIsInstance(build_embedder(cfg), HashingEmbeddings)
+            self.assertEqual(cfg.embedding_provider, "openai-compatible")
+            self.assertEqual(cfg.embedding_model, "bge-m3")
+            self.assertEqual(cfg.vector_dim, 1024)  # BGE-M3's width
+            # Keyless: an empty api_key_env means "send no Authorization header at all".
+            self.assertEqual(cfg.embedding_api_key_env, "")
+            self.assertIn("127.0.0.1", cfg.embedding_endpoint)
+        finally:
+            self._restore(saved)
+
+    def test_shipped_config_uses_a_cross_encoder_reranker(self):
+        saved = self._clear_override()
+        try:
+            cfg = RetrievalConfig.from_json(RETRIEVAL_CONFIG)
+            self.assertEqual(cfg.reranker_provider, "cross-encoder")
+            self.assertIn("127.0.0.1", cfg.reranker_endpoint)
         finally:
             self._restore(saved)
 
     def test_index_builds_without_any_credential(self):
+        """With no model server running this must still build - via the loud fallback, not by
+        raising ProviderUnavailable."""
         saved = self._clear_override()
         try:
             cfg = RetrievalConfig.from_json(RETRIEVAL_CONFIG)
             corpus = build_corpus(CorpusConfig.from_json(CORPUS_CONFIG))
-            pipeline = RetrievalPipeline(corpus, cfg)  # must not raise ProviderUnavailable
+            pipeline = RetrievalPipeline(corpus, cfg)  # must not raise
             self.assertEqual(len(pipeline.vectors), len(corpus.chunks))
-            self.assertEqual(len(pipeline.vectors[0]), 512)
         finally:
             self._restore(saved)
 
-    def test_real_model_preset_is_opt_in_and_wired(self):
+    def test_unreachable_model_falls_back_and_is_marked_degraded(self):
+        """A fallback must be visible: the config is flagged so a report cannot claim
+        model-backed numbers that a model did not produce."""
         saved = self._clear_override()
         try:
             cfg = RetrievalConfig.from_json(RETRIEVAL_CONFIG)
-            cfg.embedding_provider = "openai-compatible"
+            # A port nothing listens on: connection refused, not a slow timeout.
+            cfg.embedding_endpoint = "http://127.0.0.1:1/v1"
+            cfg.reranker_endpoint = "http://127.0.0.1:1/v1"
             emb = build_embedder(cfg)
-            self.assertIsInstance(emb, OpenAICompatibleEmbeddings)
-            self.assertEqual(emb.model, "BAAI/bge-m3")
-            self.assertEqual(emb.api_key_env, "SILICONFLOW_API_KEY")
+            self.assertIsInstance(emb, HashingEmbeddings)
+            self.assertTrue(cfg.degraded_embedding)
+            self.assertIsInstance(build_reranker(cfg), DeterministicReranker)
+            self.assertTrue(cfg.degraded_reranker)
         finally:
             self._restore(saved)
+
+    def test_keyless_endpoint_sends_no_authorization_header(self):
+        """A local server needs no credential. This is distinct from 'declared a key but it is
+        unset', which must still fail loudly."""
+        emb = OpenAICompatibleEmbeddings(endpoint="http://127.0.0.1:8011/v1",
+                                         api_key_env="", model="bge-m3")
+        self.assertFalse(emb.requires_key)
+        self.assertIsNone(emb._api_key())
+
+        hosted = OpenAICompatibleEmbeddings(endpoint="https://api.example.com/v1",
+                                            api_key_env="A_KEY_THAT_IS_NOT_SET", model="m")
+        self.assertTrue(hosted.requires_key)
+        with self.assertRaises(ProviderUnavailable):
+            hosted._api_key()
 
 
 if __name__ == "__main__":
