@@ -296,6 +296,11 @@ class TestNoFrontEnd(unittest.TestCase):
             lines = [ln.strip() for ln in fh if ln.strip() and not ln.startswith("#")]
         self.assertIn("/web/", lines, "a stray web/ directory must stay gitignored")
 
+    def test_one_entry_point_for_the_deliverables(self):
+        """Two scripts that do the same job is how a reviewer ends up asking which one to run."""
+        self.assertFalse(os.path.isfile(repo_file("scripts", "build_deliverables.py")),
+                         "build_deliverables.py was folded into run_eval.py; do not resurrect it")
+
 
 class TestDocsMatchConfig(unittest.TestCase):
     """The shipped configuration is the truth; the documentation must not contradict it.

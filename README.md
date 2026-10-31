@@ -53,7 +53,7 @@ See [`docs/deliverables.md`](docs/deliverables.md) for the full map with reprodu
 | Deliverable asked for | Where it lives |
 |---|---|
 | Complete code and configs | `src/`, `configs/` |
-| One-click evaluation script | `scripts/run_eval.py` - and `scripts/build_deliverables.py` regenerates *every* deliverable in one command |
+| One-click evaluation script | `scripts/run_eval.py` - with `--deliverables` it regenerates *every* deliverable and prints every path written |
 | Evaluation report with before/after | `docs/eval/retrieval-comparison.md` (generated) + `artifacts/eval/<run>/` |
 | Log field dictionary and sample logs | `docs/logging/log_fields.md` (dictionary), `docs/logging/sample_logs.md` (generated) |
 | Retrieval quality comparison | `docs/eval/retrieval-comparison.md` - both backends, side by side |
@@ -143,7 +143,7 @@ python scripts/run_bench.py --http --concurrency 5 --assert   # service-level lo
 ### One command for every deliverable
 
 ```bash
-python scripts/build_deliverables.py
+python scripts/run_eval.py --all --deliverables
 ```
 
 That regenerates everything the brief asks to be handed over, so the report cannot fall behind the
@@ -168,7 +168,7 @@ The corpus above is synthetic on purpose, but a reviewer will plausibly bring th
 any entry point can index a directory instead:
 
 ```bash
-python scripts/build_deliverables.py --corpus /path/to/documents
+python scripts/run_eval.py --corpus /path/to/documents
 python scripts/run_eval.py --corpus /path/to/documents     # report only, no snapshots touched
 python scripts/start.py --corpus /path/to/documents        # serve them over the API
 ```
@@ -265,7 +265,7 @@ carry the provenance tag from section 5.
 | **No front end** (R17) | React/AntD UI | the brief asks for a service; a UI adds surfaces to maintain and artefacts to commit. `GET /` is a self-contained signpost | `TestNoFrontEnd`, R-29 |
 | **hy3 over flash for generation** | `deepseek-v4.1-flash` | faithfulness `0.9130` vs `0.7681`, compliance `0.9826` vs `0.9043` (model-backed snapshot). ADR 0004 records the reversal | `docs/adr/0004`, R-14m..R-18m |
 
-Every row is re-measured by one command (`python scripts/build_deliverables.py`), and the report is
+Every row is re-measured by one command (`python scripts/run_eval.py --all --deliverables`), and the report is
 generated from those measurements, so a row cannot survive a change that invalidates it.
 
 ## 9. The harness
