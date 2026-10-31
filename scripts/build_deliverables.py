@@ -87,7 +87,34 @@ def main() -> int:
     parser.add_argument("--seed-model-backed", metavar="METRICS_JSON", default=None,
                         help="commit an existing model-backed run (an artifacts/eval/<id>/"
                              "metrics.json) as the model-backed snapshot, without re-measuring")
+    parser.add_argument("--corpus", metavar="DIR", default=None,
+                        help="index the documents in this directory (.txt, .md, .pdf) instead of "
+                             "the built-in synthetic corpus, and write a corpus report. The "
+                             "labelled comparison is then not applicable and is skipped rather "
+                             "than reported with meaningless numbers.")
     args = parser.parse_args()
+
+    if args.corpus:
+        # A user-supplied corpus has no labelled cases, so the comparison and its snapshots stay
+        # untouched: overwriting them with numbers measured on someone else's documents would
+        # publish a measurement nobody could reproduce.
+        from ragserve.evaluation.corpus_report import run_corpus_report  # noqa: E402
+
+        outcome = run_corpus_report(args.corpus, REPO_ROOT, ARTIFACTS)
+        report = outcome["report"]
+        print("indexed %s" % report["source_dir"])
+        print("  documents %s, chunks %s, languages %s"
+              % (report["doc_count"], report["chunk_count"], report["per_language"]))
+        for item in report.get("skipped_files") or []:
+            print("  skipped  %s (%s)" % (item["file"], item["reason"]))
+        print("  index build %.3f ms" % report["index_build_ms"])
+        print("  recall@5 %s  mrr %s  ndcg %s  context_precision %s"
+              % (report["recall@5"], report["mrr"], report["ndcg"], report["context_precision"]))
+        print("  p50 %s ms  p95 %s ms  refusal_rate %s"
+              % (report["p50_latency_ms"], report["p95_latency_ms"], report["refusal_rate"]))
+        print("  provenance %s" % report["provenance"])
+        print("  %s" % outcome["paths"]["markdown"])
+        return 0
 
     if args.seed_model_backed:
         with open(args.seed_model_backed, "r", encoding="utf-8") as fh:
@@ -96,7 +123,26 @@ def main() -> int:
         write_snapshot(seed, SNAPSHOT_MODEL_BACKED, seed_id)
         print("seeded docs/eval/model-backed-retrieval-metrics.json from %s" % seed_id)
 
-    print("1/4 evaluating (deterministic backend)...")
+    # The model-backed lane is measured *first*, on purpose: if it is refused we must not have
+    # already replaced the deterministic snapshot, or the repository is left half-updated - a new
+    # snapshot with a report that still describes the old one.
+    model_payload = None
+    model_run_id = None
+    if args.refresh_model_backed:
+        print("1/4 evaluating (model-backed retrieval; needs the local model servers)...")
+        os.environ.pop("RAGSERVE_EMBEDDING_PROVIDER", None)
+        os.environ.pop("RAGSERVE_RERANKER_PROVIDER", None)
+        model_payload = run_evaluation(REPO_ROOT, ARTIFACTS)
+        model_run_id = os.path.basename(os.path.dirname(model_payload["artifacts"]["metrics"]))
+        provenance = str(model_payload["run_metadata"].get("provenance", ""))
+        if "model-backed" not in provenance:
+            print("    REFUSED: this run is '%s', not model-backed (no model server reachable)."
+                  % provenance)
+            print("    Start the two servers from scripts/setup_models.py and re-run. Nothing was "
+                  "written: the existing snapshots and report are untouched.")
+            return 1
+
+    print("2/4 evaluating (deterministic backend)...")
     # The deterministic lane is the CI baseline, so it is pinned here rather than inherited from
     # whatever the machine happens to have: the published numbers must be reproducible offline,
     # with no model server and no credential.
@@ -108,14 +154,7 @@ def main() -> int:
     print("    artifacts/eval/%s/" % run_id)
     print("    docs/eval/deterministic-metrics.json")
 
-    if args.refresh_model_backed:
-        print("2/4 evaluating (model-backed retrieval; needs the local model servers)...")
-        # The shipped config already points at the local servers; a run with no fallback keeps the
-        # measurement honest - it must either use the models or fail loudly.
-        os.environ.pop("RAGSERVE_EMBEDDING_PROVIDER", None)
-        os.environ.pop("RAGSERVE_RERANKER_PROVIDER", None)
-        model_payload = run_evaluation(REPO_ROOT, ARTIFACTS)
-        model_run_id = os.path.basename(os.path.dirname(model_payload["artifacts"]["metrics"]))
+    if model_payload is not None:
         write_snapshot(model_payload, SNAPSHOT_MODEL_BACKED, model_run_id)
         print("    docs/eval/model-backed-retrieval-metrics.json")
     else:

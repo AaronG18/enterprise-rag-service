@@ -351,3 +351,10 @@ title = "the comparison report is generated, never hand-edited"
 kind = "test"
 tests = ["TestComparisonDocIsGenerated", "TestRendererHonesty"]
 owner = "#94"
+
+[[requirement]]
+id = "R-34"
+title = "a user-supplied corpus directory can be indexed and measured"
+kind = "test"
+tests = ["TestDirectoryLoader", "TestExternalCorpusService", "TestCorpusReport"]
+owner = "#96"

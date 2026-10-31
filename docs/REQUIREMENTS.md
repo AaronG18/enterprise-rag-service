@@ -99,6 +99,7 @@ Without these, a green pipeline proves only that the pipeline is green.
 | R-31 | Retrieval does not regress silently | the labelled golden set meets the measured floors for vector-only, hybrid and hybrid+rerank | test (AUTO) | #90 |
 | R-32 | Retrieval is reproducible | two builds produce identical vectors, identical rankings for the same question and identical scores | test (AUTO) | #90 |
 | R-33 | The comparison report is generated, never hand-edited | the committed report equals what the renderer produces from the committed snapshots, and the deterministic snapshot still matches the shipped corpus and case count | test (AUTO) | #94 |
+| R-34 | A user-supplied corpus can be indexed and measured | `--corpus <dir>` builds a corpus from `.txt`/`.md`/`.pdf`, detects language per document, reports files it could not index instead of dropping them, and measures retrieval with self-labelled queries | test (AUTO) | #96 |
 
 ## Notes on derivation
 

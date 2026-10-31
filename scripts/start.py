@@ -75,6 +75,9 @@ def main() -> int:
                         help="enable/disable the reranker; overrides configs/retrieval.json (FR-1)")
     parser.add_argument("--reranker-provider", default=None, choices=("deterministic", "cross-encoder"),
                         help="which reranker to use when reranking is on; overrides the config")
+    parser.add_argument("--corpus", metavar="DIR", default=None,
+                        help="serve the documents in this directory (.txt, .md, .pdf) instead of "
+                             "the built-in synthetic corpus")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
 
@@ -101,7 +104,8 @@ def main() -> int:
                                embedding_provider=args.embedding_provider,
                                mode=args.mode,
                                rerank_enabled=(args.rerank == "on") if args.rerank else None,
-                               reranker_provider=args.reranker_provider)
+                               reranker_provider=args.reranker_provider,
+                               corpus_dir=args.corpus)
     except ProviderUnavailable as exc:
         print("embedding provider unavailable: %s" % exc)
         print("set %s or re-run with: --embedding-provider deterministic" % emb_key_env)
