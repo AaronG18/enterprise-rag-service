@@ -4,6 +4,12 @@
     python scripts/run_eval.py --all        # three-config comparison + generative scoring + ops report
     python scripts/run_eval.py --out DIR   # write artefacts elsewhere
 
+The retrieval mode and reranker are configuration, not code (FR-1). Override them at run time:
+
+    python scripts/run_eval.py --mode vector_only          # score vector-only only
+    python scripts/run_eval.py --mode hybrid --rerank off  # score hybrid, reranker off
+    python scripts/run_eval.py --mode hybrid --rerank on   # score hybrid + reranker
+
 Deterministic: same code + same configs -> identical quality metrics. Latency is measured with
 the cache disabled, and cache hit rate comes from a separate cached pass.
 """
@@ -32,6 +38,10 @@ def main() -> int:
     parser.add_argument("--models", default="",
                         help="comma-separated model versions for --provider codebuddy-serve")
     parser.add_argument("--max-cases", type=int, default=0, help="0 = all (smoke runs use 3)")
+    parser.add_argument("--mode", default=None, choices=("vector_only", "hybrid"),
+                        help="score only this mode (overrides configs/retrieval.json; FR-1)")
+    parser.add_argument("--rerank", default=None, choices=("on", "off"),
+                        help="enable/disable the reranker for the run (overrides the config; FR-1)")
     args = parser.parse_args()
 
     if args.provider == "codebuddy-serve":
@@ -51,7 +61,9 @@ def main() -> int:
         print("artifacts      :", result["artifacts"]["metrics"])
         return 0
 
-    result = run_evaluation(REPO_ROOT, args.out, args.cases)
+    result = run_evaluation(REPO_ROOT, args.out, args.cases,
+                            mode=args.mode,
+                            rerank_enabled=(args.rerank == "on") if args.rerank else None)
     meta = result["run_metadata"]
     print("corpus_version :", meta["corpus_version"])
     print("case_count     :", meta["case_count"])

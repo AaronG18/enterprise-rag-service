@@ -96,11 +96,16 @@ class TestKeylessDeliveryDefault(unittest.TestCase):
     """
 
     def _clear_override(self):
-        return os.environ.pop("RAGSERVE_EMBEDDING_PROVIDER", None)
+        return {
+            "embedding": os.environ.pop("RAGSERVE_EMBEDDING_PROVIDER", None),
+            "reranker": os.environ.pop("RAGSERVE_RERANKER_PROVIDER", None),
+        }
 
     def _restore(self, saved):
-        if saved is not None:
-            os.environ["RAGSERVE_EMBEDDING_PROVIDER"] = saved
+        if saved["embedding"] is not None:
+            os.environ["RAGSERVE_EMBEDDING_PROVIDER"] = saved["embedding"]
+        if saved["reranker"] is not None:
+            os.environ["RAGSERVE_RERANKER_PROVIDER"] = saved["reranker"]
 
     def test_shipped_config_uses_a_real_keyless_model(self):
         saved = self._clear_override()
@@ -145,6 +150,9 @@ class TestKeylessDeliveryDefault(unittest.TestCase):
             # A port nothing listens on: connection refused, not a slow timeout.
             cfg.embedding_endpoint = "http://127.0.0.1:1/v1"
             cfg.reranker_endpoint = "http://127.0.0.1:1/v1"
+            # Pin the cross-encoder path so this test exercises its fallback, not the deterministic
+            # provider the CI env override would otherwise select.
+            cfg.reranker_provider = "cross-encoder"
             emb = build_embedder(cfg)
             self.assertIsInstance(emb, HashingEmbeddings)
             self.assertTrue(cfg.degraded_embedding)

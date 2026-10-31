@@ -20,9 +20,18 @@ index build with a clear message rather than silently degrading. Point those thr
 OpenAI-compatible /v1/embeddings service - SiliconFlow, DashScope, a local Ollama - to swap
 models. The corpus is generated deterministically and indexed in memory at startup either way.
 
+The retrieval mode and reranker are configuration, not code (FR-1). They can be set in
+configs/retrieval.json (mode / rerank_enabled / reranker_provider) OR overridden on the command
+line, with no edit to any source file:
+
+    python scripts/start.py --mode vector_only            # vector-only retrieval
+    python scripts/start.py --mode hybrid --rerank off   # hybrid, reranker disabled
+    python scripts/start.py --mode hybrid --rerank on    # hybrid + cross-encoder reranker
+
 Examples:
     python scripts/start.py --embedding-provider deterministic      # default, fully offline
     python scripts/start.py --embedding-provider openai-compatible  # real model, needs a key
+    python scripts/start.py --mode hybrid --rerank on --reranker-provider cross-encoder
 
 Port selection is deterministic: if the requested port is taken by another service, the first
 free port above it is used (8174 -> 8175 -> ...) and the real URL is printed. A reviewer must
@@ -60,6 +69,12 @@ def main() -> int:
     parser.add_argument("--model", default="", help="model version to report / use")
     parser.add_argument("--api-key-env", default="OPENAI_API_KEY",
                         help="env var holding the key for openai-compatible (never logged)")
+    parser.add_argument("--mode", default=None, choices=("vector_only", "hybrid"),
+                        help="retrieval mode; overrides configs/retrieval.json (FR-1)")
+    parser.add_argument("--rerank", default=None, choices=("on", "off"),
+                        help="enable/disable the reranker; overrides configs/retrieval.json (FR-1)")
+    parser.add_argument("--reranker-provider", default=None, choices=("deterministic", "cross-encoder"),
+                        help="which reranker to use when reranking is on; overrides the config")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
 
@@ -83,7 +98,10 @@ def main() -> int:
         server = create_server(REPO_ROOT, host=args.host, port=args.port,
                                provider=args.provider, model_version=args.model,
                                endpoint=args.endpoint,
-                               embedding_provider=args.embedding_provider)
+                               embedding_provider=args.embedding_provider,
+                               mode=args.mode,
+                               rerank_enabled=(args.rerank == "on") if args.rerank else None,
+                               reranker_provider=args.reranker_provider)
     except ProviderUnavailable as exc:
         print("embedding provider unavailable: %s" % exc)
         print("set %s or re-run with: --embedding-provider deterministic" % emb_key_env)

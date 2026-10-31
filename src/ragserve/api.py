@@ -39,7 +39,7 @@ from .generation.providers import (
     ProviderUnavailable,
 )
 from .observability.events import EventLog, StructuredLogger
-from .retrieval.pipeline import RetrievalConfig
+from .retrieval.pipeline import MODES, RERANKER_PROVIDERS, RetrievalConfig
 from .service import GenerationConfig, RagService
 
 MAX_SESSIONS = 200
@@ -98,7 +98,8 @@ class ApiServer:
     def __init__(self, root: str, host: str = "127.0.0.1", port: int = 8124,
                  log_sink=None, provider: str = "deterministic", model_version: str = "",
                  endpoint: str = "", embedding_provider: str = None,
-                 cache_enabled: bool = True):
+                 mode: str = None, rerank_enabled: bool = None,
+                 reranker_provider: str = None, cache_enabled: bool = True):
         self.root = root
         self.host = host
         self.port = port
@@ -116,6 +117,20 @@ class ApiServer:
             self.retrieval_config.embedding_provider = embedding_provider
             if embedding_provider == "deterministic":
                 self.retrieval_config.vector_dim = 512
+        # Runtime overrides from the launch flags. These are the same knobs the config file owns
+        # (FR-1: the two retrieval modes and the reranker on/off are configuration, never code),
+        # surfaced on the command line so a reviewer can switch them without editing JSON.
+        if mode is not None:
+            if mode not in MODES:
+                raise ValueError("mode must be one of %s, got %r" % (MODES, mode))
+            self.retrieval_config.mode = mode
+        if rerank_enabled is not None:
+            self.retrieval_config.rerank_enabled = rerank_enabled
+        if reranker_provider is not None:
+            if reranker_provider not in RERANKER_PROVIDERS:
+                raise ValueError("reranker_provider must be one of %s, got %r"
+                                 % (RERANKER_PROVIDERS, reranker_provider))
+            self.retrieval_config.reranker_provider = reranker_provider
         self.generation_config = GenerationConfig.from_json(os.path.join(root, "configs", "generation.json"))
         self.service = RagService(self.corpus, self.retrieval_config, self.generation_config,
                                   logger=self.logger, cache=self.cache)

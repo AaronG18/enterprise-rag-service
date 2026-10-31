@@ -168,7 +168,8 @@ def measure_operations(corpus, cases: List[Dict], generation: GenerationConfig,
     }
 
 
-def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) -> Dict:
+def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None,
+                   mode: Optional[str] = None, rerank_enabled: Optional[bool] = None) -> Dict:
     configs = os.path.join(root, "configs")
     corpus_cfg = CorpusConfig.from_json(os.path.join(configs, "corpus.json"))
     retrieval_base = RetrievalConfig.from_json(os.path.join(configs, "retrieval.json"))
@@ -179,9 +180,26 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) ->
     cases = load_cases(cases_path)
     corpus = build_corpus(corpus_cfg)
 
+    # FR-1: the retrieval mode and reranker on/off are configuration, not code. They can be set in
+    # configs/retrieval.json or overridden at script run time. When a caller passes mode/rerank, we
+    # run a single configuration reflecting those overrides (and apply them to the base so the
+    # operations measurement and provenance describe what was actually run); otherwise the default
+    # three-configuration comparison runs.
+    if mode is not None or rerank_enabled is not None:
+        overrides = {}
+        if mode is not None:
+            overrides["mode"] = mode
+        if rerank_enabled is not None:
+            overrides["rerank_enabled"] = rerank_enabled
+        for key, value in overrides.items():
+            setattr(retrieval_base, key, value)
+        configs_to_run = {"custom": overrides}
+    else:
+        configs_to_run = CONFIGURATIONS
+
     comparison: Dict[str, Dict[str, float]] = {}
     all_rows: Dict[str, List[Dict]] = {}
-    for name, overrides in CONFIGURATIONS.items():
+    for name, overrides in configs_to_run.items():
         outcome = evaluate_configuration(corpus, cases, overrides, generation, retrieval_base)
         comparison[name] = outcome["metrics"]
         all_rows[name] = outcome["rows"]
