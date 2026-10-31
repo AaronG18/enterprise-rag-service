@@ -53,11 +53,12 @@ See [`docs/deliverables.md`](docs/deliverables.md) for the full map with reprodu
 | Deliverable asked for | Where it lives |
 |---|---|
 | Complete code and configs | `src/`, `configs/` |
-| One-click evaluation script | `scripts/run_eval.py` |
-| Evaluation report with before/after | `docs/eval/retrieval-comparison.md` (+ generated `artifacts/eval/<run>/`) |
-| Log field dictionary and sample logs | `docs/logging/log_fields.md`, `docs/logging/sample_logs.md` |
-| Retrieval quality comparison | `docs/eval/retrieval-comparison.md` |
+| One-click evaluation script | `scripts/run_eval.py` - and `scripts/build_deliverables.py` regenerates *every* deliverable in one command |
+| Evaluation report with before/after | `docs/eval/retrieval-comparison.md` (generated) + `artifacts/eval/<run>/` |
+| Log field dictionary and sample logs | `docs/logging/log_fields.md` (dictionary), `docs/logging/sample_logs.md` (generated) |
+| Retrieval quality comparison | `docs/eval/retrieval-comparison.md` - both backends, side by side |
 | Issue diagnosis (>= 2 cases, >= 10% gain) | `docs/diagnosis/INC-001-refusal-gate.md`, `docs/diagnosis/INC-002-ocr-penalty.md` |
+| Justification of every key technical choice | section 8 below, `docs/adr/`, `docs/retrieval.md` |
 
 ## 4. Targets and current measured values
 
@@ -158,7 +159,32 @@ measurements (it once did - see `docs/diagnosis/` / issue #92):
 
 Editing `retrieval-comparison.md` by hand fails a test: the committed file must equal what the
 renderer produces from the committed snapshots. Add `--refresh-model-backed` (with the local model
-servers running) to re-measure the model-backed lane as well.
+servers running) to re-measure the model-backed lane as well - without them it **refuses** rather
+than filing a deterministic run under a model-backed label.
+
+### Bring your own documents
+
+The corpus above is synthetic on purpose, but a reviewer will plausibly bring their own files, so
+any entry point can index a directory instead:
+
+```bash
+python scripts/build_deliverables.py --corpus /path/to/documents
+python scripts/run_eval.py --corpus /path/to/documents     # report only, no snapshots touched
+python scripts/start.py --corpus /path/to/documents        # serve them over the API
+```
+
+Supported: `.txt`, `.md`, `.markdown`, `.pdf`. PDF text is extracted with the standard library
+only (no PDF parser is available without a dependency), so it is best-effort - and a PDF whose
+text cannot be extracted is **reported as skipped, not silently indexed as empty**. Anything
+without extractable text is listed in the report.
+
+With a supplied corpus the labelled comparison is **not** run: its 85 cases name synthetic
+documents (`handbook-en-00`, ...) and would score nothing meaningful against someone else's files.
+Instead the run produces a **corpus report** (`artifacts/eval/<run>/corpus_report.md`) that is
+measured with the same metric functions, using queries derived from the documents themselves - one
+per document, from its title and first section. That is a self-labelled proxy, not a hand-written
+benchmark, and the report says so: expect high numbers, and read them as "these files are indexed
+and retrievable", comparing them only against the same corpus under another configuration.
 
 ### Real models: bundled, open-source, and keyless
 
@@ -218,7 +244,31 @@ never mistaken for a working one.
 
 Requires **Python 3.11+** and nothing else.
 
-## 8. The harness
+## 8. Key technical choices, and the evidence for each
+
+The brief allows any stack but requires every key choice to be justified with quantitative
+evidence. Each row below states the choice, the alternative that was considered, the measurement
+that decided it, and where that measurement is enforced so it cannot quietly go stale. All numbers
+carry the provenance tag from section 5.
+
+| Choice | Alternative considered | Measured evidence | Where it is enforced |
+|---|---|---|---|
+| **Standard library only, no third-party dependency** (`PROJECT.md` INV-1) | any vector DB / ML framework | cold clone runs the whole suite with Python 3.11+ and no install; CI has no `pip install` step | `contract-gate` + `TestWorkflowHermeticity` (R-28) |
+| **Hybrid = BM25 + vector, fused with RRF** | vector-only | recall@5 `0.7722 -> 0.8987`, mrr `0.7114 -> 0.8006` (85 cases, deterministic) | `docs/eval/retrieval-comparison.md` (generated), R-19 |
+| **Real cross-encoder reranker** (`bge-reranker-v2-m3`), not a hand-written scorer | heuristic feature scorer | the model returns real scores: a relevant passage **+6.13** vs an unrelated one **-10.15**; deterministic mrr `0.8006 -> 0.8911` | `docs/adr/0005`, R-10 |
+| **Reranking is optional, not assumed** | always on | it *hurts* under real embeddings: model-backed mrr `0.9610 -> 0.9523`, while it helps under hashing embeddings (`0.8006 -> 0.8911`). Reranking helps exactly when retrieval leaves it room | the same report states both, and the conclusion is derived from them |
+| **BGE-M3 embeddings (1024-d), keyless and local** | hosted embedding API (key + network) | hybrid recall@5 `0.8987 -> 1.0`, mrr `0.8006 -> 0.9610` versus the hashing baseline; no credential needed | `docs/adr/0005`, model-backed section of the report |
+| **Deterministic backend as the CI baseline** | only real models | reproducible offline, no key, no network; every published gate number is `deterministic` | CI pins `RAGSERVE_*_PROVIDER=deterministic`, R-28 |
+| **Synthetic corpus, seeded** (`seed=20261027`) | real internal documents | keeps the repository publishable (R6) and the numbers reproducible; 80 docs / 204 chunks / 85 labelled cases | `TestGoldenRetrieval`, R-31 |
+| **In-memory index** | ANN index + vector store | index build measured in milliseconds at this corpus size; correct at 204 chunks, would be replaced at millions (trade-off recorded) | `docs/adr/0002` |
+| **Two-layer cache (exact + semantic), TTL bound** | no cache | cache hit rate measured at **0.4706**; benchmarks disable it so latency numbers are not cache hits | ops report field `cache_hit_rate`, R-12 |
+| **No front end** (R17) | React/AntD UI | the brief asks for a service; a UI adds surfaces to maintain and artefacts to commit. `GET /` is a self-contained signpost | `TestNoFrontEnd`, R-29 |
+| **hy3 over flash for generation** | `deepseek-v4.1-flash` | faithfulness `0.9130` vs `0.7681`, compliance `0.9826` vs `0.9043` (model-backed snapshot). ADR 0004 records the reversal | `docs/adr/0004`, R-14m..R-18m |
+
+Every row is re-measured by one command (`python scripts/build_deliverables.py`), and the report is
+generated from those measurements, so a row cannot survive a change that invalidates it.
+
+## 9. The harness
 
 This repository is also a working agreement for AI agents operating on it:
 
@@ -230,6 +280,6 @@ This repository is also a working agreement for AI agents operating on it:
 Change policy in one line: **every change has an issue; every closing comment carries
 reproducible output; large changes hang off an EPIC issue with child issues.**
 
-## 9. License
+## 10. License
 
 MIT - see [`LICENSE`](LICENSE).

@@ -193,7 +193,13 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None,
             overrides["rerank_enabled"] = rerank_enabled
         for key, value in overrides.items():
             setattr(retrieval_base, key, value)
-        configs_to_run = {"custom": overrides}
+        # Name the run after what it actually is, not "custom": a flag that only overrides the
+        # mode still leaves the config's reranker on, and a report that called that "vector_only"
+        # would be describing a different configuration than the one it measured.
+        effective_mode = overrides.get("mode", retrieval_base.mode)
+        effective_rerank = overrides.get("rerank_enabled", retrieval_base.rerank_enabled)
+        name = effective_mode + ("+rerank" if effective_rerank else "")
+        configs_to_run = {name: overrides}
     else:
         configs_to_run = CONFIGURATIONS
 

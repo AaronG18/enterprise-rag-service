@@ -6,7 +6,7 @@ Two backends are reported, because they answer different questions and **must no
 
 ## Deterministic backend (the CI baseline)
 
-Run `20261101-000008` - corpus `a716676ca46bfa44`, 85 labelled cases, provenance `deterministic`.
+Run `20261101-003920` - corpus `a716676ca46bfa44`, 85 labelled cases, provenance `deterministic`.
 
 Reproduce with `python scripts/run_eval.py --all` (CI pins both stages to `deterministic`).
 

@@ -31,7 +31,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, List, Optional
 
 from .cache import ResponseCache
-from .corpus.builder import CorpusConfig, build_corpus
+from .corpus.builder import CorpusConfig, build_corpus, build_corpus_from_directory
 from .generation.providers import (
     CodeBuddyServeProvider,
     DeterministicProvider,
@@ -100,7 +100,8 @@ class ApiServer:
                  log_sink=None, provider: str = "deterministic", model_version: str = "",
                  endpoint: str = "", embedding_provider: str = None,
                  mode: str = None, rerank_enabled: bool = None,
-                 reranker_provider: str = None, cache_enabled: bool = True):
+                 reranker_provider: str = None, corpus_dir: str = None,
+                 cache_enabled: bool = True):
         self.root = root
         self.host = host
         self.port = port
@@ -112,7 +113,13 @@ class ApiServer:
         self.cache_enabled = cache_enabled
 
         build_started = time.perf_counter()
-        self.corpus = build_corpus(CorpusConfig.from_json(os.path.join(root, "configs", "corpus.json")))
+        # A reviewer may bring their own documents, so the corpus can come from a directory
+        # instead of the in-repository synthetic one. Same downstream contract either way.
+        corpus_config = CorpusConfig.from_json(os.path.join(root, "configs", "corpus.json"))
+        if corpus_dir:
+            self.corpus = build_corpus_from_directory(corpus_dir, corpus_config)
+        else:
+            self.corpus = build_corpus(corpus_config)
         self.retrieval_config = RetrievalConfig.from_json(os.path.join(root, "configs", "retrieval.json"))
         if embedding_provider:
             self.retrieval_config.embedding_provider = embedding_provider

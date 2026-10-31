@@ -42,7 +42,38 @@ def main() -> int:
                         help="score only this mode (overrides configs/retrieval.json; FR-1)")
     parser.add_argument("--rerank", default=None, choices=("on", "off"),
                         help="enable/disable the reranker for the run (overrides the config; FR-1)")
+    parser.add_argument("--corpus", metavar="DIR", default=None,
+                        help="index the documents in this directory (.txt, .md, .pdf) instead of "
+                             "the built-in synthetic corpus, and write a corpus report. The "
+                             "labelled comparison is skipped: its cases name synthetic documents "
+                             "and would score nothing meaningful here.")
     args = parser.parse_args()
+
+    if args.corpus:
+        # Deliberately does not touch docs/eval/*. The labelled comparison belongs to the
+        # synthetic corpus; measuring it against someone else's files would publish a number
+        # nobody could reproduce.
+        from ragserve.evaluation.corpus_report import run_corpus_report  # noqa: E402
+
+        outcome = run_corpus_report(args.corpus, REPO_ROOT, args.out)
+        report = outcome["report"]
+        print("Corpus report (user-supplied documents)")
+        print("  source        :", report["source_dir"])
+        print("  documents     :", report["doc_count"], "chunks:", report["chunk_count"],
+              "languages:", report["per_language"])
+        for item in report.get("skipped_files") or []:
+            print("  skipped       : %s (%s)" % (item["file"], item["reason"]))
+        print("  index build   : %.3f ms" % report["index_build_ms"])
+        print("  recall@5      :", report["recall@5"])
+        print("  mrr           :", report["mrr"])
+        print("  ndcg          :", report["ndcg"])
+        print("  context_precision:", report["context_precision"])
+        print("  p50 / p95 ms  :", report["p50_latency_ms"], "/", report["p95_latency_ms"])
+        print("  refusal_rate  :", report["refusal_rate"])
+        print("  provenance    :", report["provenance"])
+        print("  note          :", report["provenance_note"])
+        print("  artifact      :", outcome["paths"]["markdown"])
+        return 0
 
     if args.provider == "codebuddy-serve":
         models = [m.strip() for m in args.models.split(",") if m.strip()]

@@ -185,6 +185,26 @@ def build_corpus(config: CorpusConfig | None = None) -> BuiltCorpus:
                        manifest=_manifest(documents, chunks, cfg))
 
 
+def build_corpus_from_directory(path: str, config: CorpusConfig | None = None) -> BuiltCorpus:
+    """Build a corpus from files the user supplied, instead of the synthetic one.
+
+    Same downstream contract as `build_corpus` - chunks carry the same fields, and the version is
+    computed by the same function - so the pipeline, the service and the report cannot tell the
+    difference. What *is* different: the manifest records `source_dir` and `skipped_files`, so a
+    report can say which files were indexed and which could not be.
+    """
+    from .loader import load_documents  # local: keeps the synthetic path free of the loader
+
+    cfg = config or CorpusConfig()
+    documents, skipped = load_documents(path)
+    chunks = _make_chunks(documents, cfg)
+    manifest = _manifest(documents, chunks, cfg)
+    manifest["source"] = "directory"
+    manifest["source_dir"] = os.path.abspath(path)
+    manifest["skipped_files"] = skipped
+    return BuiltCorpus(config=cfg, documents=documents, chunks=chunks, manifest=manifest)
+
+
 def write_artifacts(corpus: BuiltCorpus, root: str) -> Dict[str, str]:
     """Write documents.jsonl / chunks.jsonl / manifest.json under `root/corpus/<version>`.
 
