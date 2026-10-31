@@ -334,6 +334,32 @@ class TestDocsMatchConfig(unittest.TestCase):
         for flag in ("--mode", "--rerank"):
             self.assertIn(flag, readme, "README must document the %s switch" % flag)
 
+    def test_evaluation_report_names_the_corpus_and_case_count_it_measured(self):
+        """The comparison report is a committed document, and nothing regenerates it.
+
+        `run_eval.py --all` writes only to artifacts/, so the report can silently keep describing
+        a corpus the repository no longer ships - which is exactly what happened: EPIC 15 grew the
+        corpus from 30 to 85 cases and the report still quoted the old numbers, leaving a
+        recommendation standing on a measurement nobody could reproduce (#92). Naming the corpus
+        version and the case count makes that impossible: change the corpus and this goes red
+        until the report is refreshed.
+        """
+        import json  # local import: this module is otherwise stdlib-only and import-light
+
+        from ragserve.corpus.builder import CorpusConfig, build_corpus
+
+        corpus = build_corpus(CorpusConfig.from_json(repo_file("configs", "corpus.json")))
+        version = corpus.manifest["corpus_version"]
+        with open(repo_file("eval", "eval_cases.json"), "r", encoding="utf-8") as fh:
+            cases = json.load(fh)
+        document = read(repo_file("docs", "eval", "retrieval-comparison.md"))
+        self.assertIn(version, document,
+                      "the comparison must name the corpus it measured (current %s)" % version)
+        self.assertIn(str(len(cases)), document,
+                      "the comparison must name the case count (current %d)" % len(cases))
+        self.assertIn("provenance", document.lower(),
+                      "the comparison must state the provenance of its numbers")
+
 
 if __name__ == "__main__":
     unittest.main()
