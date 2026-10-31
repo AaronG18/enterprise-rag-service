@@ -6,9 +6,9 @@ Python.
 
 Routes:
     GET  /api/health       provider, corpus version, index size, index build time, uptime
-    GET  /api/providers    what the UI needs to render the provider selector
+    GET  /api/providers    the generation providers this service can talk to
     POST /api/ask          {question, session_id?, provider?, endpoint?, api_key?, model?}
-    GET  /                 built UI (web/dist) or a built-in fallback page
+    GET  /                 a self-contained landing page with the endpoints to call
 
 Security posture, stated because it is a design decision and not an oversight:
   * The server binds 127.0.0.1 by default; it has no TLS and no authentication, and it is not
@@ -46,12 +46,13 @@ MAX_SESSIONS = 200
 MAX_TURNS_PER_SESSION = 20
 # How many ports to try above the requested one before letting the OS choose.
 PORT_SCAN_SPAN = 20
-FALLBACK_PAGE = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Enterprise RAG Service</title>
+# A single self-contained landing page. The service is an API - the brief asks for no front end -
+# so "/" answers with the endpoints and a copy-pasteable request instead of an app.
+LANDING_PAGE = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Enterprise RAG Service</title>
 <style>body{font-family:system-ui,sans-serif;max-width:640px;margin:64px auto;padding:0 16px;color:#1a1a1a}
 code{background:#f3f4f6;padding:2px 6px;border-radius:4px}</style></head><body>
 <h1>Enterprise RAG Service</h1>
-<p>The API is running. The React UI has not been built in this checkout; start it with
-<code>cd web && npm install && npm run build</code>, or call the API directly:</p>
+<p>The API is running. It is a headless service by design - use it over HTTP:</p>
 <pre>curl -s http://127.0.0.1:8174/api/health
 curl -s -X POST http://127.0.0.1:8174/api/ask \\
   -H 'Content-Type: application/json' \\
@@ -311,27 +312,6 @@ class ApiServer:
                 self.end_headers()
                 self.wfile.write(body)
 
-            def _static(self, path: str) -> bool:
-                dist = os.path.join(server.root, "web", "dist")
-                target = os.path.normpath(os.path.join(dist, path.lstrip("/")))
-                if not target.startswith(os.path.abspath(dist)):
-                    return False
-                if os.path.isdir(target):
-                    target = os.path.join(target, "index.html")
-                if not os.path.isfile(target):
-                    return False
-                with open(target, "rb") as fh:
-                    body = fh.read()
-                content_type = "text/html" if target.endswith(".html") else (
-                    "application/javascript" if target.endswith(".js") else (
-                        "text/css" if target.endswith(".css") else "application/octet-stream"))
-                self.send_response(200)
-                self.send_header("Content-Type", content_type)
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-                return True
-
             def do_GET(self):
                 parsed = urllib.parse.urlparse(self.path)
                 if parsed.path == "/api/health":
@@ -339,16 +319,14 @@ class ApiServer:
                 elif parsed.path == "/api/providers":
                     self._json(200, server.providers())
                 elif parsed.path in ("/", "/index.html"):
-                    if not self._static("/index.html"):
-                        body = FALLBACK_PAGE.encode("utf-8")
-                        self.send_response(200)
-                        self.send_header("Content-Type", "text/html; charset=utf-8")
-                        self.send_header("Content-Length", str(len(body)))
-                        self.end_headers()
-                        self.wfile.write(body)
+                    body = LANDING_PAGE.encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
                 else:
-                    if not self._static(parsed.path):
-                        self._json(404, {"error": "not_found"})
+                    self._json(404, {"error": "not_found"})
 
             def do_POST(self):
                 parsed = urllib.parse.urlparse(self.path)
@@ -409,7 +387,7 @@ class ApiServer:
         httpd = self._build_httpd()
         url = "http://%s:%d" % (self.host, httpd.server_address[1])
         print("Enterprise RAG Service listening on %s" % url)
-        print("  UI      %s/" % url)
+        print("  home    %s/" % url)
         print("  health  %s/api/health" % url)
         print("  corpus  %s (%d documents, %d chunks, index built in %.1f ms, cache %s)"
               % (self.service.corpus_version, len(self.corpus.documents),

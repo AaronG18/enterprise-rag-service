@@ -28,12 +28,10 @@ htmlcov/
 /scratch/
 _notes/
 
-# Frontend: source is tracked, dependencies are not, but the BUILT UI is committed on
-# purpose - a reviewer must be able to run the service without an npm install step.
-/web/node_modules/
-web/dist/*
-!web/dist/index.html
-!web/dist/assets/
+# Front end: this project ships none - the brief asks for a service, not a UI. The rule stays so a
+# stray `npm install` in a leftover web/ directory cannot pull ~10k untracked files back into the
+# working tree.
+/web/
 
 # OS / editor
 .DS_Store

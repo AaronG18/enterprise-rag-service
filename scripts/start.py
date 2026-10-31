@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-command start: build the corpus if needed, index it, serve the API and the UI.
+"""One-command start: build the corpus if needed, index it, serve the API.
 
     python scripts/start.py                 # 127.0.0.1:8174; fully offline, no credentials needed
     python scripts/start.py --port 9000
@@ -84,7 +84,7 @@ def main() -> int:
     api_key = os.environ.get(args.api_key_env, "") if args.provider == "openai-compatible" else ""
     if args.provider == "openai-compatible" and not api_key:
         print("NOTE: %s is not set; the server will start but model calls need a key "
-              "(supply it per request from the UI, or export it)." % args.api_key_env)
+              "(supply it per request over the API, or export it)." % args.api_key_env)
     emb_key_env = args.api_key_env
     if args.embedding_provider == "openai-compatible":
         emb_key_env = RetrievalConfig.from_json(

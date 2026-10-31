@@ -82,6 +82,23 @@ raw run stays reproducible with the documented command.
 | R-18m | Style Consistency | >= 0.85 | 0.9043 | snapshot |
 | R-24m | before/after history | present | 3 runs recorded | snapshot `history` block |
 
+## G. Harness integrity (the harness is code, and code needs tests)
+
+The brief asks for a verifiable service, so the verifier gets the same treatment as the product:
+every rule has an enforcement, every skill is valid and reachable, CI stays hermetic, the
+documentation cannot contradict the shipped configuration, and retrieval cannot regress silently.
+Without these, a green pipeline proves only that the pipeline is green.
+
+| ID | Requirement | Acceptance criterion | Verification | Owner issue |
+|---|---|---|---|---|
+| R-26 | Every rule in `harness/RULES.md` is enforced | each rule has exactly one row in the enforcement map; every path the map names exists; each rule is enforced by code or its row says `manual` | test (AUTO) | #90 |
+| R-27 | Every skill is valid and reachable | frontmatter `name` equals the directory name, the description says when to use it, relative links resolve, and something points at the skill | test (AUTO) | #90 |
+| R-28 | CI stays hermetic | no workflow installs anything, and every workflow that runs the service or the evaluation pins the offline embedding and reranker providers | test (AUTO) | #90 |
+| R-29 | No front end in the tree | shipped code references no front-end directory, the README and deployment guide advertise no UI, and a stray `web/` directory stays gitignored | test (AUTO) | #90 |
+| R-30 | Documentation matches the shipped configuration | the README and the deployment guide name the shipped embedding model and the runtime switches, and state no default the configuration no longer has | test (AUTO) | #90 |
+| R-31 | Retrieval does not regress silently | the labelled golden set meets the measured floors for vector-only, hybrid and hybrid+rerank | test (AUTO) | #90 |
+| R-32 | Retrieval is reproducible | two builds produce identical vectors, identical rankings for the same question and identical scores | test (AUTO) | #90 |
+
 ## Notes on derivation
 
 Three requirements in the source brief are under-specified in a way that changes the

@@ -26,7 +26,14 @@ The goal of this repository is deliberately narrow and checkable:
 ```
 
 Every one of those stages is **configuration-driven**. Switching retrieval modes or
-toggling the reranker never touches Python code.
+toggling the reranker never touches Python code - either in `configs/retrieval.json`, or on the
+command line:
+
+```bash
+python scripts/start.py --mode vector_only            # vector-only retrieval
+python scripts/start.py --mode hybrid --rerank off    # hybrid, reranker disabled
+python scripts/start.py --mode hybrid --rerank on     # hybrid + cross-encoder reranker
+```
 
 ## 2. Scope of the knowledge base
 
@@ -116,7 +123,7 @@ harness/             the AI working harness: RULES.md, ROLES.md, skills/
 ## 7. Quickstart
 
 ```bash
-python scripts/start.py              # serves the API + UI on http://127.0.0.1:8174
+python scripts/start.py              # serves the API on http://127.0.0.1:8174
 ```
 
 One command: the corpus is generated deterministically, indexed in memory (~19 ms measured),
@@ -124,7 +131,7 @@ and the service starts. **No database, no embedding model, no API key, no `pip i
 network.**
 Full guide: [`docs/deployment.md`](docs/deployment.md).
 
-Then either click around the UI, or:
+Then ask it something:
 
 ```bash
 python scripts/run_tests.py          # hermetic test suite, zero third-party deps

@@ -4,7 +4,11 @@ Applies to humans and AI agents equally. These are not preferences. A change tha
 any rule below is invalid even if the code works, because this repository's product is
 **justified confidence**, not just code.
 
-Read order for a new session: this file -> `ROLES.md` -> the relevant skill.
+Read order for a new session: this file -> `ROLES.md` -> the relevant skill. The skills are
+`harness/skills/evidence-and-testing/SKILL.md` (before you claim anything),
+`harness/skills/github-issue-workflow/SKILL.md` (before you start or finish a change),
+`harness/skills/rag-eval/SKILL.md` (before you produce or quote a number) and
+`harness/skills/harness-maintenance/SKILL.md` (before you change the harness itself).
 
 ---
 
@@ -137,6 +141,28 @@ must fail when it cannot find its evidence, and it must report how much evidence
 ran. Speed work found this: counting the tests each row really executed made the empty rows
 visible.
 
+**The same applies to this file.** The enforcement map below used to be prose a human was trusted
+to keep true, and nothing checked it. It is now machine-verified by
+`tests/test_harness_selfcheck.py`: a rule with no map row fails, a map row pointing at a file
+that no longer exists fails, a rule that nothing enforces fails unless its row says `manual`, and
+a reference to a rule id that does not exist fails. Adding a rule without adding its
+enforcement is therefore a red build, not a silent promise.
+
+## R17 - No front end
+
+This repository ships a **service**, not an application. There is no UI, no client-side build and
+no npm dependency in the tree. The brief asks for a RAG service and its evidence; a front end is
+scope that adds surfaces to maintain, artefacts to commit (a built bundle in the repository is
+~1 MB of generated code) and claims a reviewer then has to verify.
+
+The one exception is deliberate and minimal: `GET /` answers with a self-contained HTML string
+held in `src/ragserve/api.py`, whose only job is to tell a reviewer which endpoints to call. It
+is not an application, it is a signpost.
+
+Enforced by `tests/test_harness_selfcheck.py`: no shipped file may reference a front-end
+directory, the README and deployment guide must not advertise a UI, and a stray `web/` directory
+must stay gitignored so a leftover `npm install` cannot re-enter the history.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or
@@ -165,19 +191,20 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 
 | Rule | Where it is checked | Failure signal |
 |---|---|---|
-| R1 | PR template, `CONTRIBUTING.md` | PR with no `Fixes #` |
-| R2 | closing comment review | "LGTM" without pasted output |
-| R3 | `harness/skills/evidence-and-testing/`, eval report format | untagged metric in a report |
-| R4 | reviewer requires red output | green-only test added with the fix |
-| R5 | `ROLES.md`, verification step | same session wrote and approved |
-| R6 | CI `no-secret-scan` job | CI red |
-| R7 | CI runs with no install step | any `pip install` in CI |
-| R8 | issue tree review | orphan diff with no parent EPIC |
-| R9 | review | mixed-purpose commit |
-| R10 | diff review | `_tmp.py` in the tree |
-| R11 | EPIC #10 retro | repeated incident with no rule change |
-| R14 | branch protection + `pr-hygiene` job | a commit landing on `main` without a branch |
+| R1 | `.github/workflows/harness.yml` (pr-hygiene) + `CONTRIBUTING.md` | a PR with no `Fixes #`, or a branch/commit that does not name an issue |
+| R2 | manual closing-comment review | "LGTM" without pasted output |
+| R3 | `harness/skills/evidence-and-testing/SKILL.md` + manual report review | an untagged metric in a report |
+| R4 | manual: the reviewer requires red output | a green-only test added together with the fix |
+| R5 | `harness/ROLES.md` + manual review | the same session wrote and approved |
+| R6 | `.github/workflows/ci.yml` (no-secret-scan) | CI red |
+| R7 | `.github/workflows/ci.yml` + `scripts/run_tests.py` + `tests/test_harness_selfcheck.py` | an install step in CI, or a workflow that runs the service without the offline pins |
+| R8 | manual issue-tree review | an orphan diff with no parent EPIC |
+| R9 | manual diff review | a mixed-purpose commit |
+| R10 | `.github/workflows/ci.yml` (contract-gate) | a scratch file in the tree |
+| R11 | manual EPIC retro | a repeated incident with no rule change |
+| R12 | `docs/metrics/` + manual metric review | a target that is unreachable by construction |
+| R13 | `scripts/diagnose.py` + manual review | an improvement claimed with no reproducing command |
+| R14 | `.github/workflows/harness.yml` (pr-hygiene) | a commit landing on `main` without a branch |
 | R15 | `.github/workflows/harness.yml` | a merged PR whose harness checks were red or absent |
-| R16 | `tests/test_requirements_gate.py` | a manifest row added with no failing state first |
-| R12 | metric review + `docs/metrics/` | a target that is unreachable by construction |
-| R13 | replay harness (`scripts/diagnose.py`) | improvement claimed with no reproducing command |
+| R16 | `tests/test_requirements_gate.py` + `tests/test_harness_selfcheck.py` | a manifest row added with no failing state first, or a rule with no enforcement |
+| R17 | `tests/test_harness_selfcheck.py` | shipped code referencing a front end, or documentation advertising a UI |

@@ -22,7 +22,7 @@ That single command:
 
 1. generates the corpus if it is not already built (deterministic, seeded - no download);
 2. indexes it **in memory** - measured at ~19 ms for 32 documents / 53 chunks;
-3. serves the API and the built UI on `http://127.0.0.1:8174` and opens your browser.
+3. serves the API on `http://127.0.0.1:8174`.
 
 There is no database, no embedding model, no ETL step and no `pip install`. The reviewer needs
 Python 3.11+ and nothing else. Regenerating the corpus is possible
@@ -53,9 +53,9 @@ application. The port is therefore probed before it is trusted, not after a fail
 
 | URL | What it is |
 |---|---|
-| `/` | React + AntD UI: provider selector, chat, citations, inspectable trace |
+| `/` | a self-contained landing page: the endpoints and a copy-pasteable request |
 | `/api/health` | provider, corpus version, chunk count, index build time, uptime |
-| `/api/providers` | what the UI needs to render the provider selector |
+| `/api/providers` | the generation providers this service can talk to |
 | `/api/ask` | `POST {question, session_id?, provider?, endpoint?, api_key?, model?}` |
 
 Example:
@@ -67,7 +67,10 @@ curl -s -X POST http://127.0.0.1:8174/api/ask \
   -d '{"question":"How many days of annual leave do full-time employees accrue?"}'
 ```
 
-## Providers (the UI selector)
+## Providers
+
+The service is headless: a provider is chosen per request, or pinned at start-up with
+`--provider`.
 
 | Provider | Needs | Notes |
 |---|---|---|
@@ -83,15 +86,17 @@ python scripts/start.py --provider openai-compatible \
   --endpoint https://api.example.com/v1 --model your-model
 ```
 
-The same key can be pasted into the UI per session; it lives in browser memory only and is sent
-per request.
+The same key can be sent per request in the `api_key` field; it is used for that request only and is
+never stored.
 
 ### Embeddings (opt-in, independent of the generation provider)
 
-Embeddings default to the offline deterministic hashing backend, so the service builds its index
-with **no credential**. To use a real embedding model, set the three fields in
-`configs/retrieval.json` - `embedding_endpoint`, `embedding_model`, `embedding_api_key_env`,
-shipped as a ready BGE-M3 preset - and start with:
+Embeddings ship with a **keyless** default: a local **bge-m3** served by `llama.cpp`
+(`python scripts/setup_models.py` installs it), reached with no credential and no third-party
+Python package. With no model server running, the service falls back **loudly** to the offline
+deterministic hashing backend, so a cold clone still starts with no credential at all. To point at
+a hosted model instead, set the three fields in `configs/retrieval.json` -
+`embedding_endpoint`, `embedding_model`, `embedding_api_key_env` - and start with:
 
 ```bash
 python scripts/start.py --embedding-provider openai-compatible

@@ -1,4 +1,9 @@
-"""Report writer: text and CSV, from one run (never a second, divergent run)."""
+"""Report writer: text and CSV, from one run (never a second, divergent run).
+
+Enforces R3: every number carries a provenance tag. The report writer is the last place a number
+can lose its tag, so the provenance is written into the artefact rather than left to whoever
+quotes it later.
+"""
 from __future__ import annotations
 
 import csv
