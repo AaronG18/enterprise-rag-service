@@ -127,11 +127,27 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #90c front end removed - the brief asks for no UI, so `web/` and the UI screenshots are gone
 - [x] #90d harness self-check: rule traceability, skill validity, CI hermeticity, no front end, docs-vs-config (R-26..R-30)
 - [x] #90e golden retrieval regression set with measured floors, plus a reproducibility check (R-31, R-32)
+- [x] #90f (issue #92) the comparison report refreshed against the corpus the repository ships
+- [x] #90g (issue #94) one command regenerates every deliverable; the comparison report is generated, never hand-written (R-33)
 
 ## Change log (reverse chronological)
 
 Entries follow: issue, then change, then evidence status.
 
+* **#92 / #94** CLOSED (2026-11-01). Two follow-ups on the same failure. **#92**: the comparison
+  report was refreshed - it had been quoting a 30-case run against a corpus the repository stopped
+  shipping when EPIC 15 grew it to 85 cases, and because `run_eval.py --all` writes only to
+  `artifacts/` nothing had forced the two to agree. The stale numbers had also inverted the
+  conclusion: on the old corpus reranking traded recall for MRR, so the report recommended plain
+  `hybrid`; on the current corpus `hybrid+rerank` leads on every axis. **#94** fixed the failure
+  mode rather than the instance: `docs/eval/retrieval-comparison.md` is now **generated** by
+  `python scripts/build_deliverables.py` from committed snapshots, the same way `sample_logs.md`
+  has always been, and one command now regenerates every deliverable (artefacts, snapshots, the
+  comparisons report, the sample logs, the QA dashboard). A test asserts the committed file equals
+  what the renderer produces, so a hand-edit is a red build - demonstrated by editing it on
+  purpose and watching the test go red. Both backends are still reported side by side, because
+  they disagree about reranking and that disagreement is the finding. Suite 214 -> 223 tests,
+  gate 37 -> 38 rows.
 * **EPIC 16 (#90)** CLOSED (2026-10-31). Two things landed. (1) *Real retrieval.* The shipped
   default is now a keyless, offline model pair - BGE-M3 embeddings (1024-d) and a
   bge-reranker-v2-m3 cross-encoder, both served by a `llama.cpp` build that

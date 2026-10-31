@@ -1,0 +1,59 @@
+{
+  "comparison": {
+    "hybrid": {
+      "context_precision": 0.8262,
+      "faithfulness": 1.0,
+      "mrr": 0.8006,
+      "ndcg": 0.8254,
+      "recall@5": 0.8987,
+      "refusal_appropriateness": 0.9059,
+      "style_consistency": 1.0
+    },
+    "hybrid+rerank": {
+      "context_precision": 0.8814,
+      "faithfulness": 1.0,
+      "mrr": 0.8911,
+      "ndcg": 0.9088,
+      "recall@5": 0.962,
+      "refusal_appropriateness": 0.9529,
+      "style_consistency": 1.0
+    },
+    "vector_only": {
+      "context_precision": 0.8376,
+      "faithfulness": 1.0,
+      "mrr": 0.7114,
+      "ndcg": 0.7266,
+      "recall@5": 0.7722,
+      "refusal_appropriateness": 0.8,
+      "style_consistency": 1.0
+    }
+  },
+  "note": "Snapshot of a real run, committed so the comparison report and the requirements gate can read it without re-measuring. Regenerate with python scripts/build_deliverables.py.",
+  "operations": {
+    "answer_compliance_rate": 0.96,
+    "cache_hit_rate": 0.4706,
+    "cache_stats": {
+      "evictions": 0,
+      "hits": 80,
+      "lookups": 170,
+      "stores": 74
+    },
+    "calls_measured": 85,
+    "p50_latency_ms": 16.392,
+    "p95_latency_ms": 26.924,
+    "refusal_rate": 0.0941,
+    "token_usage_input_total": 18209,
+    "token_usage_output_total": 4129,
+    "token_usage_total": 22338
+  },
+  "run_id": "20261101-000008",
+  "run_metadata": {
+    "case_count": 85,
+    "config_fingerprint": "{\"allow_deterministic_fallback\": true, \"candidate_k\": 20, \"degraded_embedding\": ",
+    "corpus_version": "a716676ca46bfa44",
+    "model_version": "stub-deterministic-1",
+    "provenance": "deterministic",
+    "provider": "deterministic",
+    "run_id": "20261101-000008"
+  }
+}

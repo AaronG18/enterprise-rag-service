@@ -139,6 +139,27 @@ python scripts/run_eval.py --all     # retrieval comparison + generative scoring
 python scripts/run_bench.py --http --concurrency 5 --assert   # service-level load test
 ```
 
+### One command for every deliverable
+
+```bash
+python scripts/build_deliverables.py
+```
+
+That regenerates everything the brief asks to be handed over, so the report cannot fall behind the
+measurements (it once did - see `docs/diagnosis/` / issue #92):
+
+| What it writes | Where |
+|---|---|
+| evaluation artefacts | `artifacts/eval/<run>/{metrics.json,report.txt,report.csv,scored_cases.jsonl}` |
+| deterministic snapshot | `docs/eval/deterministic-metrics.json` |
+| comparison report (**generated**, never hand-edited) | `docs/eval/retrieval-comparison.md` |
+| sample logs | `docs/logging/sample_logs.md` |
+| QA dashboard | `docs/qa/qa-dashboard.html` |
+
+Editing `retrieval-comparison.md` by hand fails a test: the committed file must equal what the
+renderer produces from the committed snapshots. Add `--refresh-model-backed` (with the local model
+servers running) to re-measure the model-backed lane as well.
+
 ### Real models: bundled, open-source, and keyless
 
 Everything above runs with **no credentials at all** on the offline deterministic backend, so a

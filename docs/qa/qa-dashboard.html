@@ -19,9 +19,9 @@ artefacts. Deterministic provenance: <b>deterministic</b>. Model-backed provenan
 <h2>Deterministic lane - three retrieval configurations</h2>
 <table>
 <tr><th>configuration</th><th>recall@5</th><th>mrr</th><th>ndcg</th><th>context_precision</th><th>faithfulness</th><th>refusal_appropriateness</th><th>style</th></tr>
-<tr><td>hybrid</td><td>0.9615</td><td>0.9167</td><td>0.9281</td><td>0.9529</td><td>1.0000</td><td>0.9000</td><td>1.0000</td></tr>
-<tr><td>hybrid+rerank</td><td>0.9231</td><td>0.9231</td><td>0.9231</td><td>0.9420</td><td>1.0000</td><td>0.9000</td><td>1.0000</td></tr>
-<tr><td>vector_only</td><td>0.9231</td><td>0.8526</td><td>0.8704</td><td>0.9485</td><td>1.0000</td><td>0.8667</td><td>1.0000</td></tr>
+<tr><td>hybrid</td><td>0.8987</td><td>0.8006</td><td>0.8254</td><td>0.8262</td><td>1.0000</td><td>0.9059</td><td>1.0000</td></tr>
+<tr><td>hybrid+rerank</td><td>0.9620</td><td>0.8911</td><td>0.9088</td><td>0.8814</td><td>1.0000</td><td>0.9529</td><td>1.0000</td></tr>
+<tr><td>vector_only</td><td>0.7722</td><td>0.7114</td><td>0.7266</td><td>0.8376</td><td>1.0000</td><td>0.8000</td><td>1.0000</td></tr>
 </table>
 
 <h2>Model-backed lane (real generation, 180 calls)</h2>
@@ -38,12 +38,12 @@ artefacts. Deterministic provenance: <b>deterministic</b>. Model-backed provenan
 <h2>Operations report (deterministic lane)</h2>
 <table>
 <tr><th>field</th><th>value</th></tr>
-<tr><td>p50_latency_ms</td><td>4.466</td></tr>
-<tr><td>p95_latency_ms</td><td>6.14</td></tr>
-<tr><td>token_usage_total</td><td>1588</td></tr>
-<tr><td>cache_hit_rate</td><td>0.3833</td></tr>
-<tr><td>refusal_rate</td><td>0.2333</td></tr>
-<tr><td>answer_compliance_rate</td><td>0.9</td></tr>
+<tr><td>p50_latency_ms</td><td>16.392</td></tr>
+<tr><td>p95_latency_ms</td><td>26.924</td></tr>
+<tr><td>token_usage_total</td><td>22338</td></tr>
+<tr><td>cache_hit_rate</td><td>0.4706</td></tr>
+<tr><td>refusal_rate</td><td>0.0941</td></tr>
+<tr><td>answer_compliance_rate</td><td>0.96</td></tr>
 </table>
 
 <h2>Concurrency benchmark (cache disabled, single instance)</h2>
@@ -51,10 +51,10 @@ artefacts. Deterministic provenance: <b>deterministic</b>. Model-backed provenan
 <tr><th>field</th><th>value</th></tr>
 <tr><td>concurrency</td><td>5</td></tr>
 <tr><td>requests</td><td>30</td></tr>
-<tr><td>p50_latency_ms</td><td>32.532</td></tr>
-<tr><td>p90_latency_ms</td><td>144.008</td></tr>
-<tr><td>p95_latency_ms</td><td>161.526</td></tr>
-<tr><td>throughput_rps</td><td>92.341</td></tr>
+<tr><td>p50_latency_ms</td><td>95.503</td></tr>
+<tr><td>p90_latency_ms</td><td>260.802</td></tr>
+<tr><td>p95_latency_ms</td><td>296.507</td></tr>
+<tr><td>throughput_rps</td><td>38.551</td></tr>
 <tr><td>errors</td><td>0</td></tr>
 <tr><td>within_bound</td><td>True</td></tr>
 </table>
@@ -65,10 +65,10 @@ artefacts. Deterministic provenance: <b>deterministic</b>. Model-backed provenan
 <tr><td>transport</td><td>http</td></tr>
 <tr><td>concurrency</td><td>5</td></tr>
 <tr><td>requests</td><td>30</td></tr>
-<tr><td>p50_latency_ms</td><td>32.532</td></tr>
-<tr><td>p90_latency_ms</td><td>144.008</td></tr>
-<tr><td>p95_latency_ms</td><td>161.526</td></tr>
-<tr><td>throughput_rps</td><td>92.341</td></tr>
+<tr><td>p50_latency_ms</td><td>95.503</td></tr>
+<tr><td>p90_latency_ms</td><td>260.802</td></tr>
+<tr><td>p95_latency_ms</td><td>296.507</td></tr>
+<tr><td>throughput_rps</td><td>38.551</td></tr>
 <tr><td>errors</td><td>0</td></tr>
 <tr><td>within_bound</td><td>True</td></tr>
 </table>
@@ -76,8 +76,8 @@ artefacts. Deterministic provenance: <b>deterministic</b>. Model-backed provenan
 <h2>Documented incidents (>= 10% improvement asserted)</h2>
 <table>
 <tr><th>incident</th><th>metric</th><th>before</th><th>after</th><th>change</th><th>verdict</th></tr>
-<tr><td>INC-001 refusal gate</td><td>refusal_appropriateness</td><td>0.1333</td><td>0.9</td><td>+575.2%</td><td>PASS</td></tr>
-<tr><td>INC-002 OCR penalty</td><td>ocr_mrr</td><td>0.3333</td><td>0.6667</td><td>+100.0%</td><td>PASS</td></tr>
+<tr><td>INC-001 refusal gate</td><td>refusal_appropriateness</td><td>0.1059</td><td>0.9529</td><td>+799.8%</td><td>PASS</td></tr>
+<tr><td>INC-002 OCR penalty</td><td>ocr_mrr</td><td>1.0</td><td>1.0</td><td>+0.0%</td><td>FAIL</td></tr>
 </table>
 
 <h2>Requirements matrix (25 rows, verdicts from docs/qa/qa-report-2026-10-28.md)</h2>

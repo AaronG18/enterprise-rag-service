@@ -98,6 +98,7 @@ Without these, a green pipeline proves only that the pipeline is green.
 | R-30 | Documentation matches the shipped configuration | the README and the deployment guide name the shipped embedding model and the runtime switches, and state no default the configuration no longer has | test (AUTO) | #90 |
 | R-31 | Retrieval does not regress silently | the labelled golden set meets the measured floors for vector-only, hybrid and hybrid+rerank | test (AUTO) | #90 |
 | R-32 | Retrieval is reproducible | two builds produce identical vectors, identical rankings for the same question and identical scores | test (AUTO) | #90 |
+| R-33 | The comparison report is generated, never hand-edited | the committed report equals what the renderer produces from the committed snapshots, and the deterministic snapshot still matches the shipped corpus and case count | test (AUTO) | #94 |
 
 ## Notes on derivation
 
