@@ -247,7 +247,7 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None,
     with open(artifacts["report_csv"], "w", encoding="utf-8", newline="") as fh:
         fh.write(render_csv(operations, comparison))
     with open(artifacts["scored_cases"], "w", encoding="utf-8", newline="\n") as fh:
-        for name in CONFIGURATIONS:
+        for name in configs_to_run:
             for row in all_rows[name]:
                 fh.write(json.dumps(dict(row, configuration=name), ensure_ascii=False,
                                     sort_keys=True) + "\n")
