@@ -35,6 +35,44 @@ Reproduce with `python scripts/run_eval.py --all`.
   corpus it trades a small recall/precision loss for a small MRR gain. That trade is reported as
   a trade, not as a win.
 
+## Model-backed comparison (BGE-M3 embeddings + bge-reranker-v2-m3 cross-encoder)
+
+Run: `artifacts/eval/20261031-050820` - corpus `a716676ca46bfa44`, 85 labelled cases,
+provider `deterministic` (generation), provenance `model-backed-retrieval`. Embeddings are the
+real BGE-M3 model served locally (1024-d, keyless); the reranker is the real
+bge-reranker-v2-m3 cross-encoder. Reproduce with `scripts/setup_models.py` + the two server
+commands in the README, then `python scripts/run_eval.py --all`. (This is the run the section
+above said must be reported separately and tagged `model-backed`.)
+
+| Metric | vector-only | hybrid | hybrid + rerank |
+|---|---|---|---|
+| recall@5 | 0.9747 | **1.0** | 1.0 |
+| mrr | 0.9034 | **0.9610** | 0.9523 |
+| ndcg | 0.9216 | **0.9708** | 0.9641 |
+| context_precision | 0.8648 | **0.9212** | 0.8673 |
+| faithfulness | 1.0 | 1.0 | 1.0 |
+| refusal_appropriateness | 0.8588 | 0.9176 | **0.9294** |
+| style_consistency | 1.0 | 1.0 | 1.0 |
+
+### Honest conclusion (model-backed)
+
+With **real semantic embeddings** (BGE-M3) instead of the hashing baseline, hybrid already
+saturates `recall@5` at **1.0**, so there is no recall headroom for reranking to recover - the
+same saturation effect seen in the deterministic run, now on genuine vectors. The cross-encoder
+reranker (bge-reranker-v2-m3) does **not** improve ranking on this corpus: `mrr` 0.9610 -> 0.9523,
+`ndcg` 0.9708 -> 0.9641, `context_precision` 0.9212 -> 0.8673 all move *down*. Its one genuine
+effect is on safety: `refusal_appropriateness` rises 0.9176 -> 0.9294, because cross-attention
+spots out-of-scope queries the bi-encoder scorer misses.
+
+This is a measured result, reported as such - not a defect in the integration. The reranker is
+verified to call the real `/v1/rerank` endpoint and return true cross-encoder scores (a relevant
+passage scored +6.13 against -10.15 for an unrelated one in a direct probe), so the lack of
+improvement is the model's behaviour on this corpus, not a wiring bug. **Recommendation: keep
+`hybrid` as the default; treat the cross-encoder reranker as an optional, corpus-dependent stage -
+enable it when a real measurement shows it helps (e.g. a corpus where top-1 precision is the
+bottleneck), and leave it off otherwise, because here it costs ranking quality for a small safety
+gain.**
+
 ## Operations (same run, cache disabled for latency)
 
 | Field | Value |

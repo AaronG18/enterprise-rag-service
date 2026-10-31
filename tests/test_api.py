@@ -9,6 +9,7 @@ import urllib.error
 import urllib.request
 
 from ragserve.api import ApiServer
+from ragserve.retrieval.pipeline import RetrievalConfig
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -299,6 +300,42 @@ class TestKeySafety(_ServerFixture):
             "api_key": "sk-test",
             "model": "m"})
         self.assertIn("error", result)
+
+
+class TestRuntimeRetrievalConfig(unittest.TestCase):
+    """FR-1: the two retrieval modes and the reranker on/off are configuration, never code.
+
+    The launch flags (--mode / --rerank / --reranker-provider) must reach the running service
+    without editing any source file. These tests pin that the overrides are applied to the live
+    RetrievalConfig and that an invalid mode is rejected loudly.
+    """
+
+    def _server(self, **overrides):
+        return ApiServer(ROOT, host="127.0.0.1", port=0,
+                         embedding_provider="deterministic", reranker_provider="deterministic",
+                         **overrides)
+
+    def test_mode_override_applied(self):
+        server = self._server(mode="vector_only", rerank_enabled=False)
+        self.assertEqual(server.retrieval_config.mode, "vector_only")
+        self.assertFalse(server.retrieval_config.rerank_enabled)
+        # The override is on the instance only - the config file on disk is untouched.
+        on_disk = RetrievalConfig.from_json(
+            os.path.join(ROOT, "configs", "retrieval.json"))
+        self.assertNotEqual(on_disk.mode, "vector_only")
+
+    def test_reranker_provider_override_applied(self):
+        server = ApiServer(ROOT, host="127.0.0.1", port=0,
+                           embedding_provider="deterministic",
+                           mode="hybrid", rerank_enabled=True,
+                           reranker_provider="cross-encoder")
+        self.assertEqual(server.retrieval_config.mode, "hybrid")
+        self.assertTrue(server.retrieval_config.rerank_enabled)
+        self.assertEqual(server.retrieval_config.reranker_provider, "cross-encoder")
+
+    def test_invalid_mode_rejected(self):
+        with self.assertRaises(ValueError):
+            self._server(mode="not-a-mode")
 
 
 if __name__ == "__main__":

@@ -15,17 +15,23 @@ htmlcov/
 /artifacts/
 !.gitkeep
 
+# Local model runtime and weights. Downloaded by scripts/setup_models.py - never committed,
+# because these are ~1 GB of binaries that would bloat every clone, and a reviewer can re-fetch
+# them with that one script. They live here (not in %LOCALAPPDATA% or ~/.cache) on purpose: the
+# path is predictable, so the service, the docs and the setup script can all point at it instead
+# of leaving the reviewer to guess where the model went.
+/vendor/
+/models/
+
 # Local scratch, deliberately NOT using a bare "data/" rule:
 # a bare rule silently swallows legitimate package directories deeper in the tree.
 /scratch/
 _notes/
 
-# Frontend: source is tracked, dependencies are not, but the BUILT UI is committed on
-# purpose - a reviewer must be able to run the service without an npm install step.
-/web/node_modules/
-web/dist/*
-!web/dist/index.html
-!web/dist/assets/
+# Front end: this project ships none - the brief asks for a service, not a UI. The rule stays so a
+# stray `npm install` in a leftover web/ directory cannot pull ~10k untracked files back into the
+# working tree.
+/web/
 
 # OS / editor
 .DS_Store

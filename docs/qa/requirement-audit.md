@@ -12,11 +12,11 @@ Target as written: p90 <= 10 s with 5 concurrent, 0 errors
 ```
 $ python scripts/run_bench.py --http --concurrency 5 --requests 30 --assert
 concurrency 5, requests 30
-  p50 82.4 ms  p90 210.8 ms  p95 212.5 ms
-  throughput 46.8 req/s  errors 0
+  p50 78.2 ms  p90 186.3 ms  p95 219.4 ms
+  throughput 49.2 req/s  errors 0
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\bench\20261030-002436\bench.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\bench\20261031-230611\bench.json`
 
 ## GC-2 ([09]) - token-cost estimate per 1,000 calls + model-version rationale
 
@@ -25,7 +25,7 @@ Target as written: token arithmetic present; prices need an operator-supplied li
 ```
 $ python scripts/run_eval.py --all --cost
   hybrid+rerank    {'recall@5': 0.962, 'mrr': 0.8911, 'ndcg': 0.9088, 'context_precision': 0.8814, 'faithfulness': 1.0, 'refusal_appropriateness': 0.9529, 'style_consistency': 1.0}
-artifacts       : D:\Projects\AIA\artifacts\eval\20261030-002443\metrics.json
+artifacts       : D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json
 Token cost estimate
 ===================
   model_version:             deterministic
@@ -53,7 +53,7 @@ $ python scripts/run_eval.py --all  (hybrid, deterministic)
 faithfulness = 1.0000  (target >= 0.85)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261030-002443\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
 
 ## GC-3b ([11]) - RAG: Context Precision >= 0.70
 
@@ -64,7 +64,7 @@ $ python scripts/run_eval.py --all  (hybrid)
 context_precision = 0.8262  (target >= 0.70)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261030-002443\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
 
 ## GC-4 ([12]) - generative standard defined; compliance/style/refusal >= 80%
 
@@ -77,7 +77,7 @@ refusal_appropriateness 0.9059 (>= 0.80)
 style_consistency 1.0000 (>= 0.80)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261030-002443\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
 
 ## GC-5 ([14]) - structured logs sufficient for monitoring and diagnosis
 
@@ -85,7 +85,7 @@ Target as written: field dictionary + generated samples, enforced by test
 
 ```
 $ python scripts/sample_logs.py
-log_fields.md 2681 bytes, sample_logs.md 4627 bytes
+log_fields.md 2681 bytes, sample_logs.md 4624 bytes
 ```
 
 Verdict: **PASS** | evidence: `D:\Projects\AIA\docs\logging\log_fields.md`
@@ -98,7 +98,7 @@ Target as written: detection and neutralisation, tested
 $ python scripts/run_tests.py -k TestInjectionDefence
 .....
 ----------------------------------------------------------------------
-Ran 5 tests in 0.328s
+Ran 5 tests in 0.330s
 OK
 ```
 
@@ -125,7 +125,7 @@ $ python scripts/run_tests.py -k TestGroundedAnswers
 faithfulness 1.0000; every answer sentence must be supported by its cited chunks (claim-level scorer)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261030-002443\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
 
 ## FR-1 ([21]) - at least two retrieval modes; reranker toggled by configuration only
 
@@ -177,8 +177,8 @@ Target as written: all six fields populated, text and CSV emitted
 
 ```
 $ python scripts/run_eval.py --report
-  p50_latency_ms           15.18
-  p95_latency_ms           17.637
+  p50_latency_ms           14.688
+  p95_latency_ms           17.81
   token_usage_total        22338
   cache_hit_rate           0.4706
   refusal_rate             0.0941
@@ -186,7 +186,7 @@ $ python scripts/run_eval.py --report
   CSV present: True (report.csv)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261030-002443\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
 
 ## NFR-1 ([30]) - compare vector-only, hybrid, hybrid+rerank with conclusions
 
@@ -209,7 +209,7 @@ Target as written: components are construction arguments; config drives modes
 ```
 $ python scripts/run_tests.py -k TestVectorRetrieval
 RetrievalPipeline(self, corpus, config: 'RetrievalConfig', reranker=None, embeddings=None)
-  config keys: candidate_k, embedding_api_key_env, embedding_endpoint, embedding_model, embedding_provider, mode, rerank_candidates, rerank_enabled, rrf_k, seed, top_k, vector_dim
+  config keys: allow_deterministic_fallback, candidate_k, degraded_embedding, degraded_reranker, embedding_api_key_env, embedding_endpoint, embedding_model, embedding_provider, mode, rerank_candidates, rerank_enabled, reranker_endpoint, reranker_model, reranker_provider, reranker_timeout, rrf_k, seed, top_k, vector_dim
 ```
 
 Verdict: **PASS** | evidence: `src/ragserve/retrieval/pipeline.py`
@@ -313,7 +313,7 @@ Target as written: python scripts/start.py builds, indexes and serves
 
 ```
 $ python scripts/start.py
-  index built in 72.4 ms, 80 documents, 204 chunks
+  index built in 57.5 ms, 80 documents, 204 chunks
   health: {"status": "ok", "provider": "deterministic", "corpus_version": "a716676ca46bfa44"}
   (no database, no embedding model, no install step)
 ```
@@ -326,12 +326,12 @@ Target as written: python scripts/verify_requirements.py, 30 rows
 
 ```
 $ python scripts/verify_requirements.py
-  R-16m   PASS answer_compliance_rate >= 0.9 (actual 0.9826, from eval)
-  R-17m   PASS refusal_appropriateness >= 0.9 (actual 0.9, from eval)
-  R-18m   PASS style_consistency >= 0.85 (actual 0.9043, from eval)
-  R-24m   PASS docs/eval/model-backed-metrics.json
-30/30 rows passed in 48.7s (jobs=8, generators 17.5s of CPU time)
-report: D:\Projects\AIA\artifacts\verify\20261030-002550
+  R-29    PASS TestNoFrontEnd: 3 test(s) passed
+  R-30    PASS TestDocsMatchConfig: 3 test(s) passed
+  R-31    PASS TestGoldenRetrieval: 3 test(s) passed
+  R-32    PASS TestRetrievalIsDeterministic: 3 test(s) passed
+37/37 rows passed in 45.8s (jobs=8, generators 14.8s of CPU time)
+report: D:\Projects\AIA\artifacts\verify\20261031-230720
 ```
 
 Verdict: **PASS** | evidence: `harness/requirements.toml`

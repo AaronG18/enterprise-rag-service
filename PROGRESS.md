@@ -26,6 +26,7 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 | 13 (#45) | Submission hardening | HTTP API, React+AntD UI, one-command start, BYO key, service bench | done |
 | 14 (#54) | Harness in CI | machine-readable requirements manifest, verifier, harness workflow, branch protection | done |
 | 15 (#75) | Expand synthetic knowledge base | four families balanced, 80 docs / 204 chunks, meaningful scanned subset, grown eval set, re-measure | done |
+| 16 (#90) | Real model-backed retrieval, backend-only delivery | keyless local BGE-M3 + cross-encoder reranker, runtime mode/rerank switches, front end removed | done |
 
 ---
 
@@ -119,9 +120,40 @@ Legend: `todo` / `in-progress` / `needs-evidence` / `done`
 - [x] #78 grow the labelled evaluation set with the corpus (realigned `eval_cases.json` + `retrieval_cases.json`, scanned targets + refusal cases)
 - [x] #79 re-measure everything on the new corpus (recall@5 0.77/0.90/0.96 across configs, bench p90 79 ms, audit 24/24, diagnose green)
 
+## EPIC 16 (#90) children
+
+- [x] #90a real retrieval, keyless and offline: local BGE-M3 embeddings + bge-reranker-v2-m3 cross-encoder
+- [x] #90b runtime configuration switches (`--mode`, `--rerank`, `--reranker-provider`): no code change to swap
+- [x] #90c front end removed - the brief asks for no UI, so `web/` and the UI screenshots are gone
+- [x] #90d harness self-check: rule traceability, skill validity, CI hermeticity, no front end, docs-vs-config (R-26..R-30)
+- [x] #90e golden retrieval regression set with measured floors, plus a reproducibility check (R-31, R-32)
+
 ## Change log (reverse chronological)
 
 Entries follow: issue, then change, then evidence status.
+
+* **EPIC 16 (#90)** CLOSED (2026-10-31). Two things landed. (1) *Real retrieval.* The shipped
+  default is now a keyless, offline model pair - BGE-M3 embeddings (1024-d) and a
+  bge-reranker-v2-m3 cross-encoder, both served by a `llama.cpp` build that
+  `scripts/setup_models.py` installs into gitignored `vendor/` and `models/`. Measured on the
+  same corpus and the same 85 labelled cases: hybrid recall@5 goes 0.8987 (deterministic) -> 1.0
+  (model-backed), mrr 0.8006 -> 0.9610. The cross-encoder did **not** improve on hybrid in that
+  run - with recall already saturated there is nothing left for it to recover - and that negative
+  result is reported as measured in `docs/eval/retrieval-comparison.md` rather than hidden. (2)
+  *The front end was removed.* The brief asks for no UI, so `web/` (8 tracked files, including the
+  committed `web/dist` build output) and the five UI screenshots are deleted; `/` now answers with
+  a self-contained landing page and the deployment docs describe a headless service. The entries
+  below are left as they were written: EPIC 13 did ship a React + AntD UI, and it was later
+  removed on purpose. (3) *The harness got its own checks.* The enforcement map in
+  `harness/RULES.md` had been prose a human was trusted to keep true; it is now machine-verified
+  (R-26), the skills are validated rather than assumed (R-27), CI is checked for the hermetic pins
+  it depends on (R-28), the no-front-end decision is enforced instead of merely intended (R-29),
+  and the documentation is compared against the shipped configuration (R-30) - which caught a
+  deployment guide that had been claiming the wrong embedding default. Two new rules (R16
+  extended, R17 added) and a new skill (`harness-maintenance`) came with it, and the gate grew from
+  30 rows to 37, the suite from 184 tests to 213. Retrieval also gained a fast golden-set floor
+  (R-31) and a reproducibility check (R-32), so a regression shows up in seconds instead of at
+  the next full evaluation.
 
 * **#67 / EPIC 14 (#54)** CLOSED (2026-10-28). The gate is now concurrent: the generators
   and the requirement rows run in parallel, and the hermetic suite runs its test classes in

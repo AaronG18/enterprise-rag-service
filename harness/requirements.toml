@@ -296,3 +296,51 @@ kind = "file"
 path = "docs/eval/model-backed-metrics.json"
 contains = "independent_rerun"
 owner = "#6"
+[[requirement]]
+id = "R-26"
+title = "every rule has an enforcement, enforced by code or marked manual"
+kind = "test"
+tests = ["TestRuleTraceability"]
+owner = "#90"
+
+[[requirement]]
+id = "R-27"
+title = "every skill is valid, its links resolve and something points at it"
+kind = "test"
+tests = ["TestSkillValidity"]
+owner = "#90"
+
+[[requirement]]
+id = "R-28"
+title = "CI stays hermetic: no install step, offline providers pinned"
+kind = "test"
+tests = ["TestWorkflowHermeticity"]
+owner = "#90"
+
+[[requirement]]
+id = "R-29"
+title = "the repository ships no front end"
+kind = "test"
+tests = ["TestNoFrontEnd"]
+owner = "#90"
+
+[[requirement]]
+id = "R-30"
+title = "documentation matches the shipped configuration"
+kind = "test"
+tests = ["TestDocsMatchConfig"]
+owner = "#90"
+
+[[requirement]]
+id = "R-31"
+title = "the golden retrieval set meets its measured floors"
+kind = "test"
+tests = ["TestGoldenRetrieval"]
+owner = "#90"
+
+[[requirement]]
+id = "R-32"
+title = "retrieval is reproducible across builds"
+kind = "test"
+tests = ["TestRetrievalIsDeterministic"]
+owner = "#90"

@@ -6,6 +6,7 @@
 | [0002](0002-retrieval-strategy.md) | Hybrid retrieval with Reciprocal Rank Fusion; reranking is separately toggleable. |
 | [0003](0003-synthetic-corpus.md) | Corpus is synthetic and seeded, with a version hash stamped into every artefact. |
 | [0004](0004-model-version-tradeoff.md) | hy3 + hybrid is the default for real generation (only configuration meeting all advanced targets); flash when latency dominates. Contains a recorded recommendation reversal. |
+| [0005](0005-local-model-serving.md) | Real retrieval served locally and keyless via llama.cpp (BGE-M3 embeddings + bge-reranker-v2-m3 cross-encoder); Ollama/TEI rejected. Provenance is measured, not declared. |
 
 Conventions for these records: state the decision, the alternatives rejected with reasons, the
 measured consequences, and the cost accepted. An ADR that only records what was chosen is a

@@ -6,6 +6,11 @@ name: harness
 # evidence in the PR body, no scratch files, publishable content, and every requirement row in
 # harness/requirements.toml verified. A rule that only exists in a document is a rule that fails
 # exactly when attention is lowest, so the enforceable ones live here.
+#
+# Rule ids this workflow enforces: R1 (issue in branch name and every commit), R14 (branch and PR,
+# never straight to main), R15 (the harness checks are the definition of done), R16 (the gate is
+# code and needs its own tests). The rule ids are named here on purpose: the traceability check in
+# tests/test_harness_selfcheck.py looks for them, so a rule cannot claim enforcement it does not have.
 
 on:
   push:
@@ -20,11 +25,13 @@ on:
 permissions:
   contents: read
 
-# CI must stay hermetic (no API key): pin the embedding backend to the offline deterministic
-# provider. The delivered service leaves this unset and uses the real provider from
-# configs/retrieval.json.
+# CI must stay hermetic (no API key, no model server): pin both stages to the offline
+# deterministic backends. The delivered service leaves these unset and uses the real providers
+# from configs/retrieval.json (BGE-M3 embeddings + cross-encoder reranker, both keyless, served
+# locally via scripts/setup_models.py).
 env:
   RAGSERVE_EMBEDDING_PROVIDER: deterministic
+  RAGSERVE_RERANKER_PROVIDER: deterministic
 
 jobs:
   requirements-gate:

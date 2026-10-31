@@ -6,6 +6,10 @@
     python scripts/diagnose.py --all --assert     # exit 1 if any case improves by < 10%
 
 Writes artifacts/diagnosis/<case>/{report.json, report.md}.
+
+Enforces R13: attribution must survive reproduction. A fix is only credited when re-running the
+incident reproduces the before state and the after state moves the metric by the claimed amount.
+This script is that re-run, and `--assert` fails when the improvement is missing.
 """
 from __future__ import annotations
 

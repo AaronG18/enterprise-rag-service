@@ -9,8 +9,27 @@ from typing import Dict, List, Optional
 from ..cache import ResponseCache
 from ..corpus.builder import CorpusConfig, build_corpus
 from ..generation.providers import CodeBuddyServeProvider
-from ..retrieval.pipeline import RetrievalConfig
+from ..retrieval.pipeline import RetrievalConfig, build_embedder, build_reranker
 from ..service import GenerationConfig, RagService
+
+
+def retrieval_provenance(retrieval: RetrievalConfig, generation) -> str:
+    """What actually produced the numbers in a report.
+
+    Provenance has to be measured, not declared: if the model server was down and the run fell
+    back, claiming `model-backed` would be exactly the kind of number the repo forbids. The
+    degrade flags are set by the factories when a fallback really happened.
+    """
+    real_embedding = (retrieval.embedding_provider != "deterministic"
+                      and not retrieval.degraded_embedding)
+    real_reranker = (retrieval.reranker_provider == "cross-encoder"
+                     and not retrieval.degraded_reranker)
+    real_generation = generation.provider != "deterministic"
+    if real_generation and (real_embedding or real_reranker):
+        return "model-backed"
+    if real_embedding or real_reranker:
+        return "model-backed-retrieval, deterministic-generation"
+    return "deterministic"
 from . import metrics as M
 from .report import OPS_FIELDS, render_csv, render_text
 
@@ -149,7 +168,8 @@ def measure_operations(corpus, cases: List[Dict], generation: GenerationConfig,
     }
 
 
-def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) -> Dict:
+def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None,
+                   mode: Optional[str] = None, rerank_enabled: Optional[bool] = None) -> Dict:
     configs = os.path.join(root, "configs")
     corpus_cfg = CorpusConfig.from_json(os.path.join(configs, "corpus.json"))
     retrieval_base = RetrievalConfig.from_json(os.path.join(configs, "retrieval.json"))
@@ -160,9 +180,26 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) ->
     cases = load_cases(cases_path)
     corpus = build_corpus(corpus_cfg)
 
+    # FR-1: the retrieval mode and reranker on/off are configuration, not code. They can be set in
+    # configs/retrieval.json or overridden at script run time. When a caller passes mode/rerank, we
+    # run a single configuration reflecting those overrides (and apply them to the base so the
+    # operations measurement and provenance describe what was actually run); otherwise the default
+    # three-configuration comparison runs.
+    if mode is not None or rerank_enabled is not None:
+        overrides = {}
+        if mode is not None:
+            overrides["mode"] = mode
+        if rerank_enabled is not None:
+            overrides["rerank_enabled"] = rerank_enabled
+        for key, value in overrides.items():
+            setattr(retrieval_base, key, value)
+        configs_to_run = {"custom": overrides}
+    else:
+        configs_to_run = CONFIGURATIONS
+
     comparison: Dict[str, Dict[str, float]] = {}
     all_rows: Dict[str, List[Dict]] = {}
-    for name, overrides in CONFIGURATIONS.items():
+    for name, overrides in configs_to_run.items():
         outcome = evaluate_configuration(corpus, cases, overrides, generation, retrieval_base)
         comparison[name] = outcome["metrics"]
         all_rows[name] = outcome["rows"]
@@ -171,6 +208,12 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) ->
         corpus, cases, generation, retrieval_base,
         observability.get("exact_ttl_s", 300), observability.get("semantic_ttl_s", 60))
 
+    # Probe the real providers once against the base config. evaluate_configuration builds copies,
+    # so a fallback detected inside the loop would never reach retrieval_base - and provenance must
+    # report what was really used, not what the file asked for.
+    build_embedder(retrieval_base)
+    build_reranker(retrieval_base)
+
     run_metadata = {
         "corpus_version": corpus.manifest["corpus_version"],
         "config_fingerprint": retrieval_base.__dict__ and json.dumps(
@@ -178,7 +221,7 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) ->
         "provider": generation.provider,
         "model_version": generation.model_version,
         "case_count": len(cases),
-        "provenance": "deterministic",
+        "provenance": retrieval_provenance(retrieval_base, generation),
     }
 
     run_id = time.strftime("%Y%m%d-%H%M%S")
@@ -204,7 +247,7 @@ def run_evaluation(root: str, out_dir: str, cases_path: Optional[str] = None) ->
     with open(artifacts["report_csv"], "w", encoding="utf-8", newline="") as fh:
         fh.write(render_csv(operations, comparison))
     with open(artifacts["scored_cases"], "w", encoding="utf-8", newline="\n") as fh:
-        for name in CONFIGURATIONS:
+        for name in configs_to_run:
             for row in all_rows[name]:
                 fh.write(json.dumps(dict(row, configuration=name), ensure_ascii=False,
                                     sort_keys=True) + "\n")

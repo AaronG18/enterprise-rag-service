@@ -26,7 +26,14 @@ The goal of this repository is deliberately narrow and checkable:
 ```
 
 Every one of those stages is **configuration-driven**. Switching retrieval modes or
-toggling the reranker never touches Python code.
+toggling the reranker never touches Python code - either in `configs/retrieval.json`, or on the
+command line:
+
+```bash
+python scripts/start.py --mode vector_only            # vector-only retrieval
+python scripts/start.py --mode hybrid --rerank off    # hybrid, reranker disabled
+python scripts/start.py --mode hybrid --rerank on     # hybrid + cross-encoder reranker
+```
 
 ## 2. Scope of the knowledge base
 
@@ -116,7 +123,7 @@ harness/             the AI working harness: RULES.md, ROLES.md, skills/
 ## 7. Quickstart
 
 ```bash
-python scripts/start.py              # serves the API + UI on http://127.0.0.1:8174
+python scripts/start.py              # serves the API on http://127.0.0.1:8174
 ```
 
 One command: the corpus is generated deterministically, indexed in memory (~19 ms measured),
@@ -124,7 +131,7 @@ and the service starts. **No database, no embedding model, no API key, no `pip i
 network.**
 Full guide: [`docs/deployment.md`](docs/deployment.md).
 
-Then either click around the UI, or:
+Then ask it something:
 
 ```bash
 python scripts/run_tests.py          # hermetic test suite, zero third-party deps
@@ -132,33 +139,59 @@ python scripts/run_eval.py --all     # retrieval comparison + generative scoring
 python scripts/run_bench.py --http --concurrency 5 --assert   # service-level load test
 ```
 
-### Swapping in a real model (optional, BYO key)
+### Real models: bundled, open-source, and keyless
 
-Everything above runs with **no credentials at all**: generation and embeddings both default to
-the offline deterministic backend, so a reviewer can clone this repository and reproduce every
-published number with `python` alone. Real models are opt-in and are swapped by **configuration
-or flags, never by code changes**:
+Everything above runs with **no credentials at all** on the offline deterministic backend, so a
+cold clone always reproduces the published numbers. For a real semantic model, this repository
+ships a one-command setup that installs **free, open-source, industrial-grade models locally** -
+no API key, no account, no third-party Python package:
 
 ```bash
-# real embeddings - uses the BGE-M3 preset already in configs/retrieval.json
-python scripts/start.py --embedding-provider openai-compatible
-
-# real generation - the local CodeBuddy serve, or any OpenAI-compatible chat endpoint
-python scripts/start.py --provider codebuddy-serve --endpoint http://127.0.0.1:8788 --model hy3
-python scripts/start.py --provider openai-compatible \
-    --endpoint https://api.example.com/v1 --model your-model   # key from $OPENAI_API_KEY
+python scripts/setup_models.py          # ~1 GB, one time, into vendor/ and models/
+python scripts/setup_models.py --check  # just report what is already present
 ```
 
-The embedding preset is three fields in `configs/retrieval.json`:
+It fetches a self-contained `llama.cpp` server into `vendor/llama.cpp/` plus two weights into
+`models/`:
 
-| field | shipped value | note |
+| what | model | why this one |
 |---|---|---|
-| `embedding_endpoint` | `https://api.siliconflow.cn/v1` | any OpenAI-compatible `/v1/embeddings` service works |
-| `embedding_model` | `BAAI/bge-m3` | 1024-d, bilingual (CN/EN), free tier; set `vector_dim: 1024` to match it |
-| `embedding_api_key_env` | `SILICONFLOW_API_KEY` | name of the env var holding the key; the key is never logged |
+| embedding | **BGE-M3** (Q8_0, 1024-d) | multilingual (CN/EN) for the bilingual corpus; free for commercial use |
+| reranking | **bge-reranker-v2-m3** (Q4_K_M) | a real **cross-encoder**, multilingual; not a hand-written feature scorer |
 
-Point those three fields at another service (DashScope/Qwen, a local Ollama, your own
-deployment) to change embedding models. If the key is missing the server **fails loudly**
+The runtime lives inside the repository (`vendor/`, `models/`, both gitignored) rather than in
+`%LOCALAPPDATA%` or `~/.cache`, so the path is predictable: the config, the docs and the setup
+script all point at the same place. Note that gitignored files do **not** travel with a `git
+pull` - a reviewer re-creates them by running `setup_models.py` above, which is why that script
+is committed.
+
+Start the two servers (they are plain executables: no installer, no service, no admin rights):
+
+```bash
+vendor/llama.cpp/llama-server.exe -m models/bge-m3-q8_0.gguf \
+    --embedding --host 127.0.0.1 --port 8011
+vendor/llama.cpp/llama-server.exe -m models/bge-reranker-v2-m3-q4_k_m.gguf \
+    --embedding --pooling rank --host 127.0.0.1 --port 8012
+```
+
+The first speaks an OpenAI-compatible `/v1/embeddings`; the second a `/v1/rerank`. Both are
+reached with the standard library, so no dependency is added. Verified locally: the embedding
+endpoint returns **1024-d** vectors, and the reranker scores a relevant passage at **6.13** vs
+**-10.15** for an unrelated one, i.e. real cross-encoder scores rather than a degenerate
+constant.
+
+Then point the config at them - still **configuration, never a code change**:
+
+| field | value for the bundled models |
+|---|---|
+| `embedding_provider` | `openai-compatible` |
+| `embedding_endpoint` | `http://127.0.0.1:8011/v1` |
+| `embedding_model` | `bge-m3` |
+| `vector_dim` | `1024` (BGE-M3's width) |
+
+Prefer a hosted API instead? Point `embedding_endpoint` at any OpenAI-compatible service
+(SiliconFlow, DashScope/Qwen, your own deployment) and set `embedding_api_key_env` to the env var
+holding its key. The key is never logged. If it is missing the server **fails loudly**
 (`ProviderUnavailable`) rather than silently degrading, so a misconfigured production path is
 never mistaken for a working one.
 

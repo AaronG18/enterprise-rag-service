@@ -5,10 +5,14 @@
   "rerank_enabled": true,
   "rerank_candidates": 10,
   "rrf_k": 60,
-  "vector_dim": 512,
+  "vector_dim": 1024,
   "seed": 20261027,
-  "embedding_provider": "deterministic",
-  "embedding_endpoint": "https://api.siliconflow.cn/v1",
-  "embedding_api_key_env": "SILICONFLOW_API_KEY",
-  "embedding_model": "BAAI/bge-m3"
+  "embedding_provider": "openai-compatible",
+  "embedding_endpoint": "http://127.0.0.1:8011/v1",
+  "embedding_api_key_env": "",
+  "embedding_model": "bge-m3",
+  "reranker_provider": "cross-encoder",
+  "reranker_endpoint": "http://127.0.0.1:8012/v1",
+  "reranker_model": "bge-reranker-v2-m3",
+  "reranker_timeout": 120.0
 }
