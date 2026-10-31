@@ -24,7 +24,7 @@ re-derived by running a command. It is simultaneously:
 |---|---|---|
 | `python scripts/run_tests.py` | hermetic test suite (unit + golden) | none. No network, no credentials, no third-party packages. |
 | `python scripts/setup_models.py` | install bundled local models (llama.cpp + BGE-M3 + bge-reranker-v2-m3) | network for the one-time ~1 GB download (mirror fallbacks for blocked hosts); output is gitignored |
-| `python scripts/build_deliverables.py` | one command for every deliverable: evaluation artefacts, the committed snapshots, the generated comparison report, the sample logs and the QA dashboard | none. The deterministic lane is pinned so the numbers are reproducible offline; `--refresh-model-backed` additionally re-measures the model-backed lane, which needs the local model servers |
+| `python scripts/run_eval.py --all --deliverables` | one command for every deliverable: evaluation artefacts, the committed snapshots, the generated comparison report, the sample logs and the QA dashboard - and it prints every path written | none. The deterministic lane is pinned so the numbers are reproducible offline; `--refresh-model-backed` additionally re-measures the model-backed lane, which needs the local model servers |
 | `python scripts/run_eval.py --all` | retrieval comparison + generative scoring + ops report | none, in the default `deterministic` provider mode |
 | `python scripts/run_eval.py --all --provider codebuddy-serve` | same evaluation against a real model | a local CodeBuddy serve on loopback (`--endpoint http://127.0.0.1:8788 --model hy3`) |
 

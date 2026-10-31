@@ -28,7 +28,7 @@
       "style_consistency": 1.0
     }
   },
-  "note": "Snapshot of a real run, committed so the comparison report and the requirements gate can read it without re-measuring. Regenerate with python scripts/build_deliverables.py.",
+  "note": "Snapshot of a real run, committed so the comparison report and the requirements gate can read it without re-measuring. Regenerate with python scripts/run_eval.py --all --deliverables.",
   "operations": {
     "answer_compliance_rate": 0.96,
     "cache_hit_rate": 0.4706,
@@ -39,14 +39,14 @@
       "stores": 74
     },
     "calls_measured": 85,
-    "p50_latency_ms": 15.913,
-    "p95_latency_ms": 23.409,
+    "p50_latency_ms": 16.56,
+    "p95_latency_ms": 26.39,
     "refusal_rate": 0.0941,
     "token_usage_input_total": 18209,
     "token_usage_output_total": 4129,
     "token_usage_total": 22338
   },
-  "run_id": "20261101-003920",
+  "run_id": "20261101-012136",
   "run_metadata": {
     "case_count": 85,
     "config_fingerprint": "{\"allow_deterministic_fallback\": true, \"candidate_k\": 20, \"degraded_embedding\": ",
@@ -54,6 +54,6 @@
     "model_version": "stub-deterministic-1",
     "provenance": "deterministic",
     "provider": "deterministic",
-    "run_id": "20261101-003920"
+    "run_id": "20261101-012136"
   }
 }

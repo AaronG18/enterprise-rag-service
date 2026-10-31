@@ -141,7 +141,7 @@ Entries follow: issue, then change, then evidence status.
   conclusion: on the old corpus reranking traded recall for MRR, so the report recommended plain
   `hybrid`; on the current corpus `hybrid+rerank` leads on every axis. **#94** fixed the failure
   mode rather than the instance: `docs/eval/retrieval-comparison.md` is now **generated** by
-  `python scripts/build_deliverables.py` from committed snapshots, the same way `sample_logs.md`
+  `python scripts/run_eval.py --all --deliverables` from committed snapshots, the same way `sample_logs.md`
   has always been, and one command now regenerates every deliverable (artefacts, snapshots, the
   comparisons report, the sample logs, the QA dashboard). A test asserts the committed file equals
   what the renderer produces, so a hand-edit is a red build - demonstrated by editing it on
