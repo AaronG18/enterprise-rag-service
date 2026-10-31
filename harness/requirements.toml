@@ -344,3 +344,10 @@ title = "retrieval is reproducible across builds"
 kind = "test"
 tests = ["TestRetrievalIsDeterministic"]
 owner = "#90"
+
+[[requirement]]
+id = "R-33"
+title = "the comparison report is generated, never hand-edited"
+kind = "test"
+tests = ["TestComparisonDocIsGenerated", "TestRendererHonesty"]
+owner = "#94"
