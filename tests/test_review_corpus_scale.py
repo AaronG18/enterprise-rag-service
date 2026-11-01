@@ -36,27 +36,28 @@ FONT_METADATA = ("Adobe", "UCS", "GB1", "begincmap")
 
 
 def canonical_digest(path: str) -> str:
-    """sha256 of a PDF with every compressed stream replaced by the hash of its decompressed body.
+    """sha256 over the sequence of decompressed stream bodies - and nothing else.
 
-    Raw byte equality is not portable: zlib output legitimately differs between zlib builds, which
-    is exactly what the first CI run of this test proved (the corpus was generated on Windows and
-    compared on Linux). The decompressed content is precisely what the generator wrote, and that is
-    what has to be stable - the compression is an implementation detail of the transport.
+    Two earlier attempts failed, and the failures are the lesson. Raw byte equality is not portable:
+    zlib output legitimately differs between zlib builds and Python versions. And substituting each
+    stream with the hash of its body is not enough either, because the surrounding `/Length N` and
+    the xref offsets still shift whenever zlib's *output size* changes - the first CI runs failed on
+    a file whose decompressed content was byte-identical. What the generator actually writes, and
+    what has to be stable, is the decompressed content in order; /Length and xref offsets are
+    transport detail.
     """
     with open(path, "rb") as fh:
         data = fh.read()
-    out = bytearray()
+    hashes = []
     pos = 0
     opener = re.compile(rb"(?<!end)stream\r?\n")
     while True:
         match = opener.search(data, pos)
         if not match:
-            out += data[pos:]
             break
         start = match.end()
         end = data.find(b"endstream", start)
         if end < 0:
-            out += data[pos:]
             break
         body = data[start:end]
         if body.endswith(b"\r\n"):
@@ -66,11 +67,10 @@ def canonical_digest(path: str) -> str:
         try:
             body = zlib.decompress(body)
         except zlib.error:
-            pass  # a raw (unfiltered) stream: its bytes are already canonical
-        out += data[pos:start]
-        out += b"stream:" + hashlib.sha256(body).hexdigest().encode("ascii")
+            pass  # a raw (unfiltered) stream: its bytes are already the content
+        hashes.append(hashlib.sha256(body).hexdigest())
         pos = end + len(b"endstream")
-    return hashlib.sha256(bytes(out)).hexdigest()
+    return hashlib.sha256("\n".join(hashes).encode("ascii")).hexdigest()
 
 
 def _pdf_names(directory: str) -> list:
