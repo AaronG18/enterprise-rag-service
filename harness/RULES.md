@@ -68,6 +68,10 @@ Shipped code must use only the Python standard library plus the `ragserve` packa
 third-party imports on the critical path, and CI must run with no `pip install` step. A cold
 clone + `python scripts/run.py --test` must work with **no API key and no network**.
 
+There is exactly one sanctioned exception, `real-models-contract.yml` (R21): it installs the bundled
+models and asserts the real lane ordinally. It is not a gate and it publishes no number - the
+hermeticity self-check enforces both halves of that sentence.
+
 The delivered service is **keyless by default**. `configs/retrieval.json` ships the real
 semantic model as the default - `embedding_provider: "openai-compatible"` pointing at a locally
 served BGE-M3, and `reranker_provider: "cross-encoder"` pointing at a locally served
@@ -246,6 +250,27 @@ Therefore:
 * when the brief states a target about **user requests**, the evidence comes from the reviewer's own
   input through that entry point, not only from cases written by the author.
 
+## R21 - A fixture is not the system under test
+
+The gate must be exactly reproducible, so it pins the deterministic backend: hashing embeddings, a
+feature reranker, a template generator. That is the right choice for the **numbers** and a dangerous
+choice for the **integration**, because a fixture proves nothing about the models the deliverable
+actually ships. Pinning it and stopping there means a broken BGE-M3 endpoint, a changed response
+shape or a dead reranker keeps every gate green forever.
+
+**Observed**: CI pinned `RAGSERVE_*_PROVIDER=deterministic` (R-28) and nothing ever exercised the
+real lane; the model-backed numbers came from a snapshot of a past manual run. Asked whether the real
+lane still worked, the honest answer was "nobody knows".
+
+So both halves are required:
+
+* the **gate** keeps the deterministic fixture and its numbers are labelled a floor, never a result;
+* **one dedicated job** exercises the real models with **ordinal** assertions - a Chinese question
+  must retrieve the English policy first, the embedding dimension must match the config, the same text
+  must embed to the same vector. Ordinal assertions cannot flake on CPU/SIMD differences, which is why
+  this job does not destabilise the gate;
+* that job is the **only** exemption from hermetic CI, and it must never publish a gate number.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or
@@ -294,3 +319,4 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 | R18 | `tests/test_harness_selfcheck.py` (`TestCapabilityProvenByHardestInput`) + `tests/data/cjk-pdf/` | a supported input class whose hard case has no fixture, or a test that never asserts the extracted content |
 | R19 | `tests/test_review_corpus_scale.py` + `scripts/run.py` + `tests/data/review-corpus/` | a scale claim with no committed corpus behind it, a corpus that exists only at run time, committed data drifted from its generator, or a corpus that has quietly shrunk back to stubs |
 | R20 | `tests/test_harness_selfcheck.py` (`test_scripts_holds_exactly_one_entry_point`) | a second script in `scripts/`, or README instructions that send a reviewer to anything but `run.py` |
+| R21 | `tests/test_real_model_contract.py` + `.github/workflows/real-models-contract.yml` | a real lane with no CI job, an exemption that publishes numbers, or a contract test that silently skips when the models are required |

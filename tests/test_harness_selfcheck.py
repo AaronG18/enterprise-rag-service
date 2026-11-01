@@ -246,14 +246,19 @@ class TestWorkflowHermeticity(unittest.TestCase):
         self.assertEqual(offenders, [],
                          "workflows must stay install-free (INV-1): %s" % offenders)
 
+    CONTRACT_WORKFLOW = "real-models-contract.yml"
+
     def test_workflows_that_run_the_service_pin_the_offline_providers(self):
         """A workflow that runs the evaluation or the service must pin both stages.
 
         Without the pins, the shipped config points at a local model server that CI does not have,
-        and the run silently falls back - or fails. The pin is what makes CI hermetic.
+        and the run silently falls back - or fails. The pin is what makes CI hermetic. The single
+        exemption is the real-model contract job, asserted separately below.
         """
         offenders = []
         for name, path in self.workflows:
+            if name == self.CONTRACT_WORKFLOW:
+                continue
             text = read(path)
             runs_service = "scripts/run.py" in text
             if not runs_service:
@@ -263,6 +268,26 @@ class TestWorkflowHermeticity(unittest.TestCase):
                     offenders.append("%s (%s)" % (name, var))
         self.assertEqual(offenders, [],
                          "workflows that run the service must pin the offline providers: %s" % offenders)
+
+    def test_the_real_model_contract_job_is_the_only_exemption(self):
+        """R21: one job may leave the hermetic envelope, and it must prove the real lane.
+
+        Without this job the gate would only ever exercise the deterministic fixture: a broken BGE-M3
+        endpoint, a changed response shape or a dead reranker would keep every gate green.
+        """
+        path = os.path.join(WORKFLOWS, self.CONTRACT_WORKFLOW)
+        self.assertTrue(os.path.isfile(path),
+                        "%s must exist: it is the only evidence the real models still work"
+                        % self.CONTRACT_WORKFLOW)
+        text = read(path)
+        self.assertIn("RAGSERVE_REQUIRE_REAL_MODELS", text,
+                      "the contract job must require the models instead of silently skipping")
+        self.assertIn("test_real_model_contract.py", text,
+                      "the contract job must run the contract test")
+        self.assertNotIn("--eval", text,
+                         "the contract job must not run the evaluation: it cannot publish numbers")
+        self.assertNotIn("--deliverables", text,
+                         "the contract job must not touch the committed deliverables")
 
 
 class TestWorkflowClosure(unittest.TestCase):

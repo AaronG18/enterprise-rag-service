@@ -388,6 +388,14 @@ backend stays as the CI baseline because it needs neither a download nor a serve
 which is exactly why the scale is pinned by `tests/test_review_corpus_scale.py` instead of living in
 a temp directory.
 
+The real lane is not taken on trust either. A separate CI job
+([`real-models-contract.yml`](.github/workflows/real-models-contract.yml), R21) installs these models
+and asserts what hashing cannot fake: a **Chinese** question must retrieve the **English** leave
+policy first, and the embedding must answer at the configured 1024 dimensions and return the same
+vector for the same text. Those are **ordinal** assertions, so a different runner cannot flip them -
+which is exactly why the gate numbers stay deterministic (a float-level metric from shared runners
+would drift every build) while the contract job covers what the gate cannot see.
+
 Then point the config at them - still **configuration, never a code change**:
 
 | field | value for the bundled models |
@@ -419,7 +427,7 @@ carry the provenance tag from section 5.
 | **Real cross-encoder reranker** (`bge-reranker-v2-m3`), not a hand-written scorer | heuristic feature scorer | the model returns real scores: a relevant passage **+6.13** vs an unrelated one **-10.15**; deterministic mrr `0.8006 -> 0.8911` | `docs/adr/0005`, R-10 |
 | **Reranking is optional, not assumed** | always on | it *hurts* under real embeddings: model-backed mrr `0.9610 -> 0.9523`, while it helps under hashing embeddings (`0.8006 -> 0.8911`). Reranking helps exactly when retrieval leaves it room | the same report states both, and the conclusion is derived from them |
 | **BGE-M3 embeddings (1024-d), keyless and local** | hosted embedding API (key + network) | hybrid recall@5 `0.8987 -> 1.0`, mrr `0.8006 -> 0.9610` versus the hashing baseline; no credential needed | `docs/adr/0005`, model-backed section of the report |
-| **Deterministic backend as the CI baseline** | only real models | reproducible offline, no key, no network; every published gate number is `deterministic` | CI pins `RAGSERVE_*_PROVIDER=deterministic`, R-28 |
+| **Deterministic backend as the gate fixture** | real models behind every gate number | it makes the published numbers exactly reproducible: no download, no key, and no float drift when the runner's SIMD path changes. Every gate number is `deterministic` - a **floor**, not a result | CI pins `RAGSERVE_*_PROVIDER=deterministic` (R-28); the real lane is proven separately by `real-models-contract.yml` (R21) |
 | **Synthetic corpus, seeded** (`seed=20261027`) | real internal documents | keeps the repository publishable (R6) and the numbers reproducible; 80 docs / 204 chunks / 85 labelled cases | `TestGoldenRetrieval`, R-31 |
 | **In-memory index** | ANN index + vector store | index build measured in milliseconds at this corpus size; correct at 204 chunks, would be replaced at millions (trade-off recorded) | `docs/adr/0002` |
 | **Two-layer cache (exact + semantic), TTL bound** | no cache | cache hit rate measured at **0.4706**; benchmarks disable it so latency numbers are not cache hits | ops report field `cache_hit_rate`, R-12 |
