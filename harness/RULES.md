@@ -196,12 +196,20 @@ repository - is an anecdote, not evidence, no matter how real the run was.
 true of one run and unreproducible by anyone else: the corpus lived in `%TEMP%`, built by scripts
 that were never committed, while the repository itself carried six PDF fixtures of 1-3 KB. A
 reviewer asking "where are the dozens? and why is each only a few KB?" was right on both counts -
-the claimed scale existed nowhere in the repo, and nothing could re-run it.
+the claimed scale existed nowhere in the repo, and nothing could re-run it. R19's first version
+still allowed the corpus to be generated at run time into a temp directory; the reviewer's
+requirement is stronger, and correct: **the data must be in the tree.**
 
 Therefore:
 
-* a **scale claim** ("dozens of PDFs", "N documents") requires a committed, deterministic generator
-  plus a test that asserts that scale and that the corpus is not a folder of stubs;
+* **test data lives in the repository**, under `tests/data/`, like every other fixture. A corpus
+  that exists only while a test runs, generated into a temp directory, is invisible to a reviewer
+  and deleted on cleanup - that is not test data, it is a side effect.
+* a committed corpus must be **verified byte-for-byte against its generator**: re-running the
+  generator and comparing every file proves the generator is deterministic and that the data cannot
+  silently drift from it. A generator change without regenerating the data is a red build.
+* a **scale claim** ("dozens of PDFs", "N documents") requires the committed corpus plus a test that
+  asserts that scale and that the corpus is not a folder of stubs;
 * numbers quoted in the README, the docs and PR bodies must **name the command that reproduces
   them**;
 * if a scratch measurement earned its keep, the generator earns a commit (R10) - a measurement is
@@ -253,4 +261,4 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 | R16 | `tests/test_requirements_gate.py` + `tests/test_harness_selfcheck.py` | a manifest row added with no failing state first, or a rule with no enforcement |
 | R17 | `tests/test_harness_selfcheck.py` | shipped code referencing a front end, or documentation advertising a UI |
 | R18 | `tests/test_harness_selfcheck.py` (`TestCapabilityProvenByHardestInput`) + `tests/data/cjk-pdf/` | a supported input class whose hard case has no fixture, or a test that never asserts the extracted content |
-| R19 | `tests/test_review_corpus_scale.py` + `scripts/gen_review_corpus.py` | a scale claim with no committed generator behind it, or a corpus that has quietly shrunk back to stubs |
+| R19 | `tests/test_review_corpus_scale.py` + `scripts/gen_review_corpus.py` + `tests/data/review-corpus/` | a scale claim with no committed corpus behind it, a corpus that exists only at run time, committed data drifted from its generator, or a corpus that has quietly shrunk back to stubs |

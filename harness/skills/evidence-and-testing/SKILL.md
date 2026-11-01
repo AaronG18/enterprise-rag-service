@@ -83,6 +83,8 @@ A measurement nobody can re-run is an anecdote. Before citing a number:
 
 - [ ] Does a **committed command** reproduce it? (Scratch output in `%TEMP%` does not count - delete
       the directory and the evidence is gone.)
+- [ ] Is the **data itself committed** under `tests/data/`, and verified byte-for-byte against its
+      generator? A corpus that exists only while a test runs is invisible to a reviewer.
 - [ ] If the claim is about **scale** ("dozens of PDFs", "N documents"), is there a committed
       deterministic generator plus a test asserting that scale and that the corpus is not stubs?
 - [ ] Does the doc/PR quote the command, so a reviewer can re-run it instead of trusting it?
