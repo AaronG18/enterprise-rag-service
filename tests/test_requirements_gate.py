@@ -73,7 +73,7 @@ class TestFailureReporting(unittest.TestCase):
 class TestTestRowSelections(unittest.TestCase):
     """A test row must fail when it names a test class that does not exist.
 
-    Measured: seven selections in the manifest matched zero tests, and `run_tests.py -k`
+    Measured: seven selections in the manifest matched zero tests, and `scripts/run.py -k`
     exits 0 when nothing matches - so those rows were passing vacuously.
     """
 

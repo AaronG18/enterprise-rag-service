@@ -41,5 +41,5 @@ quoted as a service-level number.
   a cost table look authoritative and mean nothing.
 * Every cost figure is tagged `estimate`: it is arithmetic over a stated price list, not a bill.
 
-Measured per-call tokens come from `run_eval.py` (`token_usage_total` over 27 cases). To turn
+Measured per-call tokens come from `scripts/run.py` (`token_usage_total` over 27 cases). To turn
 that into a cost, fill `configs/pricing.json` for the model you actually use.

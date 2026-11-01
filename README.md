@@ -71,7 +71,7 @@ place it is implemented and the command or document that proves it.
 | **Corpus** bilingual CN/EN, includes scanned PDFs | `corpus/` generator, seeded; ~8% of docs through an OCR-noise transform | `docs/eval/retrieval-comparison.md` |
 | **Any stack, but choices justified with quantitative evidence** | section 8, `docs/adr/` | every row there carries a measurement |
 | **Performance** 90% of requests <= 10 s; >= 5 concurrent on one instance | service + cache | `scripts/run.py --http --concurrency 5 --assert` (p90 170 ms, 0 errors) |
-| **Cost** token-cost estimate per 1,000 calls; model-version trade-off (quality/cost/latency) | `configs/pricing.json`, `src/ragserve/evaluation/cost.py` | `run_eval.py --cost`; `docs/eval/model-backed.md` (hy3 ~$50.5 vs flash ~$14.0 per 1,000 calls) |
+| **Cost** token-cost estimate per 1,000 calls; model-version trade-off (quality/cost/latency) | `configs/pricing.json`, `src/ragserve/evaluation/cost.py` | `scripts/run.py --cost`; `docs/eval/model-backed.md` (hy3 ~$50.5 vs flash ~$14.0 per 1,000 calls) |
 | **Quality** Faithfulness >= 0.85, evaluation method defined | `docs/metrics/metrics.md` | measured 1.0 deterministic / 0.913 model-backed |
 | **Quality** Context Precision >= 0.70 | same rubric | 0.9529 deterministic / 0.8814 model-backed |
 | **Quality** Answer Compliance >= 80% (advanced 90%) | generative scorer | 0.9000 deterministic / 0.965-0.983 model-backed |
@@ -112,7 +112,7 @@ maps each target to a verification command and an owning issue.
 | Answer Compliance | >= 0.80 / 0.90 | 0.9600 |
 | Refusal Appropriateness | >= 0.80 / 0.90 | 0.9529 |
 | Style Consistency | >= 0.80 / 0.85 | 1.0 |
-| Cost | estimate per 1,000 calls | `run_eval.py --cost` prints `cost_per_1000_calls_usd` from measured tokens x `configs/pricing.json` (reference prices; the deterministic CI baseline is a local stub, so $0.00) |
+| Cost | estimate per 1,000 calls | `scripts/run.py --cost` prints `cost_per_1000_calls_usd` from measured tokens x `configs/pricing.json` (reference prices; the deterministic CI baseline is a local stub, so $0.00) |
 | Observability | structured logs, single-request reconstruction | 5 stages per request, documented dictionary |
 | Issue diagnosis | >= 2 cases, >= 10% gain | 2 cases: +575%, +100% |
 
@@ -346,7 +346,7 @@ It fetches a self-contained `llama.cpp` server into `vendor/llama.cpp/` plus two
 The runtime lives inside the repository (`vendor/`, `models/`, both gitignored) rather than in
 `%LOCALAPPDATA%` or `~/.cache`, so the path is predictable: the config, the docs and the setup
 script all point at the same place. Note that gitignored files do **not** travel with a `git
-pull` - a reviewer re-creates them by running `setup_models.py` above, which is why that script
+pull` - a reviewer re-creates them by running `scripts/run.py` above, which is why that script
 is committed.
 
 Start the two servers (they are plain executables: no installer, no service, no admin rights):
@@ -380,7 +380,7 @@ silently drift apart:
 
 **Chosen: BGE-M3.** It is multilingual - which a bilingual corpus needs - and semantic: over 30
 similarly-themed documents it retrieves the right document every time, where hashing misses 2 of 30.
-The trade-off is stated rather than hidden: ~1 GB to download through `setup_models.py`, roughly
+The trade-off is stated rather than hidden: ~1 GB to download through `scripts/run.py`, roughly
 1000x the index build time, and context precision moves slightly **down** (0.905 -> 0.883) - a real
 cost, reported because a comparison that only shows wins is not a comparison. The deterministic
 backend stays as the CI baseline because it needs neither a download nor a server. These queries are

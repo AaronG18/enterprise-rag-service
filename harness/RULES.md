@@ -85,7 +85,7 @@ model-backed numbers a model did not produce.
 Real providers live behind adapters selectable by config, and are **pinned to the offline
 deterministic backend inside CI** via `RAGSERVE_EMBEDDING_PROVIDER=deterministic` and
 `RAGSERVE_RERANKER_PROVIDER=deterministic` (set in both workflow files and in
-`run_tests.py`). `run_tests.py` also sets the embedding override via `os.environ.setdefault`, so
+`scripts/run.py`). `scripts/run.py` also sets the embedding override via `os.environ.setdefault`, so
 the test gate needs no model server and no network. Swapping models stays a configuration change,
 never a code change, which is what FR1 asks for.
 
@@ -155,7 +155,7 @@ enforcement is therefore a red build, not a silent promise.
 **And the CI has to follow.** A rule enforced only by a test that no workflow runs is still a
 promise. The same self-check therefore requires every rule not marked `manual` to be **named in a
 workflow**, and requires the workflows to actually **run the gate commands**
-(`run_tests.py`, `verify_requirements.py`). Adding a rule without touching CI is a red build too.
+(`scripts/run.py`, `scripts/run.py`). Adding a rule without touching CI is a red build too.
 (Observed: R18 and R19 were added with map rows and tests while no workflow mentioned them, and
 nothing would have failed if a job stopped running the suite.)
 
@@ -235,7 +235,7 @@ The brief lists four deliverables, and one of them is "**One-click evaluation sc
 the reviewer has to work out which to run, in what order, and which one the brief actually meant.
 
 **Observed**: the repository shipped twelve scripts and a Quickstart that ran several of them in
-sequence; the real models needed a separate `setup_models.py` before anything semantic worked; and
+sequence; the real models needed a separate `scripts/run.py` before anything semantic worked; and
 the performance target ("90% of QA requests within 10 s, >= 5 concurrent") was measured only against
 85 cases the repository wrote for itself, never against a question the reviewer typed. A reviewer
 reading the brief saw none of those three things.
@@ -270,6 +270,19 @@ So both halves are required:
   must embed to the same vector. Ordinal assertions cannot flake on CPU/SIMD differences, which is why
   this job does not destabilise the gate;
 * that job is the **only** exemption from hermetic CI, and it must never publish a gate number.
+
+## R22 - A document may not name what does not exist
+
+Every command, path and script a document tells a reader to run must exist. Prose is not compiled, so
+a rename leaves dead instructions behind and every gate stays green, because nothing executes a
+markdown file.
+
+**Observed**: `scripts/` was reduced to one entry point, and nine documents plus four source comments
+kept telling the reader to run the deleted ones. The interviewer would have typed a command that does
+not exist - the worst failure mode for a hand-over, and invisible to every test.
+
+So: commands name the single entry point; the self-check scans every tracked document for dead script
+names; and the README's invocations are asserted to be `scripts/run.py` and nothing else.
 
 ## R11 - Fold learning back
 
@@ -320,3 +333,4 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 | R19 | `tests/test_review_corpus_scale.py` + `scripts/run.py` + `tests/data/review-corpus/` | a scale claim with no committed corpus behind it, a corpus that exists only at run time, committed data drifted from its generator, or a corpus that has quietly shrunk back to stubs |
 | R20 | `tests/test_harness_selfcheck.py` (`test_scripts_holds_exactly_one_entry_point`) | a second script in `scripts/`, or README instructions that send a reviewer to anything but `run.py` |
 | R21 | `tests/test_real_model_contract.py` + `.github/workflows/real-models-contract.yml` | a real lane with no CI job, an exemption that publishes numbers, or a contract test that silently skips when the models are required |
+| R22 | `tests/test_harness_selfcheck.py` (`TestNoStaleScriptReferences`) | a document naming a deleted script, or a README that invokes anything but `scripts/run.py` |

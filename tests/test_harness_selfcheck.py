@@ -295,7 +295,7 @@ class TestWorkflowClosure(unittest.TestCase):
 
     The gap this closes: R18 and R19 were added to RULES.md with map rows and tests, but no workflow
     referenced them, and nothing verified that the workflows still run the gate commands. Deleting
-    `run_tests.py` from a job, or adding a rule with no CI counterpart, left the harness green.
+    `scripts/run.py` from a job, or adding a rule with no CI counterpart, left the harness green.
     """
 
     @classmethod
@@ -336,6 +336,54 @@ class TestWorkflowClosure(unittest.TestCase):
                 return
         self.fail("no workflow checks the committed review corpus (R19): a corpus that is gitignored "
                   "or removed from the index would keep every local test green")
+
+
+class TestNoStaleScriptReferences(unittest.TestCase):
+    """A command that names a deleted script fails the reviewer, not the gate (R20, R22).
+
+    Observed: `scripts/` was cut down to one entry point, and nine documents plus four source
+    comments kept telling the reader to run the old evaluation, setup and test-runner scripts. Every
+    gate stayed green because the dead names only appeared in prose - and an interviewer following the
+    README would have typed a command that does not exist.
+    """
+
+    # Built from pieces so this file can be scanned by its own test without false positives.
+    DELETED = tuple(name + ".py" for name in (
+        "run_eval", "run_tests", "verify_requirements", "setup_models", "run_bench",
+        "sample_logs", "start", "build_qa_dashboard", "audit_requirements", "diagnose",
+        "build_corpus", "gen_review_corpus"))
+    SKIP = (".git", "artifacts", "__pycache__", "vendor", "models", "tests/data")
+
+    def _tracked_text_files(self):
+        for root, dirs, files in os.walk(REPO_ROOT):
+            rel_root = os.path.relpath(root, REPO_ROOT).replace("\\", "/")
+            dirs[:] = [d for d in dirs
+                       if d not in (".git", "artifacts", "__pycache__", "vendor", "models")]
+            for name in files:
+                if not name.endswith(PATH_SUFFIXES):
+                    continue
+                path = os.path.join(root, name)
+                rel = os.path.relpath(path, REPO_ROOT).replace("\\", "/")
+                if rel.startswith("tests/data/"):
+                    continue
+                yield rel, path
+
+    def test_no_document_or_comment_names_a_deleted_script(self):
+        offenders = []
+        for rel, path in self._tracked_text_files():
+            body = read(path)
+            for dead in self.DELETED:
+                if dead in body:
+                    offenders.append("%s -> %s" % (rel, dead))
+        self.assertEqual(sorted(offenders), [],
+                         "these files still name a script that no longer exists; point them at "
+                         "scripts/run.py instead")
+
+    def test_readme_only_ever_invokes_the_single_entry_point(self):
+        readme = read(repo_file("README.md"))
+        invoked = sorted(set(re.findall(r"python\s+(scripts/[\w./-]+)", readme)))
+        self.assertEqual(invoked, ["scripts/run.py"],
+                         "README must only invoke scripts/run.py, found %s" % invoked)
 
 
 class TestCapabilityProvenByHardestInput(unittest.TestCase):
@@ -467,7 +515,7 @@ class TestDocsMatchConfig(unittest.TestCase):
     def test_evaluation_report_names_the_corpus_and_case_count_it_measured(self):
         """The comparison report is a committed document, and nothing regenerates it.
 
-        `run_eval.py --all` writes only to artifacts/, so the report can silently keep describing
+        `scripts/run.py --all` writes only to artifacts/, so the report can silently keep describing
         a corpus the repository no longer ships - which is exactly what happened: EPIC 15 grew the
         corpus from 30 to 85 cases and the report still quoted the old numbers, leaving a
         recommendation standing on a measurement nobody could reproduce (#92). Naming the corpus

@@ -10,7 +10,7 @@ contain the string `Commands`, and the needle was satisfied only by the word "co
 an unrelated checklist line. One edit to that line would have turned pr-hygiene red for every PR.
 
 These tests read the needles and the regexes straight out of the workflow file, so the gate and the
-template cannot drift apart unnoticed: if they do, `run_tests.py` goes red locally instead of CI
+template cannot drift apart unnoticed: if they do, `scripts/run.py` goes red locally instead of CI
 going red on somebody's pull request.
 """
 from __future__ import annotations

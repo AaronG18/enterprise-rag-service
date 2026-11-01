@@ -1,7 +1,7 @@
 """Render the comparison report from committed snapshots.
 
 Why this exists: `docs/eval/retrieval-comparison.md` is a deliverable, and it used to be
-hand-written. `run_eval.py --all` writes only to `artifacts/`, so nothing regenerated the
+hand-written. `scripts/run.py --all` writes only to `artifacts/`, so nothing regenerated the
 document, and it silently kept quoting a corpus the repository no longer shipped for months
 (#92). This module makes the document a *product* of the measurements instead of a recollection
 of them: the numbers, the bolded winners and the conclusion are all derived from the snapshots, so
