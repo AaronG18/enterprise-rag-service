@@ -8,7 +8,7 @@ Nothing ships without a row here.
 role-specific content is reproduced anywhere in this repository.
 
 Legend for verification: `AUTO` = asserted by automated test, `EVAL` = produced by
-`scripts/run_eval.py` artifact, `MANUAL` = documented in `docs/` and reviewed.
+`scripts/run.py` artifact, `MANUAL` = documented in `docs/` and reviewed.
 
 ---
 
@@ -16,9 +16,9 @@ Legend for verification: `AUTO` = asserted by automated test, `EVAL` = produced 
 
 | ID | Requirement (source clause) | Acceptance criterion | Verification | Owner issue |
 |---|---|---|---|---|
-| R-01 | 90% of QA requests complete end-to-end within 10 s | p90 latency <= 10 s under the standard load profile | `scripts/run_bench.py` (AUTO + EVAL) | #7 |
-| R-02 | Support >= 5 concurrent requests on a single instance | 5 in-flight requests, p90 stays within bound, no error rate increase | `scripts/run_bench.py --concurrency 5` (EVAL) | #7 |
-| R-03 | Token-cost estimate per 1,000 calls | cost table per configuration with stated price list | `scripts/run_eval.py --cost` (EVAL, provenance: `estimate`) | #7 |
+| R-01 | 90% of QA requests complete end-to-end within 10 s | p90 latency <= 10 s under the standard load profile | `scripts/run.py` (AUTO + EVAL) | #7 |
+| R-02 | Support >= 5 concurrent requests on a single instance | 5 in-flight requests, p90 stays within bound, no error rate increase | `scripts/run.py --concurrency 5` (EVAL) | #7 |
+| R-03 | Token-cost estimate per 1,000 calls | cost table per configuration with stated price list | `scripts/run.py --cost` (EVAL, provenance: `estimate`) | #7 |
 | R-04 | Model-version selection rationale with explicit trade-offs | ADR comparing >= 2 model versions on quality/cost/latency | `docs/adr/` (MANUAL + EVAL) | #7 |
 | R-05 | Structured logs sufficient for monitoring and issue diagnosis | log dictionary covers every emitted field; single-request reconstruction works from logs alone | `docs/logging/` + test (AUTO) | #5, #9 |
 | R-06 | Minimal prompt-injection defense | adversarial corpus subset with test asserting no policy-breaking answer | test + eval (AUTO) | #4 |
@@ -32,7 +32,7 @@ Legend for verification: `AUTO` = asserted by automated test, `EVAL` = produced 
 | R-09 | At least two retrieval modes: vector-only and hybrid | both modes selectable; behavioral difference demonstrated | eval comparison (EVAL) | #3, #6 |
 | R-10 | Reranker toggled by configuration, not code change | toggling is a config diff only; test asserts both paths | test (AUTO) | #3 |
 | R-11 | Refusal with guidance on low confidence / out-of-scope / safety trigger | refusal response carries reason code + guidance text; all three triggers covered | test (AUTO) | #4 |
-| R-12 | Operational report: p50/p95 latency, token usage, cache hit rate, refusal rate, answer compliance rate | report emitted as text **and** CSV, all six fields populated | `scripts/run_eval.py --report` (EVAL) | #6 |
+| R-12 | Operational report: p50/p95 latency, token usage, cache hit rate, refusal rate, answer compliance rate | report emitted as text **and** CSV, all six fields populated | `scripts/run.py --report` (EVAL) | #6 |
 | R-13 | Multi-turn interaction support | conversational follow-up resolves references from prior turns | test (AUTO) | #4 |
 
 ## C. Quantitative quality targets
@@ -62,7 +62,7 @@ set (hand-labelled examples). See `docs/metrics/`.
 | ID | Deliverable | Location | Owner issue |
 |---|---|---|---|
 | R-22 | Complete code and configs | `src/`, `configs/` | #2, #3, #4, #5 |
-| R-23 | One-click evaluation script | `scripts/run_eval.py` | #6 |
+| R-23 | One-click evaluation script | `scripts/run.py` | #6 |
 | R-24 | Evaluation report with before/after comparisons | `docs/eval/` | #6, #9 |
 | R-25 | Log field dictionary and sample logs | `docs/logging/`, `artifacts/logs/` | #5, #9 |
 

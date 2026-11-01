@@ -115,8 +115,8 @@ def test_report(classes) -> dict:
     wanted = [name for name in classes if name]
     if not wanted:
         return {"ok": True, "total": 0, "classes": {}, "failures": [], "errors": []}
-    command = "%s %s --json --classes %s" % (
-        _python(), os.path.join("scripts", "run_tests.py"), ",".join(sorted(set(wanted))))
+    command = "%s %s --test --json --classes %s" % (
+        _python(), os.path.join("scripts", "run.py"), ",".join(sorted(set(wanted))))
     proc = run_command(command)
     payload = {}
     for line in (proc.stdout or "").splitlines():

@@ -3,7 +3,7 @@
 Reproduce the before/after with:
 
 ```bash
-python scripts/run_eval.py --provider codebuddy-serve --models hy3,deepseek-v4.1-flash
+python scripts/run.py --eval --provider codebuddy-serve --models hy3,deepseek-v4.1-flash
 ```
 
 Two defects, found because the model-backed lane existed at all - the deterministic lane could

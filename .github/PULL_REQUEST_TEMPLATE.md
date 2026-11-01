@@ -11,7 +11,7 @@ Short, factual description of behaviour change. Not a list of files.
 The exact commands a reviewer runs, copy-pasteable:
 
 ```
-python scripts/run_tests.py -v
+python scripts/run.py --test -v
 ```
 
 ## Evidence
@@ -35,7 +35,7 @@ Before / after (if latency, quality or cost is touched):
 - [ ] The change does what its issue asked, and nothing else (no drive-by refactors).
 - [ ] Every claimed number carries a provenance tag.
 - [ ] New tests fail without this change.
-- [ ] `python scripts/run_tests.py` passes with the real counts pasted above.
+- [ ] `python scripts/run.py --test` passes with the real counts pasted above.
 - [ ] No third-party dependency entered the critical path (PROJECT.md INV-1).
 - [ ] No employer-specific or role-specific content anywhere in the diff.
 - [ ] Scratch scripts created while debugging are deleted.

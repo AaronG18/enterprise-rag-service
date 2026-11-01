@@ -30,9 +30,9 @@ toggling the reranker never touches Python code - either in `configs/retrieval.j
 command line:
 
 ```bash
-python scripts/start.py --mode vector_only            # vector-only retrieval
-python scripts/start.py --mode hybrid --rerank off    # hybrid, reranker disabled
-python scripts/start.py --mode hybrid --rerank on     # hybrid + cross-encoder reranker
+python scripts/run.py --serve --mode vector_only            # vector-only retrieval
+python scripts/run.py --serve --mode hybrid --rerank off    # hybrid, reranker disabled
+python scripts/run.py --serve --mode hybrid --rerank on     # hybrid + cross-encoder reranker
 ```
 
 ## 2. Scope of the knowledge base
@@ -53,7 +53,7 @@ See [`docs/deliverables.md`](docs/deliverables.md) for the full map with reprodu
 | Deliverable asked for | Where it lives |
 |---|---|
 | Complete code and configs | `src/`, `configs/` |
-| One-click evaluation script | `scripts/run_eval.py` - with `--deliverables` it regenerates *every* deliverable and prints every path written |
+| One-click evaluation script | `scripts/run.py` - with `--deliverables` it regenerates *every* deliverable and prints every path written |
 | Evaluation report with before/after | `docs/eval/retrieval-comparison.md` (generated) + `artifacts/eval/<run>/` |
 | Log field dictionary and sample logs | `docs/logging/log_fields.md` (dictionary), `docs/logging/sample_logs.md` (generated) |
 | Retrieval quality comparison | `docs/eval/retrieval-comparison.md` - both backends, side by side |
@@ -70,7 +70,7 @@ place it is implemented and the command or document that proves it.
 | **Scenario** multi-turn RAG QA + generative service over handbook / compliance / tech specs / architecture | `src/ragserve/service.py`, multi-turn in `generation/context.py` | `tests/test_generation.py` |
 | **Corpus** bilingual CN/EN, includes scanned PDFs | `corpus/` generator, seeded; ~8% of docs through an OCR-noise transform | `docs/eval/retrieval-comparison.md` |
 | **Any stack, but choices justified with quantitative evidence** | section 8, `docs/adr/` | every row there carries a measurement |
-| **Performance** 90% of requests <= 10 s; >= 5 concurrent on one instance | service + cache | `scripts/run_bench.py --http --concurrency 5 --assert` (p90 170 ms, 0 errors) |
+| **Performance** 90% of requests <= 10 s; >= 5 concurrent on one instance | service + cache | `scripts/run.py --http --concurrency 5 --assert` (p90 170 ms, 0 errors) |
 | **Cost** token-cost estimate per 1,000 calls; model-version trade-off (quality/cost/latency) | `configs/pricing.json`, `src/ragserve/evaluation/cost.py` | `run_eval.py --cost`; `docs/eval/model-backed.md` (hy3 ~$50.5 vs flash ~$14.0 per 1,000 calls) |
 | **Quality** Faithfulness >= 0.85, evaluation method defined | `docs/eval/metrics_rubric*.md` | measured 1.0 deterministic / 0.8913-0.913 model-backed |
 | **Quality** Context Precision >= 0.70 | same rubric | 0.9529 deterministic / 0.8814 model-backed |
@@ -91,7 +91,7 @@ place it is implemented and the command or document that proves it.
 | **NFR3** advanced generative targets (compliance >= 90%, refusal >= 90%, style >= 0.85) | generative scorer | `docs/eval/model-backed.md` |
 | **NFR4** >= 2 diagnosed issues with evidence, fix rationale, >= 10% gain | `docs/diagnosis/` | INC-001 +575.2%, INC-002 +100.0% (ocr_mrr) |
 | **Deliverable** complete code and configs | `src/`, `configs/` | - |
-| **Deliverable** one-click evaluation script | `scripts/run_eval.py` | `--all --deliverables`, prints every path |
+| **Deliverable** one-click evaluation script | `scripts/run.py` | `--all --deliverables`, prints every path |
 | **Deliverable** evaluation report with before/after | `docs/eval/retrieval-comparison.md` (generated) | regenerated, never hand-edited |
 | **Deliverable** log field dictionary and sample logs | `docs/logging/` | both committed |
 
@@ -149,31 +149,59 @@ A metric with no provenance tag is a bug. See [`harness/RULES.md`](harness/RULES
 src/                 service implementation (stdlib only by design)
 configs/             retrieval modes, model versions, thresholds (no code change to switch)
 corpus/              deterministic synthetic corpus generator
-scripts/             run_tests.py (hermetic), run_eval.py (one-click eval), benchmarks
+scripts/             run.py - the single entry point (ask | eval | serve | setup | test | verify)
 docs/                requirements, metrics rubrics, log dictionary, diagnosis cases
 artifacts/           generated reports/logs (regenerated, not hand-edited)
 harness/             the AI working harness: RULES.md, ROLES.md, skills/
 .github/             issue templates, PR template, CI
 ```
 
-## 7. Quickstart
+## 7. Quickstart - one command
 
 ```bash
-python scripts/start.py              # serves the API on http://127.0.0.1:8174
+git clone <this repository> && cd <this repository>
+python scripts/run.py
 ```
 
-One command: the corpus is generated deterministically, indexed in memory (~19 ms measured),
-and the service starts. **No database, no embedding model, no API key, no `pip install`, no
-network.**
-Full guide: [`docs/deployment.md`](docs/deployment.md).
+That is the whole setup. There is **one** script, and its first run builds the environment for you:
+it installs the bundled models if they are missing, starts the two model servers, waits until they
+answer, then opens the question loop.
 
-Then ask it something:
-
-```bash
-python scripts/run_tests.py          # hermetic test suite, zero third-party deps
-python scripts/run_eval.py --all     # retrieval comparison + generative scoring + ops report
-python scripts/run_bench.py --http --concurrency 5 --assert   # service-level load test
 ```
+Terminal folder   : /path/where/you/are
+Repository root   : /path/to/repository
+
+Environment
+  embedding already present (635 MB)
+  reranker  already present (438 MB)
+  embedding starting on 8011 (pid 41234)
+  reranker  starting on 8012 (pid 41235)
+  waiting for the models to load...
+
+Corpus
+  source        : built-in synthetic corpus
+  documents     : 80 | chunks 204 | languages {'en': 41, 'zh': 39}
+  backend       : model-backed (bge-m3 + bge-reranker-v2-m3)
+
+Ask a question. Commands: :stats  :bench [N]  :quit
+
+Q> How many days of annual leave do full-time employees accrue?
+```
+
+The **second run** finds the models and the servers already there, says so, and goes straight to the
+questions - no download, no waiting.
+
+The brief's performance target is about **QA requests**, so the numbers that matter are measured on
+*your* questions, in this loop:
+
+| In the loop | What it reports |
+|---|---|
+| every answer | its own end-to-end latency, in milliseconds |
+| `:stats` | p50 / p95 / max latency, refusals, tokens and cache hits for the questions you asked |
+| `:bench 5` | replays **your last question** five times concurrently: wall time, p95, errors, and whether the 10 s bound held |
+| `:quit` | the same summary on the way out |
+
+Everything else is a flag on the same command, never a second script.
 
 ### Multi-turn questions
 
@@ -196,7 +224,7 @@ and **never** on a first turn with no history - a wrong rewrite is worse than no
 ### One command for every deliverable
 
 ```bash
-python scripts/run_eval.py --all --deliverables
+python scripts/run.py --eval --all --deliverables
 ```
 
 That regenerates everything the brief asks to be handed over, so the report cannot fall behind the
@@ -220,12 +248,25 @@ numbers, in [`docs/eval/parameter-matrix.md`](docs/eval/parameter-matrix.md) - i
 caveats (the reranker is a separate toggle from `--mode`; the deterministic generative metrics are a
 pipeline floor, not a real-model result).
 
-### Every flag of `run_eval.py`
+### Every flag of `scripts/run.py`
 
-`run_eval.py` is the only entry point for evaluation and for the deliverables. Whatever you run, it
-opens by printing **the folder your terminal is in** and the **repository root** the numbers belong
-to, and closes with an `Outputs` section listing every path it wrote - so nothing has to be hunted
-for afterwards.
+`scripts/run.py` is the only script in the repository's `scripts/` directory, and the only command a
+reviewer needs. Whatever you run, it opens by printing **the folder your terminal is in**, the
+**repository root** and the backend actually in use - and closes with an `Outputs` section listing
+every path it wrote, so nothing has to be hunted for afterwards.
+
+| Mode | What it does |
+|---|---|
+| *(no flag)* | interactive QA over the built-in corpus - bootstraps the environment on first run |
+| `--ask` | the same, explicit |
+| `--corpus DIR` | the same loop over documents you supply |
+| `--eval` | the evaluation: three-config comparison, generative scoring, ops report |
+| `--eval --deliverables` | ...and regenerate the committed deliverables |
+| `--serve` | serve the HTTP API (the headless service) |
+| `--bench` | concurrency/latency benchmark (`--concurrency 5 --assert`) |
+| `--setup` / `--check` | install the local models, or report what is installed |
+| `--test` | the hermetic test suite (harness) |
+| `--verify` | the requirement gate (harness) |
 
 | Flag | What it does |
 |---|---|
@@ -248,11 +289,11 @@ servers, and `--corpus` together with `--deliverables`. Both say why and write n
 Typical runs:
 
 ```bash
-python scripts/run_eval.py --all                          # the published comparison
-python scripts/run_eval.py --mode hybrid --rerank off     # one configuration, honestly named
-python scripts/run_eval.py --all --deliverables           # ...and regenerate every deliverable
-python scripts/run_eval.py --all --cost                   # cost per 1,000 calls
-python scripts/run_eval.py --corpus ./my-docs             # measure documents you supply
+python scripts/run.py --eval --all                          # the published comparison
+python scripts/run.py --eval --mode hybrid --rerank off     # one configuration, honestly named
+python scripts/run.py --eval --all --deliverables           # ...and regenerate every deliverable
+python scripts/run.py --eval --all --cost                   # cost per 1,000 calls
+python scripts/run.py --eval --corpus ./my-docs             # measure documents you supply
 ```
 
 ### Bring your own documents
@@ -261,8 +302,8 @@ The corpus above is synthetic on purpose, but a reviewer will plausibly bring th
 any entry point can index a directory instead:
 
 ```bash
-python scripts/run_eval.py --corpus /path/to/documents     # corpus report; snapshots untouched
-python scripts/start.py    --corpus /path/to/documents     # serve them over the API
+python scripts/run.py --eval --corpus /path/to/documents     # corpus report; snapshots untouched
+python scripts/run.py --serve    --corpus /path/to/documents     # serve them over the API
 ```
 
 Do **not** add `--deliverables` to a `--corpus` run: the committed deliverables describe the
@@ -290,8 +331,8 @@ ships a one-command setup that installs **free, open-source, industrial-grade mo
 no API key, no account, no third-party Python package:
 
 ```bash
-python scripts/setup_models.py          # ~1 GB, one time, into vendor/ and models/
-python scripts/setup_models.py --check  # just report what is already present
+python scripts/run.py --check   # what is installed; the first run of `run.py` installs it
+python scripts/run.py --setup   # install now, ~1 GB, one time, into vendor/ and models/
 ```
 
 It fetches a self-contained `llama.cpp` server into `vendor/llama.cpp/` plus two weights into
@@ -328,7 +369,7 @@ constant.
 The brief's corpus is CN/EN, so the embedding has to carry both languages. Both backends were run
 over the corpus committed at [`tests/data/review-corpus/`](tests/data/review-corpus/) - 36
 multi-page PDFs (subset-CJK Chinese, English, six with image-only pages, six pure image; 30 indexed,
-266 chunks). It is regenerated **byte-identically** by `python scripts/gen_review_corpus.py --out
+266 chunks). It is regenerated **byte-identically** by `python scripts/run.py --gen-corpus --out
 tests/data/review-corpus`, and a test compares every byte, so the data and its generator cannot
 silently drift apart:
 
@@ -385,7 +426,7 @@ carry the provenance tag from section 5.
 | **No front end** (R17) | React/AntD UI | the brief asks for a service; a UI adds surfaces to maintain and artefacts to commit. `GET /` is a self-contained signpost | `TestNoFrontEnd`, R-29 |
 | **hy3 over flash for generation** | `deepseek-v4.1-flash` | faithfulness `0.9130` vs `0.7681`, compliance `0.9826` vs `0.9043` (model-backed snapshot). ADR 0004 records the reversal | `docs/adr/0004`, R-14m..R-18m |
 
-Every row is re-measured by one command (`python scripts/run_eval.py --all --deliverables`), and the report is
+Every row is re-measured by one command (`python scripts/run.py --eval --all --deliverables`), and the report is
 generated from those measurements, so a row cannot survive a change that invalidates it.
 
 ## 9. The harness

@@ -10,9 +10,10 @@ name: harness
 # Rule ids this workflow enforces: R1 (issue in branch name and every commit), R14 (branch and PR,
 # never straight to main), R15 (the harness checks are the definition of done), R16 (the gate is
 # code and needs its own tests), R17 (no front end - the selfcheck runs in this job), R18 (a
-# capability is proven by its hardest input - the fixture tests run here) and R19 (evidence lives in
+# capability is proven by its hardest input - the fixture tests run here), R19 (evidence lives in
 # the repository - this job checks that the committed corpus is tracked, not gitignored, and not a
-# folder of stubs).
+# folder of stubs) and R20 (the deliverable is what the brief asks for - the selfcheck asserts that
+# scripts/ holds exactly one entry point).
 #
 # The rule ids are named here on purpose: the traceability check in
 # tests/test_harness_selfcheck.py looks for them, so a rule cannot claim enforcement it does not
@@ -35,7 +36,7 @@ permissions:
 # CI must stay hermetic (no API key, no model server): pin both stages to the offline
 # deterministic backends. The delivered service leaves these unset and uses the real providers
 # from configs/retrieval.json (BGE-M3 embeddings + cross-encoder reranker, both keyless, served
-# locally via scripts/setup_models.py).
+# locally via scripts/run.py).
 env:
   RAGSERVE_EMBEDDING_PROVIDER: deterministic
   RAGSERVE_RERANKER_PROVIDER: deterministic
@@ -55,7 +56,7 @@ jobs:
         run: python -c "import sys; print(sys.version)"
 
       - name: Verify every requirement row
-        run: python scripts/verify_requirements.py
+        run: python scripts/run.py --verify
 
       - name: Upload the verification report
         if: always()
@@ -130,7 +131,7 @@ jobs:
           PY
 
       - name: Hermetic test suite
-        run: python scripts/run_tests.py
+        run: python scripts/run.py --test
 
       - name: Hermetic - no third-party imports in shipped code
         run: |

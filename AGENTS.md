@@ -28,6 +28,6 @@ allowed to be the sole judge of that change.
 |---|---|
 | Language | Python 3.11+ |
 | Third-party dependencies | **none** for anything that must run in CI or from a clean clone |
-| Test entrypoint | `python scripts/run_tests.py` |
-| Evaluation entrypoint | `python scripts/run_eval.py --all` |
+| Test entrypoint | `python scripts/run.py --test` |
+| Evaluation entrypoint | `python scripts/run.py --eval --all` |
 | Default LLM/embedding provider | deterministic local stub (seeded, offline) |

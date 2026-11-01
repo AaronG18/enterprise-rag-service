@@ -30,19 +30,22 @@ from some networks. Each file therefore has a mirror list and the first source t
 
 Usage
 -----
-    python scripts/setup_models.py            # download anything missing, verify what is present
-    python scripts/setup_models.py --check    # report only, download nothing
+    python scripts/run.py --setup            # download anything missing, verify what is present
+    python scripts/run.py --setup --check    # report only, download nothing
 """
 from __future__ import annotations
 
 import argparse
 import os
+import socket
+import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 import zipfile
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from . import REPO_ROOT
 VENDOR = os.path.join(REPO_ROOT, "vendor", "llama.cpp")
 MODELS = os.path.join(REPO_ROOT, "models")
 
@@ -157,6 +160,88 @@ def ensure_weights() -> bool:
             os.remove(dest)
             ok = False
     return ok
+
+
+SERVERS = (
+    ("embedding", "bge-m3-q8_0.gguf", 8011, ["--embedding"]),
+    ("reranker", "bge-reranker-v2-m3-q4_k_m.gguf", 8012, ["--embedding", "--pooling", "rank"]),
+)
+
+
+def _listening(port: int) -> bool:
+    with socket.socket() as sock:
+        sock.settimeout(0.3)
+        return sock.connect_ex(("127.0.0.1", port)) == 0
+
+
+def _ready(port: int) -> bool:
+    """The port is bound *before* the model finishes loading, so a listening socket is not ready.
+
+    Waiting only for the socket let the first request hit a 503 and fall back to the deterministic
+    backend - the reviewer saw a warning instead of the thing the quickstart promises. `/health`
+    answers 200 only once the weights are loaded.
+    """
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:%d/health" % port, timeout=2) as response:
+            return response.status == 200
+    except Exception:
+        return False
+
+
+def server_binary() -> str:
+    name = "llama-server.exe" if os.name == "nt" else "llama-server"
+    return os.path.join(VENDOR, name)
+
+
+def start_servers(wait_seconds: float = 180.0):
+    """Start whichever model server is not already listening.
+
+    Returns the processes this call started, so the caller can stop them again on exit. A server
+    that is already listening is left alone: that is what makes the second run of the entry point
+    skip the setup entirely.
+    """
+    binary = server_binary()
+    if not os.path.isfile(binary):
+        print("  llama-server not found at %s" % binary)
+        return []
+    started = []
+    started_ports = []
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    for name, weight, port, extra in SERVERS:
+        if _listening(port):
+            print("  %-9s already listening on %d" % (name, port))
+            continue
+        path = os.path.join(MODELS, weight)
+        if not os.path.isfile(path):
+            print("  %-9s weights missing (%s)" % (name, weight))
+            continue
+        proc = subprocess.Popen(
+            [binary, "-m", path] + extra + ["--host", "127.0.0.1", "--port", str(port)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=creationflags)
+        started.append(proc)
+        started_ports.append(port)
+        print("  %-9s starting on %d (pid %d)" % (name, port, proc.pid))
+    if not started:
+        return []
+    pending = list(started_ports)  # only the ones this call started need waiting for
+    print("  waiting for the models to load...")
+    deadline = time.time() + wait_seconds
+    for port in pending:
+        while not _ready(port) and time.time() < deadline:
+            time.sleep(1.0)
+        if not _ready(port):
+            print("  port %d did not become ready within %.0f s" % (port, wait_seconds))
+    return started
+
+
+def stop_servers(processes) -> None:
+    for proc in processes:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except Exception:
+                proc.kill()
 
 
 def main() -> int:

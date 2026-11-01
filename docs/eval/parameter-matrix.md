@@ -1,7 +1,7 @@
 # Run-time parameter matrix
 
 Provenance: `deterministic` (seeded, offline, no model server, no credential). Every row below
-was produced by a real `python scripts/run_eval.py <flags>` invocation and the exit code / key
+was produced by a real `python scripts/run.py --eval <flags>` invocation and the exit code / key
 metric are quoted exactly. The point is to show that **every combination an interviewer will try
 behaves**, and what each one prints.
 

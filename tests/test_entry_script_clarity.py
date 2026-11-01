@@ -26,7 +26,7 @@ def run_script(*args: str):
     env["PYTHONIOENCODING"] = "utf-8"
     env["RAGSERVE_EMBEDDING_PROVIDER"] = "deterministic"
     env["RAGSERVE_RERANKER_PROVIDER"] = "deterministic"
-    return subprocess.run([sys.executable, os.path.join(REPO, "scripts", "run_eval.py")] + list(args),
+    return subprocess.run([sys.executable, os.path.join(REPO, "scripts", "run.py"), "--eval"] + list(args),
                           cwd=REPO, env=env, capture_output=True, text=True,
                           encoding="utf-8", errors="replace", timeout=300)
 

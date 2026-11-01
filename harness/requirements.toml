@@ -13,9 +13,9 @@
 [generators]
 # Run once per verification; every metric row reads from these artefacts, so nothing is
 # re-measured twice and no row can read a stale file.
-eval = "python scripts/run_eval.py --all"
-bench = "python scripts/run_bench.py --http --concurrency 5 --requests 30 --assert"
-diagnose = "python scripts/diagnose.py --all --assert"
+eval = "python scripts/run.py --eval --all"
+bench = "python scripts/run.py --bench --http --concurrency 5 --requests 30 --assert"
+diagnose = "python scripts/run.py --diagnose --all --assert"
 
 [artifacts]
 # Relative to artifacts/; the newest run directory is used.
@@ -101,7 +101,7 @@ owner = "#3"
 id = "R-10"
 title = "reranker toggled by configuration only"
 kind = "test"
-run = "python scripts/run_tests.py -k TestRerankerToggle"
+run = "python scripts/run.py --test -k TestRerankerToggle"
 owner = "#3"
 
 [[requirement]]
@@ -207,7 +207,7 @@ owner = "#3"
 id = "R-21"
 title = ">= 2 diagnosed issues with >= 10% post-fix improvement"
 kind = "command"
-run = "python scripts/diagnose.py --all --assert"
+run = "python scripts/run.py --diagnose --all --assert"
 owner = "#8"
 note = "Checked for every diagnosis case; the gate fails if any case falls below the 10% bar."
 
@@ -223,7 +223,7 @@ owner = "#2"
 id = "R-23"
 title = "one-click evaluation script"
 kind = "command"
-run = "python scripts/run_eval.py --help"
+run = "python scripts/run.py --eval --help"
 owner = "#6"
 
 [[requirement]]

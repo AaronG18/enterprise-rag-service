@@ -26,8 +26,8 @@ Every step is mandatory. Skipping the "paste evidence" step means the branch sta
 Reproduce the gate locally before pushing:
 
 ```bash
-python scripts/verify_requirements.py     # the full gate, ~8 s
-python scripts/run_tests.py               # the hermetic suite, ~8 s (runs the classes in parallel)
+python scripts/run.py --verify     # the full gate, ~8 s
+python scripts/run.py --test               # the hermetic suite, ~8 s (runs the classes in parallel)
 ```
 
 Both are parallel by default: the requirement rows and the generators run concurrently, and
@@ -72,7 +72,7 @@ Example closing comment:
 ```markdown
 ## Evidence
 
-Command: `python scripts/run_tests.py`
+Command: `python scripts/run.py --test`
 Output (unedited):
     ----------------------------------------------------------------------
     Ran 148 tests in 4.31s

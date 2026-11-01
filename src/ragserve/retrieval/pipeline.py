@@ -42,7 +42,7 @@ class RetrievalConfig:
     seed: int = 20261027
     # Embedding backend. The delivered default is a real semantic model served locally
     # (BGE-M3, keyless - empty api_key_env, so no credential and no third-party package). A clean
-    # clone reproduces every published metric once `scripts/setup_models.py` has been run and the
+    # clone reproduces every published metric once `scripts/run.py` has been run and the
     # two servers started per the README; with no model server running it falls back to the
     # deterministic backend loudly, never silently. The deterministic backend stays selectable for
     # CI and offline runs via embedding_provider="deterministic" (config, --embedding-provider, or

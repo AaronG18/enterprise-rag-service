@@ -49,8 +49,8 @@ Exactly four parts, in the issue, before closing:
 ## Evidence
 
 Commands:
-    python scripts/run_tests.py -v
-    python scripts/run_eval.py --retrieval-only
+    python scripts/run.py --test -v
+    python scripts/run.py --eval --retrieval-only
 
 Test output (unedited):
     Ran <real count> tests in <real time>

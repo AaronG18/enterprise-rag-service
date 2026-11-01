@@ -2,7 +2,7 @@
 
 ## Benchmark: 5 concurrent requests, one instance
 
-`python scripts/run_bench.py --concurrency 5 --requests 30 --assert`, cache disabled so the
+`python scripts/run.py --bench --concurrency 5 --requests 30 --assert`, cache disabled so the
 number describes the service rather than the cache.
 
 | Field | Value |

@@ -5,8 +5,8 @@
 The same repository carries its own gate, and it runs the same commands a reviewer would:
 
 ```bash
-python scripts/verify_requirements.py     # every requirement row, ~8 s
-python scripts/run_tests.py               # the hermetic suite, ~8 s
+python scripts/run.py --verify     # every requirement row, ~8 s
+python scripts/run.py --test               # the hermetic suite, ~8 s
 ```
 
 Both are concurrent: the requirement rows and the generators run in parallel, and the test
@@ -15,7 +15,7 @@ classes run in worker processes. `--serial` and `--jobs 1` force the one-at-a-ti
 ## One command
 
 ```bash
-python scripts/start.py
+python scripts/run.py --serve
 ```
 
 That single command:
@@ -26,7 +26,7 @@ That single command:
 
 There is no database, no embedding model, no ETL step and no `pip install`. The reviewer needs
 Python 3.11+ and nothing else. Regenerating the corpus is possible
-(`python scripts/build_corpus.py`) but never required.
+(`python scripts/run.py --build-corpus`) but never required.
 
 ### If the port is already taken
 
@@ -82,7 +82,7 @@ Bring-your-own-key from the command line:
 
 ```bash
 export OPENAI_API_KEY=sk-...
-python scripts/start.py --provider openai-compatible \
+python scripts/run.py --serve --provider openai-compatible \
   --endpoint https://api.example.com/v1 --model your-model
 ```
 
@@ -92,14 +92,14 @@ never stored.
 ### Embeddings (opt-in, independent of the generation provider)
 
 Embeddings ship with a **keyless** default: a local **bge-m3** served by `llama.cpp`
-(`python scripts/setup_models.py` installs it), reached with no credential and no third-party
+(`python scripts/run.py --setup` installs it), reached with no credential and no third-party
 Python package. With no model server running, the service falls back **loudly** to the offline
 deterministic hashing backend, so a cold clone still starts with no credential at all. To point at
 a hosted model instead, set the three fields in `configs/retrieval.json` -
 `embedding_endpoint`, `embedding_model`, `embedding_api_key_env` - and start with:
 
 ```bash
-python scripts/start.py --embedding-provider openai-compatible
+python scripts/run.py --serve --embedding-provider openai-compatible
 ```
 
 Any OpenAI-compatible `/v1/embeddings` service works (SiliconFlow, DashScope, a local Ollama).
@@ -116,7 +116,7 @@ against the previous question - the rewrite is visible in the trace (`query_rewr
 ## Load testing the service
 
 ```bash
-python scripts/run_bench.py --http --concurrency 5 --requests 30 --assert
+python scripts/run.py --bench --http --concurrency 5 --requests 30 --assert
 ```
 
 Starts the API in-process with the cache **disabled** and drives real HTTP requests, so the

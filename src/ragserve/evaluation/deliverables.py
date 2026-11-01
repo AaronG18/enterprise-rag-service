@@ -1,6 +1,6 @@
 """Regenerate the deliverable documents from a run.
 
-One entry point owns this: `scripts/run_eval.py --deliverables`. It was previously a second
+One entry point owns this: `scripts/run.py --deliverables`. It was previously a second
 script, and two entry points for one job is how an interviewer ends up asking which one to run.
 
 Everything here writes to the repository's `docs/` tree, so it is only invoked when the caller
@@ -23,7 +23,7 @@ QA_DASHBOARD = os.path.join("docs", "qa", "qa-dashboard.html")
 
 SNAPSHOT_NOTE = ("Snapshot of a real run, committed so the comparison report and the requirements "
                  "gate can read it without re-measuring. Regenerate with "
-                 "python scripts/run_eval.py --all --deliverables.")
+                 "python scripts/run.py --eval --all --deliverables.")
 
 
 def write_snapshot(payload: Dict, path: str, run_id: str) -> None:
@@ -66,19 +66,18 @@ def regenerate_comparison_report(root: str) -> str:
     return target
 
 
-def _run_tool(root: str, relative: str) -> str:
-    script = os.path.join(root, "scripts", relative)
-    subprocess.run([sys.executable, script], cwd=root, check=True)
-    return os.path.join(root, *relative.replace(".py", ".md").split("/"))
+def _run_mode(root: str, *mode_args) -> None:
+    """Run one mode of the single entry point, in a fresh interpreter."""
+    entry = os.path.join(root, "scripts", "run.py")
+    subprocess.run([sys.executable, entry] + list(mode_args), cwd=root, check=True)
 
 
 def regenerate_sample_logs(root: str) -> str:
-    _run_tool(root, "sample_logs.py")
+    _run_mode(root, "--samples")
     return os.path.join(root, "docs", "logging", "sample_logs.md")
 
 
 def regenerate_dashboard(root: str) -> str:
     target = os.path.join(root, *QA_DASHBOARD.split("/"))
-    subprocess.run([sys.executable, os.path.join(root, "scripts", "build_qa_dashboard.py")],
-                   cwd=root, check=True)
+    _run_mode(root, "--dashboard")
     return target

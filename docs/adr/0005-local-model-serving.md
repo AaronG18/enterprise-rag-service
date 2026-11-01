@@ -35,7 +35,7 @@ stages from one executable and stores everything under `vendor/` + `models/`, bo
 
 ## Measured evidence (not "it works", but "it works and here are the numbers")
 
-Setup: `python scripts/setup_models.py` (ghproxy for llama.cpp, hf-mirror for the GGUFs, because
+Setup: `python scripts/run.py --setup` (ghproxy for llama.cpp, hf-mirror for the GGUFs, because
 `objects.githubusercontent.com`, `huggingface.co` and `registry-1.docker.io` are all unreachable
 from this network). Result: `vendor/llama.cpp/` (64 MB) + `models/bge-m3-q8_0.gguf` (634 MB) +
 `models/bge-reranker-v2-m3-q4_k_m.gguf` (438 MB) ≈ 1 GB, all gitignored.
@@ -90,6 +90,6 @@ not a foregone conclusion.
 * Provenance is **measured**, not declared: `retrieval_provenance()` reads the `degraded_*` flags
   the factories set on a fallback, so a run that silently dropped to deterministic can never be
   reported as `model-backed`.
-* A reviewer who does nothing but `git clone` + `python scripts/run_tests.py` still gets a green,
+* A reviewer who does nothing but `git clone` + `python scripts/run.py --test` still gets a green,
   keyless, offline suite (deterministic fallback, loudly flagged), and one who follows
   `setup_models.py` + the two server commands gets the real numbers above.

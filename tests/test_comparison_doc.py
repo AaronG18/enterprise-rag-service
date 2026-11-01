@@ -3,7 +3,7 @@
 `docs/eval/retrieval-comparison.md` is a deliverable the brief asks for. It used to be written by
 hand, and because `run_eval.py --all` writes only to `artifacts/` nothing regenerated it - it kept
 quoting a corpus the repository no longer shipped for months (#92). It is now rendered from
-committed snapshots by `python scripts/run_eval.py --all --deliverables` (the single entry point - 
+committed snapshots by `python scripts/run.py --eval --all --deliverables` (the single entry point - 
 there is deliberately no second script), and these tests make that guarantee real:
 
 * the committed file must equal what the renderer produces from the committed snapshots, so a
@@ -53,7 +53,7 @@ class TestComparisonDocIsGenerated(unittest.TestCase):
         self.assertEqual(rendered.strip(), self.committed.strip(),
                          "docs/eval/retrieval-comparison.md differs from what the renderer "
                          "produces from the committed snapshots. Re-run "
-                         "python scripts/run_eval.py --all --deliverables rather than editing it "
+                         "python scripts/run.py --eval --all --deliverables rather than editing it "
                          "by hand.")
 
     def test_deterministic_snapshot_describes_the_shipped_corpus(self):
@@ -63,7 +63,7 @@ class TestComparisonDocIsGenerated(unittest.TestCase):
         metadata = self.deterministic.get("run_metadata") or {}
         self.assertEqual(metadata.get("corpus_version"), corpus.manifest["corpus_version"],
                          "the snapshot measures a different corpus than the repository ships; "
-                         "re-run python scripts/run_eval.py --all --deliverables")
+                         "re-run python scripts/run.py --eval --all --deliverables")
         with open(os.path.join(REPO_ROOT, "eval", "eval_cases.json"), "r", encoding="utf-8") as fh:
             cases = json.load(fh)
         self.assertEqual(metadata.get("case_count"), len(cases),

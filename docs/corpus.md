@@ -49,7 +49,7 @@ content.py  ->  documents (clean_body = body)
 ## Reproducing
 
 ```bash
-python scripts/build_corpus.py
+python scripts/run.py --build-corpus
 ```
 
 Output lands in `artifacts/corpus/<corpus_version>/`. Every evaluation artifact later

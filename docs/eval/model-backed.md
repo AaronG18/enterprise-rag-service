@@ -6,7 +6,7 @@ Run: `artifacts/eval-model/20261028-014423` - corpus `bea626ce863a0e44`, 30 labe
 Reproduce (requires the local CodeBuddy CLI serve running on the configured ports):
 
 ```bash
-python scripts/run_eval.py --provider codebuddy-serve --models hy3,deepseek-v4.1-flash
+python scripts/run.py --eval --provider codebuddy-serve --models hy3,deepseek-v4.1-flash
 ```
 
 **Provenance: `model-backed`.** Token counts are `estimate` (the endpoint returns no usage).
@@ -140,7 +140,7 @@ every advanced target with margin (faithfulness 0.913, compliance 0.983, refusal
 At ~328 tokens/call the per-call cost is ~$0.05 worst case, so 100,000 calls is roughly $5,000 - a
 figure a reviewer can scale.
 
-Reproduce the live number: `python scripts/run_eval.py --cost` prints `cost_per_1000_calls_usd` for
+Reproduce the live number: `python scripts/run.py --eval --cost` prints `cost_per_1000_calls_usd` for
 the configured model (the deterministic CI baseline reports $0.00 because it is a local stub).
 
 ## What this run proves that the deterministic run could not
