@@ -186,6 +186,27 @@ Chinese; "handles scanned PDFs" means a **pure image PDF and a text page mixed w
 "bilingual" means both languages in one document. A smoke test passes on garbage - assert the
 characters.
 
+## R19 - Evidence must be reproducible from the repository
+
+A measured claim is evidence only if a **committed command** reproduces it from committed fixtures
+or generators. Output produced by scratch scripts into `%TEMP%` - or any path outside the
+repository - is an anecdote, not evidence, no matter how real the run was.
+
+**Observed, and the reason this rule exists.** "28 mixed CN/EN PDFs were ingested end to end" was
+true of one run and unreproducible by anyone else: the corpus lived in `%TEMP%`, built by scripts
+that were never committed, while the repository itself carried six PDF fixtures of 1-3 KB. A
+reviewer asking "where are the dozens? and why is each only a few KB?" was right on both counts -
+the claimed scale existed nowhere in the repo, and nothing could re-run it.
+
+Therefore:
+
+* a **scale claim** ("dozens of PDFs", "N documents") requires a committed, deterministic generator
+  plus a test that asserts that scale and that the corpus is not a folder of stubs;
+* numbers quoted in the README, the docs and PR bodies must **name the command that reproduces
+  them**;
+* if a scratch measurement earned its keep, the generator earns a commit (R10) - a measurement is
+  not "done" until it is re-runnable by someone who has never spoken to its author.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or
@@ -232,3 +253,4 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 | R16 | `tests/test_requirements_gate.py` + `tests/test_harness_selfcheck.py` | a manifest row added with no failing state first, or a rule with no enforcement |
 | R17 | `tests/test_harness_selfcheck.py` | shipped code referencing a front end, or documentation advertising a UI |
 | R18 | `tests/test_harness_selfcheck.py` (`TestCapabilityProvenByHardestInput`) + `tests/data/cjk-pdf/` | a supported input class whose hard case has no fixture, or a test that never asserts the extracted content |
+| R19 | `tests/test_review_corpus_scale.py` + `scripts/gen_review_corpus.py` | a scale claim with no committed generator behind it, or a corpus that has quietly shrunk back to stubs |
