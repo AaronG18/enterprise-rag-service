@@ -151,7 +151,12 @@ def _make_chunks(documents: List[Document], config: CorpusConfig) -> List[Chunk]
 
 
 def _manifest(documents: List[Document], chunks: List[Chunk], config: CorpusConfig) -> Dict[str, object]:
-    dump = json.dumps([document_to_dict(d) for d in documents], sort_keys=True, ensure_ascii=False)
+    # `scanned_pages` is ingestion metadata, not corpus content: it says how many pages of a
+    # supplied PDF had no text layer. Hashing it would change the corpus version - and with it every
+    # published number - whenever a reporting field is added, even though the documents are
+    # identical. The version therefore hashes content only.
+    dump = json.dumps([{k: v for k, v in document_to_dict(d).items() if k != "scanned_pages"}
+                       for d in documents], sort_keys=True, ensure_ascii=False)
     version = hashlib.sha256(
         ("%s|%s|%s|%s" % (GENERATOR_VERSION, config.seed, config.fingerprint(), dump))
         .encode("utf-8")
@@ -171,6 +176,10 @@ def _manifest(documents: List[Document], chunks: List[Chunk], config: CorpusConf
         "chunk_count": len(chunks),
         "ocr_doc_count": len([d for d in documents if d.ocr]),
         "ocr_ratio": round(len([d for d in documents if d.ocr]) / max(1, len(documents)), 4),
+        # A document indexed from a PDF some of whose pages had no text layer: it is usable but
+        # incomplete, and saying so is better than letting a reviewer assume it is whole.
+        "partial_scan_docs": [{"doc_id": d.doc_id, "scanned_pages": d.scanned_pages}
+                              for d in documents if getattr(d, "scanned_pages", 0) > 0],
         "per_family": per_family,
         "per_language": per_language,
     }

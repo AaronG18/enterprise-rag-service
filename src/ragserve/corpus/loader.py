@@ -184,29 +184,39 @@ def _decode_hex_operand(hexpart: bytes, cmap: Dict[int, str]) -> str:
     return _hex_to_text(clean)
 
 
-def extract_pdf_text(path: str) -> str:
-    """Best-effort text from a PDF, using only the standard library.
+def _looks_like_content(stream: bytes) -> bool:
+    """Page content is PostScript-like text; an image XObject decompresses to raw bytes.
 
-    Decompresses every stream and collects the operands of the text-showing operators (`Tj`, `TJ`,
-    `'`, `"`). Two details matter for a bilingual corpus:
+    Counting image streams as pages would report a healthy PDF as mostly unreadable, because a
+    scanned document typically embeds one image per page alongside its text layer.
+    """
+    if not stream:
+        return False
+    sample = stream[:4096]
+    printable = sum(1 for b in sample if 32 <= b < 127 or b in (9, 10, 13))
+    return printable / len(sample) > 0.7
 
-    * `ToUnicode` CMaps are **parsed, not indexed**. They are how subset CJK fonts map CID ->
-      Unicode; treating them as page text is what puts `Adobe` and `UCS` into the index.
-    * Streams stored without a filter are read as-is, so an uncompressed PDF is not misreported as
-      scanned.
 
-    Layout, hyphenation and non-Identity encodings are not reconstructed - the goal is retrieval,
-    not typesetting.
+def extract_pdf_pages(path: str) -> List[str]:
+    """Text of each page separately, using only the standard library.
+
+    Per-page granularity is what makes a **mixed** PDF work: a document can be one page of real text
+    followed by pages that are only images. Judged as a whole it looks like a scan and gets dropped
+    along with the text it does have; judged per page, the readable pages are kept and the rest are
+    counted as unreadable instead of silently vanishing.
     """
     with open(path, "rb") as fh:
         data = fh.read()
     cmap: Dict[int, str] = {}
-    pieces: List[str] = []
+    pages: List[str] = []
     for content in _iter_pdf_streams(data):
         if b"begincmap" in content or b"beginbfchar" in content or b"beginbfrange" in content:
             # A CMap is font metadata. Indexing it would claim the document says "Adobe UCS".
             cmap.update(_parse_tounicode(content))
             continue
+        if not _looks_like_content(content):
+            continue  # an image XObject is not a page
+        pieces: List[str] = []
         for operator in re.finditer(
                 rb"\((?:\\.|[^\\()])*\)|<[0-9A-Fa-f\s]+>\s*(?:Tj|TJ|'|\")", content):
             operand = re.match(rb"\((?:\\.|[^\\()])*\)|<[0-9A-Fa-f\s]+>", operator.group(0))
@@ -219,7 +229,26 @@ def extract_pdf_text(path: str) -> str:
                 text = _decode_pdf_string(token)
             if text.strip():
                 pieces.append(text)
-    return "\n".join(pieces).strip()
+        pages.append("\n".join(pieces).strip())
+    # Empty entries are kept on purpose: they are the pages with no text layer, and the caller
+    # counts them to report a partially scanned document instead of silently dropping it.
+    return pages
+
+
+def extract_pdf_text(path: str) -> str:
+    """Best-effort text from a PDF, using only the standard library.
+
+    Joins the per-page text from `extract_pdf_pages`. Two details matter for a bilingual corpus:
+
+    * `ToUnicode` CMaps are **parsed, not indexed**. They are how subset CJK fonts map CID ->
+      Unicode; treating them as page text is what puts `Adobe` and `UCS` into the index.
+    * Streams stored without a filter are read as-is, so an uncompressed PDF is not misreported as
+      scanned.
+
+    Layout, hyphenation and non-Identity encodings are not reconstructed - the goal is retrieval,
+    not typesetting.
+    """
+    return "\n".join(extract_pdf_pages(path)).strip()
 
 
 def _read_plain_text(path: str) -> str:
@@ -282,12 +311,13 @@ def load_documents(path: str) -> Tuple[List[Document], List[Dict[str, str]]]:
             if suffix not in SUPPORTED_SUFFIXES:
                 skipped.append({"file": relative, "reason": "unsupported file type"})
                 continue
-            scanned = False
+            scanned_pages = 0
             if suffix == ".pdf":
-                text = extract_pdf_text(full)
-                if len(text) < _scanned_floor(text):
-                    scanned = True
-                    text = ""
+                # Per page, not per document: a PDF can be one readable page followed by scanned
+                # ones, and judging it as a whole would throw away the text it does have.
+                pages = extract_pdf_pages(full)
+                text = "\n".join(p for p in pages if p).strip()
+                scanned_pages = sum(1 for p in pages if not p)
             else:
                 text = _read_plain_text(full)
             if not text.strip():
@@ -304,7 +334,10 @@ def load_documents(path: str) -> Tuple[List[Document], List[Dict[str, str]]]:
                 family="external",
                 language=detect_language(text),
                 title=name,
-                ocr=scanned,
+                # `ocr` stays False: it drives a ranking penalty for noisy text, and the pages we
+                # index here are clean. The unreadable pages are counted instead of penalised.
+                ocr=False,
                 sections=sections,
+                scanned_pages=scanned_pages,
             ))
     return documents, skipped

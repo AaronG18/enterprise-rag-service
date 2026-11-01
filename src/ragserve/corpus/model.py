@@ -30,6 +30,10 @@ class Document:
     title: str
     ocr: bool
     sections: List[Section] = field(default_factory=list)
+    # Pages that carried no text layer. Kept separate from `ocr` on purpose: `ocr` drives a
+    # ranking penalty for noisy text, so it must not be set for a document whose indexed text is
+    # clean - otherwise the good pages of a partly scanned PDF would be penalised too.
+    scanned_pages: int = 0
 
     @property
     def full_text(self) -> str:
@@ -63,6 +67,7 @@ def document_to_dict(doc: Document) -> Dict[str, Any]:
         "title": doc.title,
         "ocr": doc.ocr,
         "sections": [section_to_dict(s) for s in doc.sections],
+        "scanned_pages": doc.scanned_pages,
     }
 
 

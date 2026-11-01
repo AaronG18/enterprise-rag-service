@@ -93,6 +93,7 @@ def measure_corpus(corpus, retrieval: RetrievalConfig,
         "chunk_count": corpus.manifest.get("chunk_count"),
         "per_language": corpus.manifest.get("per_language"),
         "skipped_files": corpus.manifest.get("skipped_files"),
+        "partial_scan_docs": corpus.manifest.get("partial_scan_docs"),
         "case_count": len(cases),
         "index_build_ms": build_ms,
         "recall@5": round(hits / total, 4),
@@ -182,6 +183,18 @@ def render_corpus_report(report: Dict) -> str:
         lines.append("")
         for item in skipped:
             lines.append("- `%s` - %s" % (item.get("file"), item.get("reason")))
+        lines.append("")
+    partial = report.get("partial_scan_docs") or []
+    if partial:
+        lines.append("## Documents indexed but incomplete")
+        lines.append("")
+        lines.append("Each of these has at least one page with a text layer and was indexed. The "
+                     "pages counted below carried no text and are **not** searchable, so answers "
+                     "about this document may be incomplete rather than wrong.")
+        lines.append("")
+        for item in partial:
+            lines.append("- `%s` - %d page(s) with no text layer"
+                         % (item.get("doc_id"), item.get("scanned_pages")))
         lines.append("")
     lines.append("## Per-document retrieval")
     lines.append("")
