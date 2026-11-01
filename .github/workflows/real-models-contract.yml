@@ -1,0 +1,50 @@
+# The one network-dependent job, and the only exemption from the hermetic gate (R21).
+#
+# The gate pins the deterministic fixture so its published numbers are exactly reproducible. That is
+# correct for the numbers and useless for the integration, so this job is what stops the real lane
+# from rotting: it installs the bundled models and runs ordinal assertions against BGE-M3 and the
+# reranker. It never runs the evaluation, so it cannot publish a gate number.
+#
+# Rule ids named here on purpose: R21 (a fixture is not the system under test) - the traceability
+# check in tests/test_harness_selfcheck.py looks for them.
+name: real-models-contract
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  real-models-contract:
+    # The bundled llama.cpp runtime is the Windows CPU build (`LLAMA_ASSET` in cli/setup.py), so
+    # this job runs where that runtime runs. On Linux `--setup` reports `runtime=MISSING` and there
+    # is nothing to start - which is a failure, not a skip, because the whole point is to prove the
+    # real lane works.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache the bundled models (1.07 GB)
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor/llama.cpp
+            models
+          key: real-models-${{ runner.os }}-v1
+
+      - name: Install the local models (network needed on a cache miss)
+        run: python scripts/run.py --setup
+
+      - name: Real-model contract (ordinal assertions only)
+        # tests/test_real_model_contract.py, run through the repository's own stdlib runner: the
+        # CI image has no pytest, and R7 forbids adding an package-install step.
+        env:
+          RAGSERVE_REQUIRE_REAL_MODELS: "1"
+        run: python scripts/run.py --test --classes RealModelContractTest
