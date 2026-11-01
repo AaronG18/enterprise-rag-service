@@ -266,6 +266,58 @@ class TestWorkflowHermeticity(unittest.TestCase):
                          "workflows that run the service must pin the offline providers: %s" % offenders)
 
 
+class TestCapabilityProvenByHardestInput(unittest.TestCase):
+    """R18: a capability is proven by its hardest input, not its easiest.
+
+    The failure this closes: the suite was green while every Chinese PDF that subsets its font was
+    destroyed, because no fixture was a real PDF and none was a CJK PDF. A supported input class
+    must therefore have a fixture for its *hard* case and a test that asserts the extracted
+    content - a smoke test passes on garbage.
+    """
+
+    # label -> (fixture that exhibits the hard case, test that exercises it, text it must assert)
+    CASES = (
+        ("subset CJK font (how real Chinese PDFs ship)",
+         ("tests", "data", "cjk-pdf", "subset-cn.pdf"), "tests/test_cjk_pdf.py", "员工手册"),
+        ("PDF stored without a filter",
+         ("tests", "data", "cjk-pdf", "uncompressed-cn.pdf"), "tests/test_cjk_pdf.py", "员工手册"),
+        ("pure image PDF (no text layer)",
+         ("tests", "data", "cjk-pdf", "scanned.pdf"), "tests/test_cjk_pdf.py", "scanned.pdf"),
+        ("text page mixed with image pages",
+         ("tests", "data", "cjk-pdf", "mixed.pdf"), "tests/test_mixed_scan_pdf.py", "年假规定"),
+        (".markdown, not just .md",
+         ("tests", "data", "formats", "notes.markdown"), "tests/test_input_formats.py",
+         "Receipts are required"),
+    )
+
+    def test_each_hard_case_has_a_fixture(self):
+        for label, fixture, _test, _text in self.CASES:
+            self.assertTrue(os.path.isfile(repo_file(*fixture)),
+                            "R18: no fixture for the hard case '%s' (expected %s)"
+                            % (label, os.path.join(*fixture)))
+
+    def test_each_hard_case_is_exercised_by_a_test_that_asserts_content(self):
+        for label, fixture, test, expected in self.CASES:
+            body = read(repo_file(test))
+            self.assertIn(os.path.basename(os.path.join(*fixture)), body,
+                          "R18: %s never names the fixture for '%s'" % (test, label))
+            self.assertIn(expected, body,
+                          "R18: %s must assert the extracted content for '%s', not just that it ran"
+                          % (test, label))
+
+    def test_an_input_class_cannot_be_claimed_without_a_hard_case(self):
+        """Supported suffixes are a claim; each one needs a fixture that exercises it."""
+        from ragserve.corpus.loader import SUPPORTED_SUFFIXES
+        present = set()
+        for root, _dirs, names in os.walk(repo_file("tests", "data")):
+            for n in names:
+                present.add(os.path.splitext(n)[1].lower())
+        for suffix in SUPPORTED_SUFFIXES:
+            self.assertIn(suffix, present,
+                          "R18: %s is advertised as supported but has no fixture exercising it"
+                          % suffix)
+
+
 class TestNoFrontEnd(unittest.TestCase):
     """R17: this repository ships a service, not an application."""
 

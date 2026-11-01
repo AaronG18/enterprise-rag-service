@@ -358,3 +358,17 @@ title = "a user-supplied corpus directory can be indexed and measured"
 kind = "test"
 tests = ["TestDirectoryLoader", "TestExternalCorpusService", "TestCorpusReport"]
 owner = "#96"
+
+[[requirement]]
+id = "R-35"
+title = "Chinese PDFs are extracted as Chinese, and font metadata is never indexed"
+kind = "test"
+tests = ["CjkPdfExtractionTest"]
+owner = "#106"
+
+[[requirement]]
+id = "R-36"
+title = "a PDF with some text pages and some image pages is indexed, never dropped"
+kind = "test"
+tests = ["MixedScanPdfTest"]
+owner = "#109"

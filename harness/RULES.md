@@ -163,6 +163,29 @@ Enforced by `tests/test_harness_selfcheck.py`: no shipped file may reference a f
 directory, the README and deployment guide must not advertise a UI, and a stray `web/` directory
 must stay gitignored so a leftover `npm install` cannot re-enter the history.
 
+## R18 - A capability is proven by its hardest input, not its easiest
+
+Claiming support for a format, a language or a failure mode requires a hermetic fixture that
+**actually exhibits it**, and a test asserting the **content** that comes out - not merely that the
+code path executed. "It runs" is not "it works", and a green suite is not a working feature.
+
+**Observed, and the reason this rule exists.** This repository passed 24/24 requirement rows, 253
+tests and a 39/39 gate while a headline requirement was silently broken: handed real bilingual PDFs,
+every Chinese PDF that subsets its font was destroyed, and the index received the string `Adobe UCS`
+instead of Chinese. Nothing in the harness could catch it, because:
+
+* the corpus fixtures were `.txt`, `.md` and one fake `.png.bin` - no fixture was a real PDF and none
+  was a CJK PDF, so the hard code path had never executed;
+* the `--corpus` requirement row verified that files are indexed and unreadable ones listed, never
+  **what was extracted**;
+* the tests that existed failed before the *mechanism* existed, not before the *content* was right.
+
+So "every gate green" was true and the feature was broken. Name the hard case for each supported
+input class: a CJK PDF means a **subset font with a ToUnicode CMap**, not a UTF-8 file containing
+Chinese; "handles scanned PDFs" means a **pure image PDF and a text page mixed with image pages**;
+"bilingual" means both languages in one document. A smoke test passes on garbage - assert the
+characters.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or
@@ -208,3 +231,4 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 | R15 | `.github/workflows/harness.yml` | a merged PR whose harness checks were red or absent |
 | R16 | `tests/test_requirements_gate.py` + `tests/test_harness_selfcheck.py` | a manifest row added with no failing state first, or a rule with no enforcement |
 | R17 | `tests/test_harness_selfcheck.py` | shipped code referencing a front end, or documentation advertising a UI |
+| R18 | `tests/test_harness_selfcheck.py` (`TestCapabilityProvenByHardestInput`) + `tests/data/cjk-pdf/` | a supported input class whose hard case has no fixture, or a test that never asserts the extracted content |
