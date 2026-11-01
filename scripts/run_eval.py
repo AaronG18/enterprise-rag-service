@@ -66,6 +66,12 @@ def main() -> int:
                              "metrics.json) as the snapshot, without re-measuring")
     args = parser.parse_args()
 
+    # A reviewer should never have to guess where they are or where the files land: say both
+    # before printing a single number.
+    print("Terminal folder   : %s" % os.getcwd())
+    print("Repository root   : %s" % REPO_ROOT)
+    print()
+
     if args.seed_model_backed:
         from ragserve.evaluation.deliverables import (  # noqa: E402
             SNAPSHOT_MODEL_BACKED,
@@ -76,6 +82,16 @@ def main() -> int:
         seed_id = os.path.basename(os.path.dirname(os.path.abspath(args.seed_model_backed)))
         write_snapshot(seed, os.path.join(REPO_ROOT, *SNAPSHOT_MODEL_BACKED.split("/")), seed_id)
         print("seeded docs/eval/model-backed-retrieval-metrics.json from run %s" % seed_id)
+
+    if args.corpus and args.deliverables:
+        # Silently ignoring the flag would leave a reviewer believing the committed deliverables
+        # describe their documents. They describe the synthetic corpus, so refuse instead.
+        print("REFUSED: --corpus and --deliverables cannot be combined.")
+        print("The committed deliverables (snapshot, comparison report, sample logs, dashboard) "
+              "describe the synthetic corpus; a --corpus run produces a corpus report instead.")
+        print("Run --corpus alone to measure your documents, or drop --corpus to regenerate the "
+              "committed deliverables.")
+        return 1
 
     if args.corpus:
         # Deliberately does not touch docs/eval/*. The labelled comparison belongs to the
@@ -101,6 +117,9 @@ def main() -> int:
         print("  provenance    :", report["provenance"])
         print("  note          :", report["provenance_note"])
         print("  artifact      :", outcome["paths"]["markdown"])
+        print()
+        print("Outputs")
+        print("  corpus report  : %s" % outcome["paths"]["markdown"])
         return 0
 
     if args.provider == "codebuddy-serve":

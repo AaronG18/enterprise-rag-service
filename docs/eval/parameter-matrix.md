@@ -22,7 +22,7 @@ The retrieval mode and the reranker are configuration, not code (FR-1). The entr
 | `--max-cases N` | int | limit labelled cases (smoke runs) |
 | `--cases <path>` | path | use a different labelled-case file |
 
-## Measured matrix (deterministic, corpus `bea626ce863a0e44`, 30 labelled cases)
+## Measured matrix (deterministic, corpus `a716676ca46bfa44`, 85 labelled cases)
 
 Recall@5 is the headline number; the full set (mrr, ndcg@10, context_precision, faithfulness,
 compliance, refusal appropriateness, style) is in `docs/eval/retrieval-comparison.md`.
