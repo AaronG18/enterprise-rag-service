@@ -162,6 +162,11 @@ renderer produces from the committed snapshots. Add `--refresh-model-backed` (wi
 servers running) to re-measure the model-backed lane as well - without them it **refuses** rather
 than filing a deterministic run under a model-backed label.
 
+Every flag combination an interviewer will try was actually run and recorded, with the measured
+numbers, in [`docs/eval/parameter-matrix.md`](docs/eval/parameter-matrix.md) - including the honest
+caveats (the reranker is a separate toggle from `--mode`; the deterministic generative metrics are a
+pipeline floor, not a real-model result).
+
 ### Bring your own documents
 
 The corpus above is synthetic on purpose, but a reviewer will plausibly bring their own files, so
