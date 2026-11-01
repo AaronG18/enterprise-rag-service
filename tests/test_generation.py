@@ -201,6 +201,23 @@ class TestMultiTurn(unittest.TestCase):
         self.assertFalse(follow_up.answer.refused)
         self.assertIn("handbook-en-00", [c.doc_id for c in follow_up.retrieved])
 
+    def test_elliptical_follow_up_inherits_the_previous_question(self):
+        """"What about X?" is the commonest follow-up shape and has no content of its own."""
+        service = make_service()
+        first = service.answer("How many days of annual leave do full-time employees accrue?")
+        follow_up = service.answer("What about part-time employees?",
+                                   history=[("How many days of annual leave do full-time employees accrue?",
+                                             first.answer.text)])
+        self.assertTrue(follow_up.resolved_query.startswith("How many days of annual leave"),
+                        "an elliptical follow-up must inherit the previous question, got %r"
+                        % follow_up.resolved_query)
+
+    def test_a_question_with_no_history_is_never_rewritten(self):
+        """Rewriting a first turn would corrupt it; there is nothing to inherit from."""
+        service = make_service()
+        alone = service.answer("What about part-time employees?")
+        self.assertEqual(alone.resolved_query, "What about part-time employees?")
+
 
 def _sentences(text: str):
     """Answer sentences, without citation markers (citations live in their own field)."""

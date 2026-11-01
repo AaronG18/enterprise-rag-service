@@ -8,6 +8,7 @@ the evaluation suite, not here; this only guards that the *documentation* stays 
 """
 from __future__ import annotations
 
+import json
 import os
 import unittest
 
@@ -47,6 +48,27 @@ class ParameterMatrixDocumentedTest(unittest.TestCase):
         self.assertIn("--corpus", readme, "README must document the --corpus flag")
         self.assertIn("Bring your own documents", readme,
                       "README needs the 'Bring your own documents' section")
+
+    def test_readme_quotes_the_current_corpus_and_case_count(self):
+        """The README once quoted a corpus version and case count from an older run, which made
+        every number in its table look current when it was not. Pin it to the committed snapshot."""
+        with open(os.path.join(_repo_root(), "docs", "eval", "deterministic-metrics.json"),
+                  "r", encoding="utf-8") as fh:
+            snapshot = json.load(fh)
+        meta = snapshot.get("run_metadata", {})
+        corpus = str(meta.get("corpus_version", ""))
+        cases = str(meta.get("case_count", ""))
+        self.assertTrue(corpus and cases, "the snapshot must record corpus_version and case_count")
+        readme = _read("README.md")
+        self.assertIn(corpus, readme,
+                      "README must quote the current corpus version %s, not one from an older run"
+                      % corpus)
+        self.assertIn("%s labelled cases" % cases, readme,
+                      "README must quote the current case count (%s)" % cases)
+        matrix = _read("docs/eval/parameter-matrix.md")
+        self.assertIn(corpus, matrix, "parameter-matrix.md must quote the current corpus version")
+        self.assertIn("%s labelled cases" % cases, matrix,
+                      "parameter-matrix.md must quote the current case count")
 
 
 if __name__ == "__main__":

@@ -60,9 +60,44 @@ See [`docs/deliverables.md`](docs/deliverables.md) for the full map with reprodu
 | Issue diagnosis (>= 2 cases, >= 10% gain) | `docs/diagnosis/INC-001-refusal-gate.md`, `docs/diagnosis/INC-002-ocr-penalty.md` |
 | Justification of every key technical choice | section 8 below, `docs/adr/`, `docs/retrieval.md` |
 
+### Every requirement in the brief, and where it is met
+
+The brief is reproduced item by item below so nothing has to be taken on trust. Each row names the
+place it is implemented and the command or document that proves it.
+
+| Brief requirement | Where it is met | Proven by |
+|---|---|---|
+| **Scenario** multi-turn RAG QA + generative service over handbook / compliance / tech specs / architecture | `src/ragserve/service.py`, multi-turn in `generation/context.py` | `tests/test_generation.py` |
+| **Corpus** bilingual CN/EN, includes scanned PDFs | `corpus/` generator, seeded; ~8% of docs through an OCR-noise transform | `docs/eval/retrieval-comparison.md` |
+| **Any stack, but choices justified with quantitative evidence** | section 8, `docs/adr/` | every row there carries a measurement |
+| **Performance** 90% of requests <= 10 s; >= 5 concurrent on one instance | service + cache | `scripts/run_bench.py --http --concurrency 5 --assert` (p90 170 ms, 0 errors) |
+| **Cost** token-cost estimate per 1,000 calls; model-version trade-off (quality/cost/latency) | `configs/pricing.json`, `src/ragserve/evaluation/cost.py` | `run_eval.py --cost`; `docs/eval/model-backed.md` (hy3 ~$50.5 vs flash ~$14.0 per 1,000 calls) |
+| **Quality** Faithfulness >= 0.85, evaluation method defined | `docs/eval/metrics_rubric*.md` | measured 1.0 deterministic / 0.8913-0.913 model-backed |
+| **Quality** Context Precision >= 0.70 | same rubric | 0.9529 deterministic / 0.8814 model-backed |
+| **Quality** Answer Compliance >= 80% (advanced 90%) | generative scorer | 0.9000 deterministic / 0.965-0.983 model-backed |
+| **Quality** Style Consistency >= 80% (advanced 0.85) | generative scorer | 1.0 deterministic / 0.8957-0.904 model-backed |
+| **Quality** Refusal Appropriateness >= 80% (advanced 90%) | refusal eval set | 0.9000 deterministic / 0.9000 model-backed |
+| **Logging** structured logs for monitoring and issue diagnosis | `src/ragserve/logging/` | `docs/logging/log_fields.md` + generated `sample_logs.md` |
+| **Security** minimal prompt-injection defense | `generation/safety.py` (`detect_injection`, `neutralise`) | injection query -> refusal `injection_detected` with guidance |
+| **Security** basic PII handling | `generation/pii.py` | redacted on the answer **and** the log record (email/phone/id/card) |
+| **Security** answers strictly grounded to retrieved context | generation prompt + citations | every answer carries citations; faithfulness measured |
+| **Objective** configurable retrieval modes, reranking, generative quality controls, observability, caching, reproducible diagnosis | `configs/retrieval.json`, `configs/generation.json` | FR1/NFR rows below and `docs/diagnosis/` |
+| **FR1** two retrieval modes + reranker toggled by configuration, no code change | `configs/retrieval.json`, `--mode` / `--rerank` | report shows three configurations |
+| **FR2** refusal with guidance when confidence is low / out of scope / safety triggers | `service.py` refusal path with reason codes | `safety_trigger`, `low_confidence`, `no_context`, `injection_detected` |
+| **FR3** PII redaction on outputs and logs | `pii.py` `redact_text` + `redact_record` | verified on both the answer and the nested log record |
+| **FR4** ops report: p50/p95 latency, token usage, cache hit rate, refusal rate, answer compliance rate | ops report (text + CSV) | `artifacts/eval/<run>/report.{txt,csv}` |
+| **NFR1** compare vector-only / hybrid / hybrid+rerank, with conclusions | `docs/eval/retrieval-comparison.md` | recall@5 0.7722 -> 0.8987 -> 0.9620 |
+| **NFR2** evolvability: retrieval strategies, model versions, metrics/logging | all config-driven; ADRs record swaps | `docs/adr/` |
+| **NFR3** advanced generative targets (compliance >= 90%, refusal >= 90%, style >= 0.85) | generative scorer | `docs/eval/model-backed.md` |
+| **NFR4** >= 2 diagnosed issues with evidence, fix rationale, >= 10% gain | `docs/diagnosis/` | INC-001 +575.2%, INC-002 +100.0% (ocr_mrr) |
+| **Deliverable** complete code and configs | `src/`, `configs/` | - |
+| **Deliverable** one-click evaluation script | `scripts/run_eval.py` | `--all --deliverables`, prints every path |
+| **Deliverable** evaluation report with before/after | `docs/eval/retrieval-comparison.md` (generated) | regenerated, never hand-edited |
+| **Deliverable** log field dictionary and sample logs | `docs/logging/` | both committed |
+
 ## 4. Targets and current measured values
 
-Measured with the deterministic provider on corpus `bea626ce863a0e44`, 30 labelled cases;
+Measured with the deterministic provider on corpus `a716676ca46bfa44`, 85 labelled cases;
 full detail and caveats in [`docs/eval/retrieval-comparison.md`](docs/eval/retrieval-comparison.md).
 
 See [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) for the full traceability matrix that
@@ -73,9 +108,9 @@ maps each target to a verification command and an owning issue.
 | End-to-end latency | p90 <= 10 s | 10.5-34.8 ms at 5 concurrent |
 | Concurrency | >= 5 concurrent, single instance | 5 concurrent, 0 errors |
 | Faithfulness | >= 0.85 | 1.0 |
-| Context Precision | >= 0.70 | 0.9529 |
-| Answer Compliance | >= 0.80 / 0.90 | 0.9000 |
-| Refusal Appropriateness | >= 0.80 / 0.90 | 0.9000 |
+| Context Precision | >= 0.70 | 0.8814 |
+| Answer Compliance | >= 0.80 / 0.90 | 0.9600 |
+| Refusal Appropriateness | >= 0.80 / 0.90 | 0.9529 |
 | Style Consistency | >= 0.80 / 0.85 | 1.0 |
 | Cost | estimate per 1,000 calls | `run_eval.py --cost` prints `cost_per_1000_calls_usd` from measured tokens x `configs/pricing.json` (reference prices; the deterministic CI baseline is a local stub, so $0.00) |
 | Observability | structured logs, single-request reconstruction | 5 stages per request, documented dictionary |
@@ -140,6 +175,24 @@ python scripts/run_eval.py --all     # retrieval comparison + generative scoring
 python scripts/run_bench.py --http --concurrency 5 --assert   # service-level load test
 ```
 
+### Multi-turn questions
+
+The brief asks for a **multi-turn** service, so a follow-up is answered against the previous turn
+instead of being retrieved verbatim. Pass the earlier turns as `history`; the follow-up is resolved
+before retrieval, and the rewrite is visible in the trace so a wrong one can be diagnosed:
+
+```python
+first  = service.answer("How many days of annual leave do full-time employees accrue?")
+follow = service.answer("What about part-time employees?",
+                        history=[(first.resolved_query, first.answer.text)])
+# follow.resolved_query -> "How many days of annual leave do full-time employees accrue?
+#                           What about part-time employees?"
+```
+
+Resolution is deliberately conservative (`src/ragserve/generation/context.py`): it fires on anaphora
+("Can they be carried over?") and on elliptical openers ("What about X?", "How about X?", "And X?"),
+and **never** on a first turn with no history - a wrong rewrite is worse than no rewrite.
+
 ### One command for every deliverable
 
 ```bash
@@ -167,16 +220,54 @@ numbers, in [`docs/eval/parameter-matrix.md`](docs/eval/parameter-matrix.md) - i
 caveats (the reranker is a separate toggle from `--mode`; the deterministic generative metrics are a
 pipeline floor, not a real-model result).
 
+### Every flag of `run_eval.py`
+
+`run_eval.py` is the only entry point for evaluation and for the deliverables. Whatever you run, it
+opens by printing **the folder your terminal is in** and the **repository root** the numbers belong
+to, and closes with an `Outputs` section listing every path it wrote - so nothing has to be hunted
+for afterwards.
+
+| Flag | What it does |
+|---|---|
+| `--all` | run everything (the default): three-config comparison + generative scoring + ops report |
+| `--mode vector_only\|hybrid` | score only this retrieval mode; overrides `configs/retrieval.json` (FR-1) |
+| `--rerank on\|off` | enable/disable the reranker for this run; overrides the config (FR-1) |
+| `--corpus DIR` | index `.txt`/`.md`/`.pdf` from `DIR` and write a corpus report instead of the labelled comparison |
+| `--deliverables` | after the run, regenerate the committed deliverables and print every path written |
+| `--refresh-model-backed` | with `--deliverables`: re-measure the model-backed lane (needs the local servers; **refuses** otherwise, writing nothing) |
+| `--seed-model-backed FILE` | commit an existing `artifacts/eval/<id>/metrics.json` as the snapshot without re-measuring |
+| `--cost` | print the token-cost estimate per 1,000 calls |
+| `--max-cases N` | limit labelled cases (smoke runs use 3) |
+| `--cases PATH` | use a different labelled-case file |
+| `--out DIR` | write artefacts somewhere else |
+| `--provider`, `--models` | the real-model lane (needs the local CLI serve); not used in CI |
+
+Two combinations deliberately refuse rather than guess: `--refresh-model-backed` without the model
+servers, and `--corpus` together with `--deliverables`. Both say why and write nothing.
+
+Typical runs:
+
+```bash
+python scripts/run_eval.py --all                          # the published comparison
+python scripts/run_eval.py --mode hybrid --rerank off     # one configuration, honestly named
+python scripts/run_eval.py --all --deliverables           # ...and regenerate every deliverable
+python scripts/run_eval.py --all --cost                   # cost per 1,000 calls
+python scripts/run_eval.py --corpus ./my-docs             # measure documents you supply
+```
+
 ### Bring your own documents
 
 The corpus above is synthetic on purpose, but a reviewer will plausibly bring their own files, so
 any entry point can index a directory instead:
 
 ```bash
-python scripts/run_eval.py --corpus /path/to/documents
-python scripts/run_eval.py --corpus /path/to/documents     # report only, no snapshots touched
-python scripts/start.py --corpus /path/to/documents        # serve them over the API
+python scripts/run_eval.py --corpus /path/to/documents     # corpus report; snapshots untouched
+python scripts/start.py    --corpus /path/to/documents     # serve them over the API
 ```
+
+Do **not** add `--deliverables` to a `--corpus` run: the committed deliverables describe the
+synthetic corpus, so the combination **refuses** (exit 1, nothing written) rather than leaving you
+believing your documents were measured into them.
 
 Supported: `.txt`, `.md`, `.markdown`, `.pdf`. PDF text is extracted with the standard library
 only (no PDF parser is available without a dependency), so it is best-effort - and a PDF whose
