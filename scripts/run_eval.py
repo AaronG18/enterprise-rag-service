@@ -183,7 +183,7 @@ def main() -> int:
              "output_tokens": result["operations"].get("token_usage_output_total", 0)},
             calls,
             load_pricing(os.path.join(REPO_ROOT, "configs", "pricing.json")),
-            meta.get("provider", "deterministic"))
+            meta.get("model_version") or meta.get("provider", "deterministic"))
         estimate["token_usage_total"] = total
         print()
         print(render_cost_text(estimate))

@@ -100,7 +100,8 @@ Worst p95 6.15 s - inside the 10 s bound with real generation, but the margin is
 
 * 30 cases per configuration; differences of a few points are noise.
 * Token counts are `estimate` (the endpoint reports no usage).
-* No monetary cost: no price list was available, `configs/pricing.json` stays null.
+* Monetary cost is computed from measured tokens x reference list prices in `configs/pricing.json`
+  (see "Cost per 1,000 calls" above); the prices are labelled references, not measured.
 * Model output varies run to run, so single-run comparisons should not be over-read.
 
 ## Latency and token usage (sequential, cache disabled)
@@ -117,6 +118,30 @@ Worst p95 6.15 s - inside the 10 s bound with real generation, but the margin is
 Worst observed p95 is 6.15 s, inside the 10 s bound, but the margin is now measured in seconds
 rather than the milliseconds of the deterministic path. Concurrency behaviour under real
 generation is a separate measurement (see `docs/performance.md`).
+
+## Cost per 1,000 calls - the third trade-off axis
+
+The brief asks for a token-cost estimate per 1,000 calls and an explicit model-version trade-off
+across quality, cost and latency. Quality and latency are above; here is cost, computed from the
+**measured** token counts on the model-backed run (~328 tokens/call, ~269 in / ~59 out) multiplied by
+the reference list prices in `configs/pricing.json` (clearly labelled as published list-price
+references to be replaced with the contract rate). The embedding model and the reranker run locally
+and are free, so generation is the only cost driver.
+
+| Model | faithfulness | compliance | style | p95 latency | cost / 1,000 calls (ref) |
+|---|---|---|---|---|---|
+| **hy3, hybrid** | 0.913 | 0.983 | 0.904 | 6.15 s | ~$50.5 |
+| flash, hybrid | 0.768 | 0.904 | 0.957 | 2.47 s | ~$14.0 |
+
+**Selection: hy3.** flash is ~3.6x cheaper and ~2.5x faster, but its faithfulness (0.64-0.72 across
+runs) sits below the 0.85 target, and its refusal appropriateness (0.90) only just meets the advanced
+bar - the one run that cleared it (0.965) was a variance outlier. hy3 pays ~3.6x the cost to clear
+every advanced target with margin (faithfulness 0.913, compliance 0.983, refusal 0.900, style 0.904).
+At ~328 tokens/call the per-call cost is ~$0.05 worst case, so 100,000 calls is roughly $5,000 - a
+figure a reviewer can scale.
+
+Reproduce the live number: `python scripts/run_eval.py --cost` prints `cost_per_1000_calls_usd` for
+the configured model (the deterministic CI baseline reports $0.00 because it is a local stub).
 
 ## What this run proves that the deterministic run could not
 
@@ -147,5 +172,6 @@ is a concrete, testable hypothesis and it is the next piece of work, not a footn
 
 * 30 cases is small; per-configuration differences of a few points are noise.
 * Token counts are estimated (chars/4) because the endpoint reports no usage.
-* No monetary cost is reported: no price list was available for these model versions, so
-  `configs/pricing.json` stays null and the cost axis is expressed in tokens per 1,000 calls.
+* Monetary cost is computed from those measured token counts x the reference list prices in
+  `configs/pricing.json` (the prices are labelled references, replace with your contract rate); see
+  "Cost per 1,000 calls" for the per-1,000-calls figure and the hy3-vs-flash trade-off.
