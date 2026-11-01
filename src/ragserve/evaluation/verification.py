@@ -128,7 +128,7 @@ def test_report(classes) -> dict:
                 payload = {}
     if not payload:
         return {"ok": False, "total": 0, "classes": {}, "failures": [],
-                "errors": [{"test": "run_tests.py", "message": (proc.stderr or "")[-200:]}]}
+                "errors": [{"test": "scripts/run.py", "message": (proc.stderr or "")[-200:]}]}
     payload["missing_classes"] = payload.get("missing_classes", [])
     return payload
 

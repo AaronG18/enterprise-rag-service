@@ -92,7 +92,7 @@ class RetrievalConfig:
 def _warn(message: str) -> None:
     """A fallback has to be noticed.
 
-    stderr, never stdout: `run_tests.py --json` parses stdout, and one stray line turns its output
+    stderr, never stdout: `scripts/run.py --json` parses stdout, and one stray line turns its output
     into invalid JSON.
     """
     print("WARNING: %s" % message, file=sys.stderr)

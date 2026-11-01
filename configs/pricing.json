@@ -1,5 +1,5 @@
 {
-  "_comment": "Unit prices are PUBLISHED LIST-PRICE REFERENCES in USD per 1,000 tokens. Replace them with your negotiated contract rate. Only the price inputs are external; the token counts the cost estimate multiplies them by are measured by a real run (see run_eval.py --cost). The repository never invents a 'measured' price.",
+  "_comment": "Unit prices are PUBLISHED LIST-PRICE REFERENCES in USD per 1,000 tokens. Replace them with your negotiated contract rate. Only the price inputs are external; the token counts the cost estimate multiplies them by are measured by a real run (see scripts/run.py --cost). The repository never invents a 'measured' price.",
   "stub-deterministic-1": {
     "input_per_1k_usd": 0.0,
     "output_per_1k_usd": 0.0

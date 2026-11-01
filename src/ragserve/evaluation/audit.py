@@ -13,6 +13,7 @@ from __future__ import annotations
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -57,8 +58,18 @@ def is_fresh(path: str) -> bool:
 
 
 def run(command: str, timeout: int = 1200) -> subprocess.CompletedProcess:
+    """Run a probe the way CI runs it: with the offline providers pinned.
+
+    Without the pins the probe measures a *different* run - the one that fell back because no model
+    server was listening - and a requirement can then fail for a reason that has nothing to do with
+    the requirement (the fallback model has no price entry, so the cost probe saw
+    `price_provided: False`). The audit must exercise the reproducible path.
+    """
+    env = dict(os.environ)
+    env.setdefault("RAGSERVE_EMBEDDING_PROVIDER", "deterministic")
+    env.setdefault("RAGSERVE_RERANKER_PROVIDER", "deterministic")
     return subprocess.run(command, cwd=REPO_ROOT, shell=True, capture_output=True,
-                          text=True, encoding="utf-8", errors="ignore", timeout=timeout)
+                          text=True, encoding="utf-8", errors="ignore", timeout=timeout, env=env)
 
 
 def latest(pattern: str, predicate=None) -> str | None:
@@ -198,14 +209,16 @@ def probe_cost():
     """
     command = "python scripts/run.py --eval --all --cost"
     proc = run(command)
-    output = tail(proc.stdout, 16)
-    has_tokens = "input_tokens_per_call" in output and "calls_measured" in output
-    priced = "price_provided: True" in output
-    has_cost = "cost_per_1000_calls_usd:" in output and "None" not in output.split("cost_per_1000_calls_usd:")[-1].split("\n")[0]
+    # Match on the whole stream, not a fixed tail: the run appends an Outputs section after the
+    # cost block, and a 16-line tail silently dropped `price_provided` and failed the row.
+    out = proc.stdout or ""
+    has_tokens = "input_tokens_per_call" in out and "calls_measured" in out
+    priced = re.search(r"price_provided:\s+True", out) is not None
+    has_cost = re.search(r"cost_per_1000_calls_usd:\s+[0-9]+(?:\.[0-9]+)?", out) is not None
     ok = proc.returncode == 0 and has_tokens and priced and has_cost
     evidence = ("token estimate measured and converted to USD per 1,000 calls"
                 if ok else "cost not produced; fill configs/pricing.json with reference prices")
-    return (ok, command, output, evidence)
+    return (ok, command, tail(out, 24), evidence)
 
 
 def probe_ops_report():

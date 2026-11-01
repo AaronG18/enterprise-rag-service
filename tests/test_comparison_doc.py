@@ -1,7 +1,7 @@
 """The comparison report is generated, not remembered.
 
 `docs/eval/retrieval-comparison.md` is a deliverable the brief asks for. It used to be written by
-hand, and because `run_eval.py --all` writes only to `artifacts/` nothing regenerated it - it kept
+hand, and because `scripts/run.py --all` writes only to `artifacts/` nothing regenerated it - it kept
 quoting a corpus the repository no longer shipped for months (#92). It is now rendered from
 committed snapshots by `python scripts/run.py --eval --all --deliverables` (the single entry point - 
 there is deliberately no second script), and these tests make that guarantee real:

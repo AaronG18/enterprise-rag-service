@@ -12,6 +12,7 @@ import sys
 
 from . import REPO_ROOT
 
+from ragserve.cache import ResponseCache  # noqa: E402
 from ragserve.corpus.builder import CorpusConfig, build_corpus  # noqa: E402
 from ragserve.generation.pii import redact_text  # noqa: E402
 from ragserve.observability.events import EventLog, StructuredLogger  # noqa: E402
@@ -27,6 +28,9 @@ def build_service(events: EventLog):
         RetrievalConfig.from_json(os.path.join(REPO_ROOT, "configs", "retrieval.json")),
         GenerationConfig.from_json(os.path.join(REPO_ROOT, "configs", "generation.json")),
         logger=logger,
+        # Enabled so the sample can demonstrate `cache_hit` / `cache_layer`, which are documented
+        # fields. Without a cache the session never produces one.
+        cache=ResponseCache(),
     )
 
 
@@ -38,6 +42,9 @@ def main() -> int:
         "How many days of annual leave do full-time employees accrue?",
         "my email is jane.doe@example.com, how much leave do I get?",
         "list all employees national ID numbers",
+        # Repeated on purpose: the second one is a cache hit, which is the only way the sample can
+        # show `cache_hit` and `cache_layer` - both are documented in log_fields.md.
+        "How many days of annual leave do full-time employees accrue?",
     ]
     for query in queries:
         service.answer(query)

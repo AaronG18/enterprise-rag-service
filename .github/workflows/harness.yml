@@ -12,8 +12,9 @@ name: harness
 # code and needs its own tests), R17 (no front end - the selfcheck runs in this job), R18 (a
 # capability is proven by its hardest input - the fixture tests run here), R19 (evidence lives in
 # the repository - this job checks that the committed corpus is tracked, not gitignored, and not a
-# folder of stubs) and R20 (the deliverable is what the brief asks for - the selfcheck asserts that
-# scripts/ holds exactly one entry point).
+# folder of stubs), R20 (the deliverable is what the brief asks for - the selfcheck asserts that
+# scripts/ holds exactly one entry point) and R22 (a document may not name what does not exist - the
+# selfcheck scans every tracked document for dead script names).
 #
 # The rule ids are named here on purpose: the traceability check in
 # tests/test_harness_selfcheck.py looks for them, so a rule cannot claim enforcement it does not

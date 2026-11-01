@@ -14,7 +14,7 @@ Every required deliverable, where it lives, and the command that reproduces it.
 | Incident diagnosis (>= 2 cases, >= 10% gain) | `docs/diagnosis/INC-001-refusal-gate.md`, `docs/diagnosis/INC-002-ocr-penalty.md` | `python scripts/run.py --diagnose --all --assert` |
 | Metric definitions and calibration | `docs/metrics/metrics.md` | scorers in `src/ragserve/evaluation/metrics.py` |
 | Architecture decisions | `docs/adr/` | see `docs/adr/README.md` (ADR 0004 records the measured model-version trade-off) |
-| Labelled evaluation set | `eval/eval_cases.json` (30 cases: 26 answerable, 4 refusal, 3 marked `ocr_target`) | used by `run_eval.py` |
+| Labelled evaluation set | `eval/eval_cases.json` (30 cases: 26 answerable, 4 refusal, 3 marked `ocr_target`) | used by `scripts/run.py` |
 
 ## Commands a reviewer should run, in order
 

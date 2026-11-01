@@ -111,7 +111,7 @@ the only way in.
 * **On a branch push, check only the branch's own commits.** Comparing against the repository
   root makes history written before the rule existed fail the gate. Use
   `git merge-base origin/main HEAD` as the range base.
-* **`run_tests.py -k` takes one substring.** A verification row that needs several test classes
+* **`scripts/run.py -k` takes one substring.** A verification row that needs several test classes
   is a list in `harness/requirements.toml` (`tests = [...]`), not one `-k` with several names.
 * **A metric row must name its section.** Eval metrics live under `comparison` (per
   configuration) or `operations`; bench artefacts are flat. Guessing reads a stale or absent key

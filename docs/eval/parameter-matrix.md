@@ -6,7 +6,7 @@ metric are quoted exactly. The point is to show that **every combination an inte
 behaves**, and what each one prints.
 
 The retrieval mode and the reranker are configuration, not code (FR-1). The entry script is
-`run_eval.py` alone - there is no second script (issue #98).
+`scripts/run.py` alone - there is no second script (issue #98).
 
 ## Flags
 
@@ -29,17 +29,17 @@ compliance, refusal appropriateness, style) is in `docs/eval/retrieval-compariso
 
 | Command | Config actually run | recall@5 | exit |
 |---|---|---|---|
-| `run_eval.py --all` | vector_only / hybrid / hybrid+rerank | `0.7722` / `0.8987` / `0.9620` | 0 |
-| `run_eval.py --mode vector_only` | vector_only **+rerank** (config default on) | `0.8861` | 0 |
-| `run_eval.py --mode hybrid` | hybrid **+rerank** | `0.9620` | 0 |
-| `run_eval.py --rerank on` | hybrid **+rerank** | `0.9620` | 0 |
-| `run_eval.py --rerank off` | hybrid (no rerank) | `0.8987` | 0 |
-| `run_eval.py --mode hybrid --rerank on` | hybrid **+rerank** | `0.9620` | 0 |
-| `run_eval.py --mode vector_only --rerank off` | vector_only (no rerank) | `0.7722` | 0 |
-| `run_eval.py --corpus tests/data/external-corpus` | external corpus, self-labelled queries | `1.0` (proxy) | 0 |
-| `run_eval.py --all --cost` | as `--all` + cost estimate | `0.9620` | 0 |
-| `run_eval.py --max-cases 3` | `--all` limited to 3 cases | exit 0 | 0 |
-| `run_eval.py --cases eval/eval_cases.json` | `--all` on an explicit case file | exit 0 | 0 |
+| `scripts/run.py --all` | vector_only / hybrid / hybrid+rerank | `0.7722` / `0.8987` / `0.9620` | 0 |
+| `scripts/run.py --mode vector_only` | vector_only **+rerank** (config default on) | `0.8861` | 0 |
+| `scripts/run.py --mode hybrid` | hybrid **+rerank** | `0.9620` | 0 |
+| `scripts/run.py --rerank on` | hybrid **+rerank** | `0.9620` | 0 |
+| `scripts/run.py --rerank off` | hybrid (no rerank) | `0.8987` | 0 |
+| `scripts/run.py --mode hybrid --rerank on` | hybrid **+rerank** | `0.9620` | 0 |
+| `scripts/run.py --mode vector_only --rerank off` | vector_only (no rerank) | `0.7722` | 0 |
+| `scripts/run.py --corpus tests/data/external-corpus` | external corpus, self-labelled queries | `1.0` (proxy) | 0 |
+| `scripts/run.py --all --cost` | as `--all` + cost estimate | `0.9620` | 0 |
+| `scripts/run.py --max-cases 3` | `--all` limited to 3 cases | exit 0 | 0 |
+| `scripts/run.py --cases eval/eval_cases.json` | `--all` on an explicit case file | exit 0 | 0 |
 
 Read the `--corpus` row as a **self-labelled proxy**: the queries are derived from the documents
 themselves (one per document, from its title and first section), so the number is high by
@@ -49,7 +49,7 @@ labelled benchmark.
 
 ## One command for every deliverable
 
-`run_eval.py --all --deliverables` regenerates the deterministic snapshot, the comparison report,
+`scripts/run.py --all --deliverables` regenerates the deterministic snapshot, the comparison report,
 the sample logs and the QA dashboard, then prints every path written:
 
 ```

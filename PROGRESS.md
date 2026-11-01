@@ -136,7 +136,7 @@ Entries follow: issue, then change, then evidence status.
 
 * **#92 / #94** CLOSED (2026-11-01). Two follow-ups on the same failure. **#92**: the comparison
   report was refreshed - it had been quoting a 30-case run against a corpus the repository stopped
-  shipping when EPIC 15 grew it to 85 cases, and because `run_eval.py --all` writes only to
+  shipping when EPIC 15 grew it to 85 cases, and because `scripts/run.py --all` writes only to
   `artifacts/` nothing had forced the two to agree. The stale numbers had also inverted the
   conclusion: on the old corpus reranking traded recall for MRR, so the report recommended plain
   `hybrid`; on the current corpus `hybrid+rerank` leads on every axis. **#94** fixed the failure

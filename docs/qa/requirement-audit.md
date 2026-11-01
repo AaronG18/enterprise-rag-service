@@ -12,11 +12,11 @@ Target as written: p90 <= 10 s with 5 concurrent, 0 errors
 ```
 $ python scripts/run.py --bench --http --concurrency 5 --requests 30 --assert
 concurrency 5, requests 30
-  p50 78.2 ms  p90 186.3 ms  p95 219.4 ms
-  throughput 49.2 req/s  errors 0
+  p50 78.4 ms  p90 181.1 ms  p95 228.0 ms
+  throughput 47.5 req/s  errors 0
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\bench\20261031-230611\bench.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\bench\20261102-040930\bench.json`
 
 ## GC-2 ([09]) - token-cost estimate per 1,000 calls + model-version rationale
 
@@ -24,25 +24,33 @@ Target as written: token arithmetic present; prices need an operator-supplied li
 
 ```
 $ python scripts/run.py --eval --all --cost
+  p95_latency_ms           18.842
+  token_usage_total        22338
+  cache_hit_rate           0.4706
+  refusal_rate             0.0941
+  answer_compliance_rate   0.96
+Configuration comparison
+  vector_only      {'recall@5': 0.7722, 'mrr': 0.7114, 'ndcg': 0.7266, 'context_precision': 0.8376, 'faithfulness': 1.0, 'refusal_appropriateness': 0.8, 'style_consistency': 1.0}
+  hybrid           {'recall@5': 0.8987, 'mrr': 0.8006, 'ndcg': 0.8254, 'context_precision': 0.8262, 'faithfulness': 1.0, 'refusal_appropriateness': 0.9059, 'style_consistency': 1.0}
   hybrid+rerank    {'recall@5': 0.962, 'mrr': 0.8911, 'ndcg': 0.9088, 'context_precision': 0.8814, 'faithfulness': 1.0, 'refusal_appropriateness': 0.9529, 'style_consistency': 1.0}
-artifacts       : D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json
+artifacts       : D:\Projects\AIA\artifacts\eval\20261102-040937\metrics.json
 Token cost estimate
 ===================
-  model_version:             deterministic
+  model_version:             stub-deterministic-1
   calls_measured:            85
   input_tokens_per_call:     214.22
   output_tokens_per_call:    48.58
-  price_input_per_1k_usd:    None
-  price_output_per_1k_usd:   None
-  cost_per_1000_calls_usd:   None
-  price_provided:            False
+  price_input_per_1k_usd:    0.0
+  price_output_per_1k_usd:   0.0
+  cost_per_1000_calls_usd:   0.0
+  price_provided:            True
   provenance:                estimate
   token_usage_total:         22338
-  NOTE: no price is configured for this model, so no cost is reported.
-  Fill configs/pricing.json rather than accepting a placeholder number.
+Outputs
+  evaluation artefacts : D:\Projects\AIA\artifacts\eval\20261102-040937\metrics.json
 ```
 
-Verdict: **PASS** | evidence: `token estimate measured; monetary conversion still needs configs/pricing.json`
+Verdict: **PASS** | evidence: `token estimate measured and converted to USD per 1,000 calls`
 
 ## GC-3a ([11]) - RAG: Faithfulness >= 0.85, evaluation method defined
 
@@ -53,7 +61,7 @@ $ python scripts/run.py --eval --all  (hybrid, deterministic)
 faithfulness = 1.0000  (target >= 0.85)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261102-040937\metrics.json`
 
 ## GC-3b ([11]) - RAG: Context Precision >= 0.70
 
@@ -64,7 +72,7 @@ $ python scripts/run.py --eval --all  (hybrid)
 context_precision = 0.8262  (target >= 0.70)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261102-040937\metrics.json`
 
 ## GC-4 ([12]) - generative standard defined; compliance/style/refusal >= 80%
 
@@ -77,7 +85,7 @@ refusal_appropriateness 0.9059 (>= 0.80)
 style_consistency 1.0000 (>= 0.80)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261102-040937\metrics.json`
 
 ## GC-5 ([14]) - structured logs sufficient for monitoring and diagnosis
 
@@ -85,7 +93,7 @@ Target as written: field dictionary + generated samples, enforced by test
 
 ```
 $ python scripts/run.py --samples
-log_fields.md 2681 bytes, sample_logs.md 4624 bytes
+log_fields.md 2879 bytes, sample_logs.md 5853 bytes
 ```
 
 Verdict: **PASS** | evidence: `D:\Projects\AIA\docs\logging\log_fields.md`
@@ -98,7 +106,7 @@ Target as written: detection and neutralisation, tested
 $ python scripts/run.py --test -k TestInjectionDefence
 .....
 ----------------------------------------------------------------------
-Ran 5 tests in 0.330s
+Ran 5 tests in 0.312s
 OK
 ```
 
@@ -125,7 +133,7 @@ $ python scripts/run.py --test -k TestGroundedAnswers
 faithfulness 1.0000; every answer sentence must be supported by its cited chunks (claim-level scorer)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261102-040937\metrics.json`
 
 ## FR-1 ([21]) - at least two retrieval modes; reranker toggled by configuration only
 
@@ -177,8 +185,8 @@ Target as written: all six fields populated, text and CSV emitted
 
 ```
 $ python scripts/run.py --eval --report
-  p50_latency_ms           14.688
-  p95_latency_ms           17.81
+  p50_latency_ms           14.654
+  p95_latency_ms           18.842
   token_usage_total        22338
   cache_hit_rate           0.4706
   refusal_rate             0.0941
@@ -186,7 +194,7 @@ $ python scripts/run.py --eval --report
   CSV present: True (report.csv)
 ```
 
-Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261031-230619\metrics.json`
+Verdict: **PASS** | evidence: `D:\Projects\AIA\artifacts\eval\20261102-040937\metrics.json`
 
 ## NFR-1 ([30]) - compare vector-only, hybrid, hybrid+rerank with conclusions
 
@@ -258,7 +266,7 @@ Target as written: src/ and configs/ under version control
 ```
 $ ls -1 src configs scripts docs
   code and configs             src\ragserve\service.py, configs\retrieval.json
-  one-click evaluation         scripts\run_eval.py
+  one-click evaluation         scripts\run.py
   evaluation report            docs\eval\retrieval-comparison.md
   log dictionary and samples   docs\logging\log_fields.md, docs\logging\sample_logs.md
 ```
@@ -272,7 +280,7 @@ Target as written: scripts/run.py --all
 ```
 $ ls -1 src configs scripts docs
   code and configs             src\ragserve\service.py, configs\retrieval.json
-  one-click evaluation         scripts\run_eval.py
+  one-click evaluation         scripts\run.py
   evaluation report            docs\eval\retrieval-comparison.md
   log dictionary and samples   docs\logging\log_fields.md, docs\logging\sample_logs.md
 ```
@@ -286,7 +294,7 @@ Target as written: docs/eval/ and docs/diagnosis/
 ```
 $ ls -1 src configs scripts docs
   code and configs             src\ragserve\service.py, configs\retrieval.json
-  one-click evaluation         scripts\run_eval.py
+  one-click evaluation         scripts\run.py
   evaluation report            docs\eval\retrieval-comparison.md
   log dictionary and samples   docs\logging\log_fields.md, docs\logging\sample_logs.md
 ```
@@ -300,7 +308,7 @@ Target as written: docs/logging/log_fields.md and sample_logs.md
 ```
 $ ls -1 src configs scripts docs
   code and configs             src\ragserve\service.py, configs\retrieval.json
-  one-click evaluation         scripts\run_eval.py
+  one-click evaluation         scripts\run.py
   evaluation report            docs\eval\retrieval-comparison.md
   log dictionary and samples   docs\logging\log_fields.md, docs\logging\sample_logs.md
 ```
@@ -313,7 +321,7 @@ Target as written: python scripts/run.py --serve builds, indexes and serves
 
 ```
 $ python scripts/run.py --serve
-  index built in 57.5 ms, 80 documents, 204 chunks
+  index built in 67.2 ms, 80 documents, 204 chunks
   health: {"status": "ok", "provider": "deterministic", "corpus_version": "a716676ca46bfa44"}
   (no database, no embedding model, no install step)
 ```
@@ -326,12 +334,12 @@ Target as written: python scripts/run.py --verify, 30 rows
 
 ```
 $ python scripts/run.py --verify
-  R-29    PASS TestNoFrontEnd: 3 test(s) passed
-  R-30    PASS TestDocsMatchConfig: 3 test(s) passed
-  R-31    PASS TestGoldenRetrieval: 3 test(s) passed
-  R-32    PASS TestRetrievalIsDeterministic: 3 test(s) passed
-37/37 rows passed in 45.8s (jobs=8, generators 14.8s of CPU time)
-report: D:\Projects\AIA\artifacts\verify\20261031-230720
+  R-33    PASS TestComparisonDocIsGenerated, TestRendererHonesty: 9 test(s) passed
+  R-34    PASS TestDirectoryLoader, TestExternalCorpusService, TestCorpusReport: 12 test(s) passed
+  R-35    PASS CjkPdfExtractionTest: 6 test(s) passed
+  R-36    PASS MixedScanPdfTest: 4 test(s) passed
+41/41 rows passed in 46.7s (jobs=8, generators 15.7s of CPU time)
+report: D:\Projects\AIA\artifacts\verify\20261102-041041
 ```
 
 Verdict: **PASS** | evidence: `harness/requirements.toml`

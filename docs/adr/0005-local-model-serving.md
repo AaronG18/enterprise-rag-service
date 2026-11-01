@@ -76,7 +76,7 @@ not a foregone conclusion.
   times; mitigated by a **process-wide shared embedding cache** (re-embed each chunk once) and by
   raising timeouts to 120 s so a slow chunk never trips a spurious failure. Measured full run ≈
   10 min on CPU.
-* **1 GB download**, gitignored, recreated by `setup_models.py` (the script is committed so the
+* **1 GB download**, gitignored, recreated by `scripts/run.py` (the script is committed so the
   reviewer can reproduce without the binaries travelling in the repo).
 * **No third-party Python dependency** - both endpoints are reached with the standard library, so
   R7 (stdlib-only shipped code, hermetic CI) is preserved. CI pins both stages to the
@@ -92,4 +92,4 @@ not a foregone conclusion.
   reported as `model-backed`.
 * A reviewer who does nothing but `git clone` + `python scripts/run.py --test` still gets a green,
   keyless, offline suite (deterministic fallback, loudly flagged), and one who follows
-  `setup_models.py` + the two server commands gets the real numbers above.
+  `scripts/run.py` + the two server commands gets the real numbers above.
