@@ -43,7 +43,8 @@ jobs:
         run: python scripts/run.py --setup
 
       - name: Real-model contract (ordinal assertions only)
+        # tests/test_real_model_contract.py, run through the repository's own stdlib runner: CI has
+        # no pytest and R7 forbids a pip install step.
         env:
           RAGSERVE_REQUIRE_REAL_MODELS: "1"
-          PYTHONPATH: src
-        run: python -m pytest tests/test_real_model_contract.py -q
+        run: python scripts/run.py --test --classes RealModelContractTest

@@ -282,8 +282,8 @@ class TestWorkflowHermeticity(unittest.TestCase):
         text = read(path)
         self.assertIn("RAGSERVE_REQUIRE_REAL_MODELS", text,
                       "the contract job must require the models instead of silently skipping")
-        self.assertIn("test_real_model_contract.py", text,
-                      "the contract job must run the contract test")
+        self.assertIn("RealModelContractTest", text,
+                      "the contract job must run the contract test class")
         self.assertNotIn("--eval", text,
                          "the contract job must not run the evaluation: it cannot publish numbers")
         self.assertNotIn("--deliverables", text,
