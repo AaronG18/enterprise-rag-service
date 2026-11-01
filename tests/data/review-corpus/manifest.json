@@ -1,0 +1,52 @@
+{
+  "total": 36,
+  "text_only": 24,
+  "mixed": 6,
+  "pure_image": 6,
+  "en": 18,
+  "zh": 12,
+  "seed": 20261102,
+  "count": 36,
+  "text_files": [
+    "handbook-en-00.pdf",
+    "handbook-zh-01.pdf",
+    "compliance-en-02.pdf",
+    "techspec-en-04.pdf",
+    "architecture-en-06.pdf",
+    "architecture-zh-07.pdf",
+    "handbook-en-08.pdf",
+    "compliance-en-10.pdf",
+    "techspec-en-12.pdf",
+    "techspec-zh-13.pdf",
+    "architecture-en-14.pdf",
+    "handbook-en-16.pdf",
+    "compliance-en-18.pdf",
+    "compliance-zh-19.pdf",
+    "techspec-en-20.pdf",
+    "architecture-en-22.pdf",
+    "handbook-en-24.pdf",
+    "handbook-zh-25.pdf",
+    "compliance-en-26.pdf",
+    "techspec-en-28.pdf",
+    "architecture-en-30.pdf",
+    "architecture-zh-31.pdf",
+    "handbook-en-32.pdf",
+    "compliance-en-34.pdf"
+  ],
+  "mixed_files": [
+    "compliance-zh-03.pdf",
+    "handbook-zh-09.pdf",
+    "architecture-zh-15.pdf",
+    "techspec-zh-21.pdf",
+    "compliance-zh-27.pdf",
+    "handbook-zh-33.pdf"
+  ],
+  "pure_image_files": [
+    "techspec-zh-05.pdf",
+    "compliance-zh-11.pdf",
+    "handbook-zh-17.pdf",
+    "architecture-zh-23.pdf",
+    "techspec-zh-29.pdf",
+    "compliance-zh-35.pdf"
+  ]
+}

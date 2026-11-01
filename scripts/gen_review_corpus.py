@@ -22,10 +22,13 @@ ingestion matches generation instead of trusting both ends independently.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import random
 import zlib
+
+IMAGE_WIDTH, IMAGE_HEIGHT = 220, 300
 
 FAMILIES = ("handbook", "compliance", "techspec", "architecture")
 
@@ -102,7 +105,8 @@ def _cmap(mapping: dict) -> str:
     return "\n".join(lines)
 
 
-def _write_pdf(path: str, pages: list, lang: str, rng: random.Random) -> None:
+def _write_pdf(path: str, pages: list, lang: str, rng: random.Random,
+               seed: int, doc_index: int) -> None:
     """pages: list of (text | None). None means an image-only page."""
     objs: list = [b"<< /Type /Catalog /Pages 2 0 R >>", b"PLACEHOLDER"]
     if lang == "en":
@@ -136,9 +140,12 @@ def _write_pdf(path: str, pages: list, lang: str, rng: random.Random) -> None:
                 % "".join("%04X" % seen[ch] for ch in text)).encode("latin-1")
 
     page_specs = []  # (content object id, resources for that page)
+    scanned_seen = 0
     for page in pages:
         if page is None:
-            page_specs.append(_scanned_page(objs, rng, base_resources))
+            noise = _noise(seed, doc_index, scanned_seen, IMAGE_WIDTH * IMAGE_HEIGHT)
+            page_specs.append(_scanned_page(objs, base_resources, noise))
+            scanned_seen += 1
         else:
             objs.append(_stream(encode(page)))
             page_specs.append((len(objs), base_resources))
@@ -162,18 +169,36 @@ def _section_body(rng: random.Random, lang: str) -> str:
                     for _ in range(count))
 
 
-def _scanned_page(objs: list, rng: random.Random, base_resources: bytes) -> tuple:
+def _noise(seed: int, doc_index: int, page_index: int, size: int) -> bytes:
+    """Pseudo-noise for scan images, independent of Python version and of the content RNG.
+
+    Two mistakes are deliberately avoided here. Drawing noise from the same `random.Random` that
+    selects content made every later document depend on how many noise bytes came before it, and
+    `randbytes` consumes a different amount of Mersenne Twister state across Python versions - the
+    first CI run failed exactly there, on the first document after the first scanned page. And the
+    noise itself must not vary either, so it is a SHA-256 counter stream: same seed, same bytes,
+    on every platform and every Python.
+    """
+    out = bytearray()
+    counter = 0
+    while len(out) < size:
+        block = hashlib.sha256(b"noise|%d|%d|%d|%d" % (seed, doc_index, page_index, counter)).digest()
+        out += block
+        counter += 1
+    return bytes(out[:size])
+
+
+def _scanned_page(objs: list, base_resources: bytes, noise: bytes) -> tuple:
     """An image-only page backed by real bitmap bytes.
 
     Real scanned PDFs are large because a scan *is* an image; a graphics operator alone is not one.
     The noise also exercises the loader's rule that an image XObject is never counted as a page:
-    random bytes are ~39% printable, far below the content-stream threshold.
+    pseudo-random bytes are ~39% printable, far below the content-stream threshold.
     """
-    width, height = 220, 300
     objs.append(b"<< /Type /XObject /Subtype /Image /Width %d /Height %d "
                 b"/ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode >>\nstream\n"
-                % (width, height)
-                + zlib.compress(rng.randbytes(width * height)) + b"\nendstream")
+                % (IMAGE_WIDTH, IMAGE_HEIGHT)
+                + zlib.compress(noise) + b"\nendstream")
     image_id = len(objs)
     objs.append(_stream(b"q 460 0 0 596 76 90 cm /Im1 Do Q"))
     content_id = len(objs)
@@ -215,7 +240,7 @@ def generate(out_dir: str, count: int, seed: int) -> dict:
                 manifest["text_files"].append(name)
             manifest[lang] += 1
 
-        _write_pdf(os.path.join(out_dir, name), pages, lang, rng)
+        _write_pdf(os.path.join(out_dir, name), pages, lang, rng, seed, i)
         manifest["total"] += 1
 
     with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as fh:
