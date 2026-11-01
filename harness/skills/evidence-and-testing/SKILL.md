@@ -77,6 +77,16 @@ every gate while Chinese PDFs were destroyed, because no fixture was a real PDF.
 A smoke test passes on garbage. Assert the characters, and assert what is **absent** too (font
 metadata such as `Adobe` / `UCS` must not leak into indexed text).
 
+## Reproducible evidence (R19)
+
+A measurement nobody can re-run is an anecdote. Before citing a number:
+
+- [ ] Does a **committed command** reproduce it? (Scratch output in `%TEMP%` does not count - delete
+      the directory and the evidence is gone.)
+- [ ] If the claim is about **scale** ("dozens of PDFs", "N documents"), is there a committed
+      deterministic generator plus a test asserting that scale and that the corpus is not stubs?
+- [ ] Does the doc/PR quote the command, so a reviewer can re-run it instead of trusting it?
+
 ## Reviewer checklist (use when judging someone else's evidence)
 
 - [ ] Does each claimed test fail without the fix?
