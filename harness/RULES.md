@@ -205,9 +205,11 @@ Therefore:
 * **test data lives in the repository**, under `tests/data/`, like every other fixture. A corpus
   that exists only while a test runs, generated into a temp directory, is invisible to a reviewer
   and deleted on cleanup - that is not test data, it is a side effect.
-* a committed corpus must be **verified byte-for-byte against its generator**: re-running the
-  generator and comparing every file proves the generator is deterministic and that the data cannot
-  silently drift from it. A generator change without regenerating the data is a red build.
+* a committed corpus must be **verified byte-for-byte against its generator** (on decompressed
+  content - compressed bytes legitimately differ between zlib builds, which the first CI run of the
+  identity test caught): re-running the generator and comparing every file proves the generator is
+  deterministic and that the data cannot silently drift from it. A generator change without
+  regenerating the data is a red build.
 * a **scale claim** ("dozens of PDFs", "N documents") requires the committed corpus plus a test that
   asserts that scale and that the corpus is not a folder of stubs;
 * numbers quoted in the README, the docs and PR bodies must **name the command that reproduces

@@ -9,19 +9,23 @@ Two things are asserted here:
 * **Scale and behaviour**, against the committed corpus - the "dozens of bilingual PDFs" claim is a
   CI-checked fact about data anyone can see in the tree.
 * **Byte identity** between the committed corpus and what the committed generator produces (the
-  golden-file loop). Re-running the generator and comparing every byte proves both that the
-  generator is deterministic and that the data cannot silently drift from it: a generator change
-  without regenerating the data is a red build.
+  golden-file loop), compared on **canonical (decompressed) content**: re-running the generator and
+  comparing proves both that the generator is deterministic and that the data cannot silently drift
+  from it - a generator change without regenerating the data is a red build. Raw compressed bytes
+  are not compared because zlib output legitimately differs between zlib builds; the first CI run
+  of this test caught exactly that.
 """
 from __future__ import annotations
 
-import filecmp
+import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import unittest
+import zlib
 
 from ragserve.corpus.loader import extract_pdf_pages, load_documents
 
@@ -29,6 +33,44 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMMITTED = os.path.join(REPO, "tests", "data", "review-corpus")
 GENERATOR = os.path.join(REPO, "scripts", "gen_review_corpus.py")
 FONT_METADATA = ("Adobe", "UCS", "GB1", "begincmap")
+
+
+def canonical_digest(path: str) -> str:
+    """sha256 of a PDF with every compressed stream replaced by the hash of its decompressed body.
+
+    Raw byte equality is not portable: zlib output legitimately differs between zlib builds, which
+    is exactly what the first CI run of this test proved (the corpus was generated on Windows and
+    compared on Linux). The decompressed content is precisely what the generator wrote, and that is
+    what has to be stable - the compression is an implementation detail of the transport.
+    """
+    with open(path, "rb") as fh:
+        data = fh.read()
+    out = bytearray()
+    pos = 0
+    opener = re.compile(rb"(?<!end)stream\r?\n")
+    while True:
+        match = opener.search(data, pos)
+        if not match:
+            out += data[pos:]
+            break
+        start = match.end()
+        end = data.find(b"endstream", start)
+        if end < 0:
+            out += data[pos:]
+            break
+        body = data[start:end]
+        if body.endswith(b"\r\n"):
+            body = body[:-2]
+        elif body.endswith(b"\n"):
+            body = body[:-1]
+        try:
+            body = zlib.decompress(body)
+        except zlib.error:
+            pass  # a raw (unfiltered) stream: its bytes are already canonical
+        out += data[pos:start]
+        out += b"stream:" + hashlib.sha256(body).hexdigest().encode("ascii")
+        pos = end + len(b"endstream")
+    return hashlib.sha256(bytes(out)).hexdigest()
 
 
 def _pdf_names(directory: str) -> list:
@@ -114,11 +156,12 @@ class GeneratorIdentityTest(unittest.TestCase):
         self.assertEqual(_pdf_names(tmp), _pdf_names(COMMITTED),
                          "the committed corpus and the generator disagree on the file list")
         for name in _pdf_names(COMMITTED):
-            same = filecmp.cmp(os.path.join(COMMITTED, name), os.path.join(tmp, name), shallow=False)
-            self.assertTrue(same,
-                            "%s differs from what the generator produces - regenerate the corpus "
-                            "(python scripts/gen_review_corpus.py --out tests/data/review-corpus) "
-                            "or the committed data is stale" % name)
+            committed = canonical_digest(os.path.join(COMMITTED, name))
+            regenerated = canonical_digest(os.path.join(tmp, name))
+            self.assertEqual(committed, regenerated,
+                             "%s differs from what the generator produces - regenerate the corpus "
+                             "(python scripts/gen_review_corpus.py --out tests/data/review-corpus) "
+                             "or the committed data is stale" % name)
         with open(os.path.join(tmp, "manifest.json"), "r", encoding="utf-8") as fh:
             regenerated = json.load(fh)
         with open(os.path.join(COMMITTED, "manifest.json"), "r", encoding="utf-8") as fh:
