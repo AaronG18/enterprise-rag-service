@@ -323,6 +323,23 @@ endpoint returns **1024-d** vectors, and the reranker scores a relevant passage 
 **-10.15** for an unrelated one, i.e. real cross-encoder scores rather than a degenerate
 constant.
 
+### Which embedding, measured on a bilingual corpus
+
+The brief's corpus is CN/EN, so the embedding has to carry both languages. Both backends were run
+over the same 28 mixed CN/EN PDFs (24 indexed, 4 image-only reported as scanned):
+
+| Embedding | index build | recall@5 | mrr |
+|---|---|---|---|
+| deterministic hashing (the CI baseline) | 105 ms | 1.0 | 0.9792 |
+| **BGE-M3, 1024-d (the shipped default)** | 10,950 ms | 1.0 | **1.0** |
+
+**Chosen: BGE-M3.** It is multilingual - which a bilingual corpus needs - and semantic, and it ranks
+the right document first in every case here. The trade-off is stated rather than hidden: ~1 GB to
+download through `setup_models.py` and roughly 100x the index build time. The deterministic backend
+stays as the CI baseline because it needs neither a download nor a server - but it only looks this
+close because these queries are **self-labelled** (derived from each document); hashing carries no
+semantic understanding, so the gap widens on questions phrased independently of the text.
+
 Then point the config at them - still **configuration, never a code change**:
 
 | field | value for the bundled models |
