@@ -117,3 +117,5 @@ verification design, so the interpretation is recorded explicitly rather than si
    format, tone, verbosity bound) written in `docs/metrics/`, scored on every answer of a
    run. Consistency is variance across answers, so it is computed on a distribution,
    not per answer.
+| R-35 | Chinese PDFs are extracted as Chinese, and font metadata is never indexed | a subset CJK font with a ToUnicode CMap yields its characters; `Adobe`/`UCS`/`GB1` never appear in indexed text; an uncompressed stream is read, not skipped | test (AUTO) | #106 |
+| R-36 | A PDF with some text pages and some image pages is indexed, never dropped | per-page handling keeps the readable pages, counts the pages with no text layer, and still reports a PDF with no text at all as scanned | test (AUTO) | #109 |

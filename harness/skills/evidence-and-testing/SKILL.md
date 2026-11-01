@@ -61,9 +61,27 @@ Incident replays need a failing state that can be re-run. Rules learned here:
 * Reconstructions that produce identical numbers are information: they mean the measured gain
   came from something else, and the other candidate changes must be measured separately.
 
+## Prove the hardest input (R18)
+
+A claim about a supported input needs a fixture that exhibits the **hard** case of that input, and
+an assertion on the **content** that comes out. "It ran" is not "it worked": this repository passed
+every gate while Chinese PDFs were destroyed, because no fixture was a real PDF.
+
+| Claim | Easy stand-in (not enough) | Hard case (required) |
+|---|---|---|
+| supports PDFs | a PDF written from a UTF-8 text file | a **subset CJK font with a ToUnicode CMap**, a PDF stored **without a filter**, a **pure image** PDF |
+| bilingual CN/EN | a `.md` file containing Chinese | Chinese through the real extraction path, asserted character-for-character |
+| handles scanned PDFs | skip a file with no text | a **text page mixed with image pages**, so the readable pages survive |
+| supports a directory (`--corpus`) | one `.txt` | the mixed-language, mixed-page PDF set above |
+
+A smoke test passes on garbage. Assert the characters, and assert what is **absent** too (font
+metadata such as `Adobe` / `UCS` must not leak into indexed text).
+
 ## Reviewer checklist (use when judging someone else's evidence)
 
 - [ ] Does each claimed test fail without the fix?
+- [ ] Does the fixture exhibit the **hard** case of the input, or a convenient stand-in (R18)?
+- [ ] Does the test assert extracted/derived **content**, or only that nothing raised?
 - [ ] Is every number tagged, and does the tag match how it was actually produced?
 - [ ] Does the before/after hold every other variable constant?
 - [ ] Did any metric move **down** that is not mentioned? Ask about it explicitly.
