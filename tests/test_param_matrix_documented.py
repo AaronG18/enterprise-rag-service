@@ -28,14 +28,14 @@ class ParameterMatrixDocumentedTest(unittest.TestCase):
         for flag in ("--all", "--mode", "--rerank", "--corpus", "--deliverables",
                      "--refresh-model-backed", "--cost", "--max-cases", "--cases"):
             self.assertIn(flag, matrix, "parameter-matrix.md must document %s" % flag)
-        self.assertIn("run_eval.py", matrix, "matrix must name the single entry point")
+        self.assertIn("scripts/run.py", matrix, "matrix must name the single entry point")
 
     def test_readme_links_matrix_and_single_entry_point(self):
         readme = _read("README.md")
         self.assertIn("parameter-matrix.md", readme,
                       "README must link to docs/eval/parameter-matrix.md")
-        # The entry point is run_eval.py alone; the deleted second script must not appear.
-        self.assertIn("run_eval.py", readme)
+        # The entry point is scripts/run.py alone; no second script may appear.
+        self.assertIn("scripts/run.py", readme)
         self.assertNotIn("build_deliverables.py", readme,
                          "README must not reference the deleted second entry point")
         self.assertNotIn("build_deliverables.py",

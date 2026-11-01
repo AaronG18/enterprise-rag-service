@@ -5,12 +5,12 @@ Deliberately uses only the standard library: this command must work on a cold cl
 in CI without any package index access. See PROJECT.md INV-1.
 
 Usage:
-    python scripts/run_tests.py                # everything
-    python scripts/run_tests.py -v             # verbose
-    python scripts/run_tests.py -k routing     # substring filter on test name
-    python scripts/run_tests.py --json         # machine-readable summary on stdout
-    python scripts/run_tests.py --json --classes TestRefusal,TestMultiTurn
-    python scripts/run_tests.py --jobs 4       # run the test classes in parallel
+    python scripts/run.py --test                # everything
+    python scripts/run.py --test -v             # verbose
+    python scripts/run.py --test -k routing     # substring filter on test name
+    python scripts/run.py --test --json         # machine-readable summary on stdout
+    python scripts/run.py --test --json --classes TestRefusal,TestMultiTurn
+    python scripts/run.py --test --jobs 4       # run the test classes in parallel
 
 Why --jobs exists: the suite is dominated by a handful of slow classes (each one starts a
 server or runs the whole evaluation). Running the classes in parallel worker processes turns
@@ -33,9 +33,8 @@ import tempfile
 import time
 import unittest
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from . import REPO_ROOT
 TESTS_DIR = os.path.join(REPO_ROOT, "tests")
-SRC_DIR = os.path.join(REPO_ROOT, "src")
 
 MIN_PYTHON = (3, 11)
 
@@ -70,9 +69,11 @@ def main() -> int:
         print("requires Python >= %d.%d, found %d.%d" % (MIN_PYTHON + sys.version_info[:2]))
         return 2
 
-    # Make `src/` importable without installing anything.
-    if SRC_DIR not in sys.path:
-        sys.path.insert(0, SRC_DIR)
+    # Make `src/` importable without installing anything (the package now lives there, so this is
+    # only needed for the worker subprocesses, which start from a fresh interpreter).
+    src_dir = os.path.join(REPO_ROOT, "src")
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
 
     # Keep the test runner hermetic: the delivered retrieval config defaults to a real
     # (network-backed) embedding provider, but CI / cold clone must need no key. Pin the
@@ -145,7 +146,8 @@ def _run_parallel(args, wanted, missing) -> int:
         return _run_inline(args, _discover(), missing)
 
     workers = min(args.jobs, len(classes))
-    script = os.path.join(REPO_ROOT, "scripts", "run_tests.py")
+    script = os.path.join(REPO_ROOT, "scripts", "run.py")
+    mode = ["--test"]
 
     with tempfile.TemporaryDirectory(prefix="harness-tests-") as tmp:
         classes_file = os.path.join(tmp, "classes.txt")
@@ -158,8 +160,8 @@ def _run_parallel(args, wanted, missing) -> int:
         processes = []
         for _ in range(workers):
             processes.append(subprocess.Popen(
-                [sys.executable, script, "--worker", "--classes-file", classes_file,
-                 "--report-dir", report_dir],
+                [sys.executable, script] + mode + ["--worker", "--classes-file", classes_file,
+                                                   "--report-dir", report_dir],
                 cwd=REPO_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
         errors = []
         for process in processes:

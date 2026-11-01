@@ -31,7 +31,7 @@ from ragserve.corpus.loader import extract_pdf_pages, load_documents
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMMITTED = os.path.join(REPO, "tests", "data", "review-corpus")
-GENERATOR = os.path.join(REPO, "scripts", "gen_review_corpus.py")
+GENERATOR = os.path.join(REPO, "scripts", "run.py")
 FONT_METADATA = ("Adobe", "UCS", "GB1", "begincmap")
 
 
@@ -148,7 +148,8 @@ class GeneratorIdentityTest(unittest.TestCase):
         tmp = tempfile.mkdtemp(prefix="review-corpus-check-")
         env = dict(os.environ)
         env["PYTHONIOENCODING"] = "utf-8"
-        proc = subprocess.run([sys.executable, GENERATOR, "--out", tmp], cwd=REPO, env=env,
+        proc = subprocess.run([sys.executable, GENERATOR, "--gen-corpus", "--out", tmp],
+                              cwd=REPO, env=env,
                               capture_output=True, text=True, encoding="utf-8",
                               errors="replace", timeout=300)
         self.assertEqual(proc.returncode, 0,
@@ -160,7 +161,7 @@ class GeneratorIdentityTest(unittest.TestCase):
             regenerated = canonical_digest(os.path.join(tmp, name))
             self.assertEqual(committed, regenerated,
                              "%s differs from what the generator produces - regenerate the corpus "
-                             "(python scripts/gen_review_corpus.py --out tests/data/review-corpus) "
+                             "(python scripts/run.py --gen-corpus --out tests/data/review-corpus) "
                              "or the committed data is stale" % name)
         with open(os.path.join(tmp, "manifest.json"), "r", encoding="utf-8") as fh:
             regenerated = json.load(fh)

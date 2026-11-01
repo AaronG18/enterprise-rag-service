@@ -255,8 +255,7 @@ class TestWorkflowHermeticity(unittest.TestCase):
         offenders = []
         for name, path in self.workflows:
             text = read(path)
-            runs_service = ("run_eval.py" in text or "run_tests.py" in text
-                            or "start.py" in text or "verify_requirements.py" in text)
+            runs_service = "scripts/run.py" in text
             if not runs_service:
                 continue
             for var in ("RAGSERVE_EMBEDDING_PROVIDER", "RAGSERVE_RERANKER_PROVIDER"):
@@ -300,9 +299,9 @@ class TestWorkflowClosure(unittest.TestCase):
     def test_the_workflows_actually_run_the_gate_commands(self):
         """Deleting a step must not silently weaken the gate."""
         everything = "\n".join(self.workflows.values())
-        self.assertIn("scripts/run_tests.py", everything,
+        self.assertIn("scripts/run.py", everything,
                       "no workflow runs the hermetic suite")
-        self.assertIn("scripts/verify_requirements.py", everything,
+        self.assertIn("scripts/run.py", everything,
                       "no workflow runs the requirements gate")
 
     def test_the_committed_corpus_has_its_own_ci_step(self):
@@ -396,10 +395,11 @@ class TestNoFrontEnd(unittest.TestCase):
             lines = [ln.strip() for ln in fh if ln.strip() and not ln.startswith("#")]
         self.assertIn("/web/", lines, "a stray web/ directory must stay gitignored")
 
-    def test_one_entry_point_for_the_deliverables(self):
-        """Two scripts that do the same job is how a reviewer ends up asking which one to run."""
-        self.assertFalse(os.path.isfile(repo_file("scripts", "build_deliverables.py")),
-                         "build_deliverables.py was folded into run_eval.py; do not resurrect it")
+    def test_scripts_holds_exactly_one_entry_point(self):
+        """R20: the brief asks for one one-click script; a folder of scripts is not that."""
+        entries = sorted(n for n in os.listdir(repo_file("scripts")) if n.endswith(".py"))
+        self.assertEqual(entries, ["run.py"],
+                         "scripts/ must hold exactly run.py, found %s" % entries)
 
 
 class TestDocsMatchConfig(unittest.TestCase):

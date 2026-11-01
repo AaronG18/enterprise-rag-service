@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Verify every requirement row in `harness/requirements.toml` and report per-row results.
 
-    python scripts/verify_requirements.py            # run the full gate (concurrent)
-    python scripts/verify_requirements.py --serial    # one row at a time (for comparison)
-    python scripts/verify_requirements.py --jobs 4    # cap concurrency
-    python scripts/verify_requirements.py --quick    # skip generators, reuse existing artefacts
-    python scripts/verify_requirements.py --only R-14 R-15
+    python scripts/run.py --verify            # run the full gate (concurrent)
+    python scripts/run.py --verify --serial    # one row at a time (for comparison)
+    python scripts/run.py --verify --jobs 4    # cap concurrency
+    python scripts/run.py --verify --quick    # skip generators, reuse existing artefacts
+    python scripts/run.py --verify --only R-14 R-15
 
 Exit code is non-zero if any row fails, so CI can gate on it. A failing row is reported by ID.
 """
@@ -17,8 +17,7 @@ import os
 import sys
 import time
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+from . import REPO_ROOT
 
 from ragserve.evaluation.verification import (  # noqa: E402
     default_jobs,

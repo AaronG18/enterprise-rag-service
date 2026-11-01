@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the corpus and write artifacts.
 
-    python scripts/build_corpus.py                 # configs/corpus.json -> artifacts/
-    python scripts/build_corpus.py --out DIR      # explicit output root
+    python scripts/run.py --build-corpus                 # configs/corpus.json -> artifacts/
+    python scripts/run.py --build-corpus --out DIR      # explicit output root
 
 Deterministic: same config and same code -> same corpus_version, byte-identical files.
 """
@@ -12,8 +12,7 @@ import argparse
 import os
 import sys
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+from . import REPO_ROOT
 
 from ragserve.corpus.builder import CorpusConfig, build_corpus, write_artifacts  # noqa: E402
 

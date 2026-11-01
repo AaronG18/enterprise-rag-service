@@ -66,13 +66,13 @@ this rule applies.
 
 Shipped code must use only the Python standard library plus the `ragserve` package - no
 third-party imports on the critical path, and CI must run with no `pip install` step. A cold
-clone + `python scripts/run_tests.py` must work with **no API key and no network**.
+clone + `python scripts/run.py --test` must work with **no API key and no network**.
 
 The delivered service is **keyless by default**. `configs/retrieval.json` ships the real
 semantic model as the default - `embedding_provider: "openai-compatible"` pointing at a locally
 served BGE-M3, and `reranker_provider: "cross-encoder"` pointing at a locally served
 bge-reranker-v2-m3 - with an **empty `embedding_api_key_env`**, so no credential and no
-third-party Python package are ever needed. A reviewer runs `scripts/setup_models.py` once and
+third-party Python package are ever needed. A reviewer runs `scripts/run.py` once and
 starts the two servers (both plain executables in `vendor/`, gitignored) to get real semantics;
 with no server running the run falls back to the deterministic backend **loudly** (a `WARNING` to
 stderr, and the config is flagged `degraded_*`) rather than silently, so a report can never claim
@@ -224,6 +224,28 @@ Therefore:
 * if a scratch measurement earned its keep, the generator earns a commit (R10) - a measurement is
   not "done" until it is re-runnable by someone who has never spoken to its author.
 
+## R20 - The deliverable is exactly what the brief asks for
+
+The brief lists four deliverables, and one of them is "**One-click evaluation script**" - singular. A
+`scripts/` folder holding twelve entry points has not delivered that, however good the twelve are:
+the reviewer has to work out which to run, in what order, and which one the brief actually meant.
+
+**Observed**: the repository shipped twelve scripts and a Quickstart that ran several of them in
+sequence; the real models needed a separate `setup_models.py` before anything semantic worked; and
+the performance target ("90% of QA requests within 10 s, >= 5 concurrent") was measured only against
+85 cases the repository wrote for itself, never against a question the reviewer typed. A reviewer
+reading the brief saw none of those three things.
+
+Therefore:
+
+* **one entry point** (`scripts/run.py`); everything else is a module it dispatches to, and the README
+  offers the reviewer nothing else;
+* **the first run prepares the environment** the deliverable needs - models installed, servers
+  started, health-checked - and the second run reuses it. A reviewer must not have to assemble the
+  system the document describes;
+* when the brief states a target about **user requests**, the evidence comes from the reviewer's own
+  input through that entry point, not only from cases written by the author.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or
@@ -258,16 +280,17 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 | R4 | manual: the reviewer requires red output | a green-only test added together with the fix |
 | R5 | `harness/ROLES.md` + manual review | the same session wrote and approved |
 | R6 | `.github/workflows/ci.yml` (no-secret-scan) | CI red |
-| R7 | `.github/workflows/ci.yml` + `scripts/run_tests.py` + `tests/test_harness_selfcheck.py` | an install step in CI, or a workflow that runs the service without the offline pins |
+| R7 | `.github/workflows/ci.yml` + `scripts/run.py` + `tests/test_harness_selfcheck.py` | an install step in CI, or a workflow that runs the service without the offline pins |
 | R8 | manual issue-tree review | an orphan diff with no parent EPIC |
 | R9 | manual diff review | a mixed-purpose commit |
 | R10 | `.github/workflows/ci.yml` (contract-gate) | a scratch file in the tree |
 | R11 | manual EPIC retro | a repeated incident with no rule change |
 | R12 | `docs/metrics/` + manual metric review | a target that is unreachable by construction |
-| R13 | `scripts/diagnose.py` + manual review | an improvement claimed with no reproducing command |
+| R13 | `scripts/run.py` + manual review | an improvement claimed with no reproducing command |
 | R14 | `.github/workflows/harness.yml` (pr-hygiene) | a commit landing on `main` without a branch |
 | R15 | `.github/workflows/harness.yml` | a merged PR whose harness checks were red or absent |
 | R16 | `tests/test_requirements_gate.py` + `tests/test_harness_selfcheck.py` | a manifest row added with no failing state first, or a rule with no enforcement |
 | R17 | `tests/test_harness_selfcheck.py` | shipped code referencing a front end, or documentation advertising a UI |
 | R18 | `tests/test_harness_selfcheck.py` (`TestCapabilityProvenByHardestInput`) + `tests/data/cjk-pdf/` | a supported input class whose hard case has no fixture, or a test that never asserts the extracted content |
-| R19 | `tests/test_review_corpus_scale.py` + `scripts/gen_review_corpus.py` + `tests/data/review-corpus/` | a scale claim with no committed corpus behind it, a corpus that exists only at run time, committed data drifted from its generator, or a corpus that has quietly shrunk back to stubs |
+| R19 | `tests/test_review_corpus_scale.py` + `scripts/run.py` + `tests/data/review-corpus/` | a scale claim with no committed corpus behind it, a corpus that exists only at run time, committed data drifted from its generator, or a corpus that has quietly shrunk back to stubs |
+| R20 | `tests/test_harness_selfcheck.py` (`test_scripts_holds_exactly_one_entry_point`) | a second script in `scripts/`, or README instructions that send a reviewer to anything but `run.py` |

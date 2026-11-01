@@ -25,7 +25,7 @@ REQUIRED_FILES = [
     "harness/skills/rag-eval/SKILL.md",
     "harness/skills/github-issue-workflow/SKILL.md",
     "harness/skills/evidence-and-testing/SKILL.md",
-    "scripts/run_tests.py",
+    "scripts/run.py",
     ".github/workflows/ci.yml",
     ".github/ISSUE_TEMPLATE/epic.md",
     ".github/ISSUE_TEMPLATE/sub-issue.md",
@@ -69,7 +69,8 @@ class TestRepositoryContract(unittest.TestCase):
         with open(repo_file(".github/workflows/ci.yml"), "r", encoding="utf-8") as fh:
             ci = fh.read()
         self.assertIn("hermetic-tests", ci)
-        self.assertIn("run_tests.py", ci)
+        self.assertIn("scripts/run.py", ci)
+        self.assertIn("--test", ci)
         self.assertNotIn("pip install", ci, "CI must stay install-free (INV-1)")
 
     def test_skills_have_valid_frontmatter(self):

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Concurrency benchmark.
 
-    python scripts/run_bench.py --concurrency 5 --requests 30
-    python scripts/run_bench.py --concurrency 5 --assert   # exit 1 if p90 exceeds 10 s or any error
+    python scripts/run.py --bench --concurrency 5 --requests 30
+    python scripts/run.py --bench --concurrency 5 --assert   # exit 1 if p90 exceeds 10 s or any error
 
 One service instance, cache disabled, real requests through worker threads.
 """
@@ -14,8 +14,7 @@ import os
 import sys
 import time
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+from . import REPO_ROOT
 
 from ragserve.evaluation.bench import (  # noqa: E402
     LATENCY_BOUND_MS,

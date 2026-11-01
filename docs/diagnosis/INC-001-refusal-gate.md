@@ -1,6 +1,6 @@
 # INC-001: refusal spike from an over-tight confidence gate
 
-Reproduce: `python scripts/diagnose.py --case refusal-gate`
+Reproduce: `python scripts/run.py --diagnose --case refusal-gate`
 
 ## Symptom
 

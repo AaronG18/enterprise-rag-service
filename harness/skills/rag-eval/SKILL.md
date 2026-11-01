@@ -25,11 +25,11 @@ below so that results stay comparable across commits.
 ## Entrypoints
 
 ```
-python scripts/run_tests.py                 # correctness, hermetic
-python scripts/run_eval.py --all            # retrieval comparison + generative scoring + ops report
-python scripts/run_eval.py --retrieval-only # vector-only / hybrid / hybrid+rerank comparison
-python scripts/run_eval.py --cost           # token usage and cost per 1,000 calls (estimate)
-python scripts/run_bench.py --concurrency 5 # latency percentiles under concurrency
+python scripts/run.py --test                 # correctness, hermetic
+python scripts/run.py --eval --all            # retrieval comparison + generative scoring + ops report
+python scripts/run.py --eval --retrieval-only # vector-only / hybrid / hybrid+rerank comparison
+python scripts/run.py --eval --cost           # token usage and cost per 1,000 calls (estimate)
+python scripts/run.py --bench --concurrency 5 # latency percentiles under concurrency
 ```
 
 Every run writes machine output to `artifacts/` under a timestamped run directory, and the

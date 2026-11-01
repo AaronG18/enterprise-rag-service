@@ -28,9 +28,9 @@ _PRIMED: dict = {}
 _AUDIT_START = 0.0
 
 PRIME_COMMANDS = {
-    "eval": "python scripts/run_eval.py --all",
-    "bench": "python scripts/run_bench.py --http --concurrency 5 --requests 30 --assert",
-    "diagnosis": "python scripts/diagnose.py --all --assert",
+    "eval": "python scripts/run.py --eval --all",
+    "bench": "python scripts/run.py --bench --http --concurrency 5 --requests 30 --assert",
+    "diagnosis": "python scripts/run.py --diagnose --all --assert",
 }
 
 
@@ -83,14 +83,14 @@ def tail(text: str, lines: int = 12) -> str:
 
 
 def probe_test_suite():
-    command = "python scripts/run_tests.py"
+    command = "python scripts/run.py --test"
     proc = run(command)
     return (proc.returncode == 0, command, tail(proc.stderr + proc.stdout, 6),
             "161 hermetic tests, standard library only")
 
 
 def probe_evaluation():
-    command = "python scripts/run_eval.py --all"
+    command = "python scripts/run.py --eval --all"
     proc = run(command)
     path = latest("eval/*/metrics.json")
     if not path or not is_fresh(path):
@@ -115,7 +115,7 @@ def probe_faithfulness():
     best = (metrics.get("comparison") or {}).get("hybrid", {})
     value = best.get("faithfulness", 0.0)
     return (value >= 0.85,
-            "python scripts/run_eval.py --all  (hybrid, deterministic)",
+            "python scripts/run.py --eval --all  (hybrid, deterministic)",
             "faithfulness = %.4f  (target >= 0.85)" % value, path)
 
 
@@ -127,7 +127,7 @@ def probe_context_precision():
     metrics = load_json(path)
     best = (metrics.get("comparison") or {}).get("hybrid", {})
     value = best.get("context_precision", 0.0)
-    return (value >= 0.70, "python scripts/run_eval.py --all  (hybrid)",
+    return (value >= 0.70, "python scripts/run.py --eval --all  (hybrid)",
             "context_precision = %.4f  (target >= 0.70)" % value, path)
 
 
@@ -143,7 +143,7 @@ def probe_generative_baseline():
     refusal = best.get("refusal_appropriateness", 0.0)
     style = best.get("style_consistency", 0.0)
     ok = compliance >= 0.80 and refusal >= 0.80 and style >= 0.80
-    return (ok, "python scripts/run_eval.py --all",
+    return (ok, "python scripts/run.py --eval --all",
             "compliance %.4f (>= 0.80)\nrefusal_appropriateness %.4f (>= 0.80)\n"
             "style_consistency %.4f (>= 0.80)" % (compliance, refusal, style), path)
 
@@ -161,7 +161,7 @@ def probe_generative_advanced():
     style = best.get("style_consistency", 0.0)
     ok = compliance >= 0.90 and refusal >= 0.90 and style >= 0.85
     return (ok,
-            "python scripts/run_eval.py --provider codebuddy-serve --models hy3 "
+            "python scripts/run.py --eval --provider codebuddy-serve --models hy3 "
             "(snapshot of run %s, provenance %s)"
             % (snapshot.get("run_id"), snapshot.get("provenance")),
             "compliance %.4f (>= 0.90)\nrefusal_appropriateness %.4f (>= 0.90)\n"
@@ -169,7 +169,7 @@ def probe_generative_advanced():
 
 
 def probe_latency():
-    command = "python scripts/run_bench.py --http --concurrency 5 --requests 30 --assert"
+    command = "python scripts/run.py --bench --http --concurrency 5 --requests 30 --assert"
     proc = run(command)
     path = latest("bench/*/bench.json",
                   predicate=lambda p: load_json(p).get("transport") == "http")
@@ -196,7 +196,7 @@ def probe_cost():
     operator to have filled one in - a run that prints `price_provided: True` and a non-null
     `cost_per_1000_calls_usd` - rather than leaving the cost column blank.
     """
-    command = "python scripts/run_eval.py --all --cost"
+    command = "python scripts/run.py --eval --all --cost"
     proc = run(command)
     output = tail(proc.stdout, 16)
     has_tokens = "input_tokens_per_call" in output and "calls_measured" in output
@@ -221,14 +221,14 @@ def probe_ops_report():
     csv = os.path.join(os.path.dirname(path), "report.csv")
     csv_present = os.path.isfile(csv)
     return (not missing and csv_present,
-            "python scripts/run_eval.py --report",
+            "python scripts/run.py --eval --report",
             "\n".join("  %-24s %s" % (key, ops.get(key)) for key in required)
             + "\n  CSV present: %s (%s)" % (csv_present, os.path.basename(csv)),
             path)
 
 
 def probe_logging():
-    command = "python scripts/sample_logs.py"
+    command = "python scripts/run.py --samples"
     proc = run(command)
     dictionary = os.path.join(REPO_ROOT, "docs", "logging", "log_fields.md")
     sample = os.path.join(REPO_ROOT, "docs", "logging", "sample_logs.md")
@@ -287,7 +287,7 @@ def probe_modes_and_reranker():
 
 
 def probe_refusal():
-    command = "python scripts/run_tests.py -k TestRefusal"
+    command = "python scripts/run.py --test -k TestRefusal"
     proc = run(command)
     sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
     from ragserve.corpus.builder import CorpusConfig, build_corpus
@@ -314,7 +314,7 @@ def probe_refusal():
 
 
 def probe_pii():
-    command = "python scripts/run_tests.py -k TestRedaction"
+    command = "python scripts/run.py --test -k TestRedaction"
     proc = run(command)
     sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
     from ragserve.generation.pii import redact_record, redact_text
@@ -331,7 +331,7 @@ def probe_pii():
 
 
 def probe_grounding():
-    command = "python scripts/run_tests.py -k TestGroundedAnswers"
+    command = "python scripts/run.py --test -k TestGroundedAnswers"
     proc = run(command)
     path = latest("eval/*/metrics.json")
     if not is_fresh(path):
@@ -345,13 +345,13 @@ def probe_grounding():
 
 
 def probe_injection():
-    command = "python scripts/run_tests.py -k TestInjectionDefence"
+    command = "python scripts/run.py --test -k TestInjectionDefence"
     proc = run(command)
     return (proc.returncode == 0, command, tail(proc.stderr, 4), "tests/test_generation.py")
 
 
 def probe_retrieval_comparison():
-    command = "python scripts/run_eval.py --all"
+    command = "python scripts/run.py --eval --all"
     path = latest("eval/*/metrics.json")
     if not is_fresh(path):
         return False, primed("eval")["command"], primed("eval")["output"], \
@@ -369,7 +369,7 @@ def probe_retrieval_comparison():
 
 
 def probe_evolvability():
-    command = "python scripts/run_tests.py -k TestVectorRetrieval"
+    command = "python scripts/run.py --test -k TestVectorRetrieval"
     proc = run(command)
     sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
     from ragserve.retrieval.pipeline import RetrievalConfig, RetrievalPipeline
@@ -389,7 +389,7 @@ def probe_evolvability():
 
 def probe_model_swap():
     sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
-    command = "python scripts/run_tests.py -k TestProtocolHandling"
+    command = "python scripts/run.py --test -k TestProtocolHandling"
     proc = run(command)
     from ragserve.generation.providers import (
         CodeBuddyServeProvider,
@@ -408,7 +408,7 @@ def probe_model_swap():
 
 
 def probe_diagnosis():
-    command = "python scripts/diagnose.py --all --assert"
+    command = "python scripts/run.py --diagnose --all --assert"
     proc = run(command)
     from ragserve.evaluation.diagnosis import CASES
 
@@ -432,7 +432,8 @@ def probe_deliverables():
     expected = {
         "code and configs": [os.path.join("src", "ragserve", "service.py"),
                              os.path.join("configs", "retrieval.json")],
-        "one-click evaluation": [os.path.join("scripts", "run_eval.py")],
+        # The brief asks for one script; the audit checks that exactly that one exists.
+        "one-click evaluation": [os.path.join("scripts", "run.py")],
         "evaluation report": [os.path.join("docs", "eval", "retrieval-comparison.md")],
         "log dictionary and samples": [os.path.join("docs", "logging", "log_fields.md"),
                                        os.path.join("docs", "logging", "sample_logs.md")],
@@ -447,14 +448,14 @@ def probe_deliverables():
 
 
 def probe_gate():
-    command = "python scripts/verify_requirements.py"
+    command = "python scripts/run.py --verify"
     proc = run(command)
     output = tail(proc.stdout + proc.stderr, 6)
     return (proc.returncode == 0, command, output, "harness/requirements.toml")
 
 
 def probe_one_command():
-    """`python scripts/start.py` must build, index and serve without any manual step."""
+    """`python scripts/run.py --serve` must build, index and serve without any manual step."""
     import socket
     import time
     import urllib.request
@@ -483,9 +484,9 @@ def probe_one_command():
         httpd.shutdown()
         httpd.server_close()
         thread.join(timeout=3)
-    return (ok, "python scripts/start.py",
+    return (ok, "python scripts/run.py --serve",
             lines + "\n  (no database, no embedding model, no install step)",
-            "scripts/start.py")
+            "scripts/run.py")
 
 
 # --------------------------------------------------------------------------- the audit table
@@ -530,15 +531,15 @@ ITEMS = [
     ("D-1", "[38]", "complete code and configs",
      probe_deliverables, "src/ and configs/ under version control"),
     ("D-2", "[38]", "one-click evaluation script",
-     probe_deliverables, "scripts/run_eval.py --all"),
+     probe_deliverables, "scripts/run.py --all"),
     ("D-3", "[38]", "evaluation report with before/after comparisons",
      probe_deliverables, "docs/eval/ and docs/diagnosis/"),
     ("D-4", "[38]", "log field dictionary and sample logs",
      probe_deliverables, "docs/logging/log_fields.md and sample_logs.md"),
     ("S-1", "[04]", "one command starts the whole service",
-     probe_one_command, "python scripts/start.py builds, indexes and serves"),
+     probe_one_command, "python scripts/run.py --serve builds, indexes and serves"),
     ("S-2", "[18]", "the harness gate verifies every requirement in CI",
-     probe_gate, "python scripts/verify_requirements.py, 30 rows"),
+     probe_gate, "python scripts/run.py --verify, 30 rows"),
 ]
 
 
@@ -572,7 +573,7 @@ def audit(only=None) -> list:
 def render_markdown(results: list) -> str:
     passed = [r for r in results if r["ok"]]
     lines = ["# Requirement audit against the case-study brief", "",
-             "Generated by `scripts/audit_requirements.py`. Every verdict comes from a command",
+             "Generated by `scripts/run.py`. Every verdict comes from a command",
              "run in this audit, not from a claim in a document.", "",
              "**%d/%d PASS, %d FAIL**" % (len(passed), len(results), len(results) - len(passed)),
              ""]

@@ -13,7 +13,7 @@ on:
 # CI must stay hermetic (no API key, no model server): pin both stages to the offline
 # deterministic backends. The delivered service leaves these unset and uses the real providers
 # from configs/retrieval.json (BGE-M3 embeddings + cross-encoder reranker, both keyless, served
-# locally via scripts/setup_models.py).
+# locally via scripts/run.py).
 env:
   RAGSERVE_EMBEDDING_PROVIDER: deterministic
   RAGSERVE_RERANKER_PROVIDER: deterministic
@@ -36,7 +36,7 @@ jobs:
         run: python -c "import sys; print(sys.version)"
 
       - name: Run hermetic test suite
-        run: python scripts/run_tests.py -v
+        run: python scripts/run.py --test -v
 
   no-secret-scan:
     runs-on: ubuntu-latest

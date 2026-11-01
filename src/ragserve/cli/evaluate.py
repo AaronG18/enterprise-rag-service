@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """One-click evaluation - the single entry point for every deliverable.
 
-    python scripts/run_eval.py --all              # three-config comparison + generative scoring + ops report
-    python scripts/run_eval.py --all --deliverables  # ...plus the committed deliverables, with paths
-    python scripts/run_eval.py --out DIR          # write artefacts elsewhere
+    python scripts/run.py --eval --all              # three-config comparison + generative scoring + ops report
+    python scripts/run.py --eval --all --deliverables  # ...plus the committed deliverables, with paths
+    python scripts/run.py --eval --out DIR          # write artefacts elsewhere
 
 The retrieval mode and reranker are configuration, not code (FR-1). Override them at run time:
 
-    python scripts/run_eval.py --mode vector_only          # score vector-only only
-    python scripts/run_eval.py --mode hybrid --rerank off  # score hybrid, reranker off
-    python scripts/run_eval.py --mode hybrid --rerank on   # score hybrid + reranker
+    python scripts/run.py --eval --mode vector_only          # score vector-only only
+    python scripts/run.py --eval --mode hybrid --rerank off  # score hybrid, reranker off
+    python scripts/run.py --eval --mode hybrid --rerank on   # score hybrid + reranker
 
 `--deliverables` regenerates everything the brief asks to be handed over and prints every path
 written: the deterministic snapshot, the comparison report, the sample logs and the QA dashboard.
@@ -26,8 +26,7 @@ import json
 import os
 import sys
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+from . import REPO_ROOT
 
 from ragserve.evaluation.runner import run_evaluation, run_model_backed  # noqa: E402
 
@@ -60,7 +59,7 @@ def main() -> int:
                              "the QA dashboard - and print every path written")
     parser.add_argument("--refresh-model-backed", action="store_true",
                         help="with --deliverables: re-measure the model-backed retrieval lane "
-                             "first (needs the local model servers from scripts/setup_models.py)")
+                             "first (needs the local model servers from scripts/run.py)")
     parser.add_argument("--seed-model-backed", metavar="METRICS_JSON", default=None,
                         help="commit an existing model-backed run (an artifacts/eval/<id>/"
                              "metrics.json) as the snapshot, without re-measuring")
@@ -154,7 +153,7 @@ def main() -> int:
         if "model-backed" not in provenance:
             print("REFUSED: this run is '%s', not model-backed (no model server reachable)."
                   % provenance)
-            print("Start the two servers from scripts/setup_models.py and re-run. Nothing was "
+            print("Start the two servers from scripts/run.py and re-run. Nothing was "
                   "written: the existing snapshots and report are untouched.")
             return 1
         model_payload = model_result

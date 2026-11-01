@@ -6,7 +6,7 @@ files a scratch script wrote into %TEMP% - unrepeatable by CI or by a reviewer, 
 the temp directory was cleaned. Evidence has to live in the repository (RULES.md R19), so the
 generator is committed and deterministic: same seed, same corpus.
 
-    python scripts/gen_review_corpus.py --out DIR [--count 36] [--seed 20261102]
+    python scripts/run.py --gen-corpus --out DIR [--count 36] [--seed 20261102]
 
 What it produces, per document (3-5 sections, one page per section):
 

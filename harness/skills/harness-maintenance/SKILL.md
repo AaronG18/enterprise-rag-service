@@ -54,7 +54,7 @@ row in the manifest and vice versa, so a new id must be added in both places in 
    is how the link is kept honest - the CI workflows do this at the top of the file.
 
 7. **Add the requirement row and the matrix row** (same id), then run
-   `python scripts/verify_requirements.py` and `python scripts/run_tests.py`.
+   `python scripts/run.py --verify` and `python scripts/run.py --test`.
 
 8. **Fold the lesson in (R11).** If the rule was written *after* something broke, say in the rule
    what broke - that is what makes the next reader trust it.

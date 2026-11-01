@@ -97,7 +97,7 @@ class TestRunnerJsonOutput(unittest.TestCase):
         import subprocess
         import sys
 
-        return subprocess.run([sys.executable, os.path.join(REPO_ROOT, "scripts", "run_tests.py")] +
+        return subprocess.run([sys.executable, os.path.join(REPO_ROOT, "scripts", "run.py"), "--test"] +
                               list(args), cwd=REPO_ROOT, capture_output=True, text=True,
                               encoding="utf-8", errors="ignore")
 

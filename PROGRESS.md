@@ -141,7 +141,7 @@ Entries follow: issue, then change, then evidence status.
   conclusion: on the old corpus reranking traded recall for MRR, so the report recommended plain
   `hybrid`; on the current corpus `hybrid+rerank` leads on every axis. **#94** fixed the failure
   mode rather than the instance: `docs/eval/retrieval-comparison.md` is now **generated** by
-  `python scripts/run_eval.py --all --deliverables` from committed snapshots, the same way `sample_logs.md`
+  `python scripts/run.py --eval --all --deliverables` from committed snapshots, the same way `sample_logs.md`
   has always been, and one command now regenerates every deliverable (artefacts, snapshots, the
   comparisons report, the sample logs, the QA dashboard). A test asserts the committed file equals
   what the renderer produces, so a hand-edit is a red build - demonstrated by editing it on
@@ -151,7 +151,7 @@ Entries follow: issue, then change, then evidence status.
 * **EPIC 16 (#90)** CLOSED (2026-10-31). Two things landed. (1) *Real retrieval.* The shipped
   default is now a keyless, offline model pair - BGE-M3 embeddings (1024-d) and a
   bge-reranker-v2-m3 cross-encoder, both served by a `llama.cpp` build that
-  `scripts/setup_models.py` installs into gitignored `vendor/` and `models/`. Measured on the
+  `scripts/run.py` installs into gitignored `vendor/` and `models/`. Measured on the
   same corpus and the same 85 labelled cases: hybrid recall@5 goes 0.8987 (deterministic) -> 1.0
   (model-backed), mrr 0.8006 -> 0.9610. The cross-encoder did **not** improve on hybrid in that
   run - with recall already saturated there is nothing left for it to recover - and that negative
@@ -180,7 +180,7 @@ Entries follow: issue, then change, then evidence status.
   reports how many tests it really ran.
 * **#55-#59 / EPIC 14 (#54)** CLOSED (2026-10-28). The harness moved into GitHub Actions.
   `harness/requirements.toml` is a machine-readable manifest of every requirement; CI runs
-  `scripts/verify_requirements.py` (30 rows, ~8 s) and fails by row ID; the workflow adds
+  `scripts/run.py` (30 rows, ~8 s) and fails by row ID; the workflow adds
   `requirements-gate`, `contract-gate` and `pr-hygiene` on every branch push and every pull
   request. `main` is protected and requires all three. Demonstrated end to end: a red PR is
   refused with `405 Required status check "contract-gate" is failing`, a green PR merges.
@@ -190,7 +190,7 @@ Entries follow: issue, then change, then evidence status.
   `docs/qa/harness-gate.md`.
 
 * **#46-#51 / EPIC 13 (#45)** CLOSED (2026-10-28). Submission hardening: the repository is now a
-  runnable service. `python scripts/start.py` builds the corpus, indexes it in ~19 ms and serves
+  runnable service. `python scripts/run.py --serve` builds the corpus, indexes it in ~19 ms and serves
   a React + AntD UI plus a stdlib HTTP API on 127.0.0.1:8124. Default path needs no key and no
   network; a reviewer can bring their own OpenAI-compatible endpoint (key used per request,
   never stored or logged). Service-level benchmark: 5 concurrent HTTP requests, p90 148 ms,
@@ -210,7 +210,7 @@ Entries follow: issue, then change, then evidence status.
   targets, not smoothed over. ADR 0004 picks the flash-tier model on measured evidence.
 
 * **#33 #34 / EPIC 9** CLOSED (2026-10-28). `docs/deliverables.md` maps every required
-  deliverable to a file and command; sample logs are generated (`scripts/sample_logs.py`)
+  deliverable to a file and command; sample logs are generated (`scripts/run.py`)
   rather than hand-written; ADRs for retrieval strategy and the synthetic corpus added; README
   targets table now carries measured values with the deterministic-provider caveat.
   118 tests, CI green (run 40541966467).
@@ -249,4 +249,4 @@ Entries follow: issue, then change, then evidence status.
 * **#1** Initial repository bootstrap: layout, `PROJECT.md`, `CONTRIBUTING.md`, `AGENTS.md`,
   `harness/RULES.md`, `harness/ROLES.md`, three skills, issue and PR templates, CI workflow,
   requirements traceability matrix.
-  Evidence: CI green; `scripts/run_tests.py` runs clean from a cold clone. See issue #1.
+  Evidence: CI green; `scripts/run.py` runs clean from a cold clone. See issue #1.

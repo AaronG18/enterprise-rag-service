@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Reproduce a documented incident and measure the fix.
 
-    python scripts/diagnose.py --case refusal-gate
-    python scripts/diagnose.py --case cross-language
-    python scripts/diagnose.py --all --assert     # exit 1 if any case improves by < 10%
+    python scripts/run.py --diagnose --case refusal-gate
+    python scripts/run.py --diagnose --case cross-language
+    python scripts/run.py --diagnose --all --assert     # exit 1 if any case improves by < 10%
 
 Writes artifacts/diagnosis/<case>/{report.json, report.md}.
 
@@ -17,8 +17,7 @@ import argparse
 import os
 import sys
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+from . import REPO_ROOT
 
 from ragserve.evaluation.diagnosis import (  # noqa: E402
     CASES,

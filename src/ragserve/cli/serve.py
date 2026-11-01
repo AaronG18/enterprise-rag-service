@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """One-command start: build the corpus if needed, index it, serve the API.
 
-    python scripts/start.py                 # 127.0.0.1:8174; fully offline, no credentials needed
-    python scripts/start.py --port 9000
-    python scripts/start.py --port 0        # let the OS pick any free port
-    python scripts/start.py --provider codebuddy-serve --endpoint http://127.0.0.1:8788 --model hy3
-    python scripts/start.py --provider openai-compatible --endpoint https://api.example.com/v1 \\
+    python scripts/run.py --serve                 # 127.0.0.1:8174; fully offline, no credentials needed
+    python scripts/run.py --serve --port 9000
+    python scripts/run.py --serve --port 0        # let the OS pick any free port
+    python scripts/run.py --serve --provider codebuddy-serve --endpoint http://127.0.0.1:8788 --model hy3
+    python scripts/run.py --serve --provider openai-compatible --endpoint https://api.example.com/v1 \\
         --model my-model --api-key-env OPENAI_API_KEY
 
 The delivered service runs with NO credentials at all: generation and embeddings both default to
 the offline deterministic backend, so a reviewer can clone this repository and start it straight
 away. A real embedding model is opt-in and is a config/flag change, never a code change:
 
-    python scripts/start.py --embedding-provider openai-compatible
+    python scripts/run.py --serve --embedding-provider openai-compatible
 
 That path uses embedding_endpoint / embedding_model / embedding_api_key_env from
 configs/retrieval.json (a ready BGE-M3 preset) and needs that key; without it the server fails at
@@ -24,14 +24,14 @@ The retrieval mode and reranker are configuration, not code (FR-1). They can be 
 configs/retrieval.json (mode / rerank_enabled / reranker_provider) OR overridden on the command
 line, with no edit to any source file:
 
-    python scripts/start.py --mode vector_only            # vector-only retrieval
-    python scripts/start.py --mode hybrid --rerank off   # hybrid, reranker disabled
-    python scripts/start.py --mode hybrid --rerank on    # hybrid + cross-encoder reranker
+    python scripts/run.py --serve --mode vector_only            # vector-only retrieval
+    python scripts/run.py --serve --mode hybrid --rerank off   # hybrid, reranker disabled
+    python scripts/run.py --serve --mode hybrid --rerank on    # hybrid + cross-encoder reranker
 
 Examples:
-    python scripts/start.py --embedding-provider deterministic      # default, fully offline
-    python scripts/start.py --embedding-provider openai-compatible  # real model, needs a key
-    python scripts/start.py --mode hybrid --rerank on --reranker-provider cross-encoder
+    python scripts/run.py --serve --embedding-provider deterministic      # default, fully offline
+    python scripts/run.py --serve --embedding-provider openai-compatible  # real model, needs a key
+    python scripts/run.py --serve --mode hybrid --rerank on --reranker-provider cross-encoder
 
 Port selection is deterministic: if the requested port is taken by another service, the first
 free port above it is used (8174 -> 8175 -> ...) and the real URL is printed. A reviewer must
@@ -43,8 +43,7 @@ import argparse
 import os
 import sys
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+from . import REPO_ROOT
 
 DEFAULT_PORT = 8174
 

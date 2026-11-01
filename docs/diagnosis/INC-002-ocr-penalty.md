@@ -1,6 +1,6 @@
 # INC-002: OCR penalty demoted the only copy of scanned documents
 
-Reproduce: `python scripts/diagnose.py --case ocr-penalty`
+Reproduce: `python scripts/run.py --diagnose --case ocr-penalty`
 
 ## Symptom
 

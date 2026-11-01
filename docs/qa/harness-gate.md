@@ -151,8 +151,8 @@ reason to parallelise rather than a reason not to.
 ## Reproducing it locally
 
 ```bash
-python scripts/verify_requirements.py     # the requirements gate, ~17 s
-python scripts/run_tests.py                # the contract gate's test suite
+python scripts/run.py --verify     # the requirements gate, ~17 s
+python scripts/run.py --test                # the contract gate's test suite
 ```
 
 The workflow runs the same commands in the same order, on a clean checkout, with no
