@@ -72,7 +72,7 @@ place it is implemented and the command or document that proves it.
 | **Any stack, but choices justified with quantitative evidence** | section 8, `docs/adr/` | every row there carries a measurement |
 | **Performance** 90% of requests <= 10 s; >= 5 concurrent on one instance | service + cache | `scripts/run.py --http --concurrency 5 --assert` (p90 170 ms, 0 errors) |
 | **Cost** token-cost estimate per 1,000 calls; model-version trade-off (quality/cost/latency) | `configs/pricing.json`, `src/ragserve/evaluation/cost.py` | `run_eval.py --cost`; `docs/eval/model-backed.md` (hy3 ~$50.5 vs flash ~$14.0 per 1,000 calls) |
-| **Quality** Faithfulness >= 0.85, evaluation method defined | `docs/eval/metrics_rubric*.md` | measured 1.0 deterministic / 0.8913-0.913 model-backed |
+| **Quality** Faithfulness >= 0.85, evaluation method defined | `docs/metrics/metrics.md` | measured 1.0 deterministic / 0.913 model-backed |
 | **Quality** Context Precision >= 0.70 | same rubric | 0.9529 deterministic / 0.8814 model-backed |
 | **Quality** Answer Compliance >= 80% (advanced 90%) | generative scorer | 0.9000 deterministic / 0.965-0.983 model-backed |
 | **Quality** Style Consistency >= 80% (advanced 0.85) | generative scorer | 1.0 deterministic / 0.8957-0.904 model-backed |
