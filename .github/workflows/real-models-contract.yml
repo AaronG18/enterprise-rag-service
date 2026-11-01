@@ -19,7 +19,11 @@ permissions:
 
 jobs:
   real-models-contract:
-    runs-on: ubuntu-latest
+    # The bundled llama.cpp runtime is the Windows CPU build (`LLAMA_ASSET` in cli/setup.py), so
+    # this job runs where that runtime runs. On Linux `--setup` reports `runtime=MISSING` and there
+    # is nothing to start - which is a failure, not a skip, because the whole point is to prove the
+    # real lane works.
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
