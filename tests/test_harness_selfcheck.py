@@ -266,6 +266,54 @@ class TestWorkflowHermeticity(unittest.TestCase):
                          "workflows that run the service must pin the offline providers: %s" % offenders)
 
 
+class TestWorkflowClosure(unittest.TestCase):
+    """A rule the CI does not name and run is still a promise, not a check (R16, R19).
+
+    The gap this closes: R18 and R19 were added to RULES.md with map rows and tests, but no workflow
+    referenced them, and nothing verified that the workflows still run the gate commands. Deleting
+    `run_tests.py` from a job, or adding a rule with no CI counterpart, left the harness green.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rules_text = read(os.path.join(HARNESS, "RULES.md"))
+        cls.headings = RULE_HEADING.findall(cls.rules_text)
+        cls.map_rows = {rid: (where, signal)
+                        for rid, where, signal in MAP_ROW.findall(cls.rules_text)}
+        cls.workflows = {}
+        for name in sorted(os.listdir(WORKFLOWS)):
+            if name.endswith((".yml", ".yaml")):
+                cls.workflows[name] = read(os.path.join(WORKFLOWS, name))
+
+    def test_every_enforced_rule_is_named_in_a_workflow(self):
+        """Adding a rule without touching CI must be a red build."""
+        named = set()
+        for body in self.workflows.values():
+            named |= rule_ids_in(body)
+        manual = {rid for rid, (where, _signal) in self.map_rows.items()
+                  if "manual" in where.lower()}
+        missing = sorted(rid for rid in self.headings if rid not in manual and rid not in named)
+        self.assertEqual(missing, [],
+                         "rules not named in any workflow - name them in the job that enforces "
+                         "them, or mark the row `manual`: %s" % missing)
+
+    def test_the_workflows_actually_run_the_gate_commands(self):
+        """Deleting a step must not silently weaken the gate."""
+        everything = "\n".join(self.workflows.values())
+        self.assertIn("scripts/run_tests.py", everything,
+                      "no workflow runs the hermetic suite")
+        self.assertIn("scripts/verify_requirements.py", everything,
+                      "no workflow runs the requirements gate")
+
+    def test_the_committed_corpus_has_its_own_ci_step(self):
+        """R19 says test data lives in the repository; a test alone cannot see .gitignore."""
+        for name, body in self.workflows.items():
+            if "tests/data/review-corpus" in body:
+                return
+        self.fail("no workflow checks the committed review corpus (R19): a corpus that is gitignored "
+                  "or removed from the index would keep every local test green")
+
+
 class TestCapabilityProvenByHardestInput(unittest.TestCase):
     """R18: a capability is proven by its hardest input, not its easiest.
 

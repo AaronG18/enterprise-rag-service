@@ -148,6 +148,13 @@ that no longer exists fails, a rule that nothing enforces fails unless its row s
 a reference to a rule id that does not exist fails. Adding a rule without adding its
 enforcement is therefore a red build, not a silent promise.
 
+**And the CI has to follow.** A rule enforced only by a test that no workflow runs is still a
+promise. The same self-check therefore requires every rule not marked `manual` to be **named in a
+workflow**, and requires the workflows to actually **run the gate commands**
+(`run_tests.py`, `verify_requirements.py`). Adding a rule without touching CI is a red build too.
+(Observed: R18 and R19 were added with map rows and tests while no workflow mentioned them, and
+nothing would have failed if a job stopped running the suite.)
+
 ## R17 - No front end
 
 This repository ships a **service**, not an application. There is no UI, no client-side build and
