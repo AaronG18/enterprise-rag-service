@@ -190,19 +190,22 @@ def probe_latency():
 def probe_cost():
     """The brief asks for a token-cost estimate per 1,000 calls.
 
-    The estimate must be reachable by a command and measured from a real run. The monetary
-    conversion needs a price list the operator supplies; the repository refuses to invent one,
-    so the verdict is PASS when the token arithmetic is printed and the gap is stated - and
-    that gap is reported as such rather than hidden.
+    The estimate must be reachable by a command, measured from a real run (token counts are not
+    guessed), and converted to a monetary figure using a price list the operator supplies in
+    `configs/pricing.json`. The repository refuses to invent a price, so the gate requires the
+    operator to have filled one in - a run that prints `price_provided: True` and a non-null
+    `cost_per_1000_calls_usd` - rather than leaving the cost column blank.
     """
     command = "python scripts/run_eval.py --all --cost"
     proc = run(command)
     output = tail(proc.stdout, 16)
     has_tokens = "input_tokens_per_call" in output and "calls_measured" in output
     priced = "price_provided: True" in output
-    evidence = ("token estimate measured; monetary conversion still needs "
-                "configs/pricing.json" if not priced else "prices configured")
-    return (proc.returncode == 0 and has_tokens, command, output, evidence)
+    has_cost = "cost_per_1000_calls_usd:" in output and "None" not in output.split("cost_per_1000_calls_usd:")[-1].split("\n")[0]
+    ok = proc.returncode == 0 and has_tokens and priced and has_cost
+    evidence = ("token estimate measured and converted to USD per 1,000 calls"
+                if ok else "cost not produced; fill configs/pricing.json with reference prices")
+    return (ok, command, output, evidence)
 
 
 def probe_ops_report():

@@ -77,7 +77,7 @@ maps each target to a verification command and an owning issue.
 | Answer Compliance | >= 0.80 / 0.90 | 0.9000 |
 | Refusal Appropriateness | >= 0.80 / 0.90 | 0.9000 |
 | Style Consistency | >= 0.80 / 0.85 | 1.0 |
-| Cost | estimate per 1,000 calls | arithmetic provided; `configs/pricing.json` must be filled |
+| Cost | estimate per 1,000 calls | `run_eval.py --cost` prints `cost_per_1000_calls_usd` from measured tokens x `configs/pricing.json` (reference prices; the deterministic CI baseline is a local stub, so $0.00) |
 | Observability | structured logs, single-request reconstruction | 5 stages per request, documented dictionary |
 | Issue diagnosis | >= 2 cases, >= 10% gain | 2 cases: +575%, +100% |
 
