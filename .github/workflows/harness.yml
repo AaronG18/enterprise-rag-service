@@ -9,8 +9,15 @@ name: harness
 #
 # Rule ids this workflow enforces: R1 (issue in branch name and every commit), R14 (branch and PR,
 # never straight to main), R15 (the harness checks are the definition of done), R16 (the gate is
-# code and needs its own tests). The rule ids are named here on purpose: the traceability check in
-# tests/test_harness_selfcheck.py looks for them, so a rule cannot claim enforcement it does not have.
+# code and needs its own tests), R17 (no front end - the selfcheck runs in this job), R18 (a
+# capability is proven by its hardest input - the fixture tests run here) and R19 (evidence lives in
+# the repository - this job checks that the committed corpus is tracked, not gitignored, and not a
+# folder of stubs).
+#
+# The rule ids are named here on purpose: the traceability check in
+# tests/test_harness_selfcheck.py looks for them, so a rule cannot claim enforcement it does not
+# have. Since R19's lesson, that check also fails when a rule is added without being named in any
+# workflow - adding a rule without touching CI is a red build, not a silent promise.
 
 on:
   push:
@@ -95,6 +102,32 @@ jobs:
             exit 1
           fi
           echo "clean"
+
+      - name: Committed test data (R19)
+        run: |
+          set -euo pipefail
+          # R19: the review corpus must actually live in the repository. A test cannot see
+          # .gitignore, and a local checkout hides a corpus that was never committed - so this
+          # checks the index, not the working tree.
+          python - <<'PY'
+          import os, subprocess, sys
+          files = subprocess.run(["git", "ls-files", "tests/data/review-corpus"],
+                                 capture_output=True, text=True).stdout.split()
+          pdfs = [f for f in files if f.endswith(".pdf")]
+          total = sum(os.path.getsize(f) for f in pdfs)
+          print("tracked corpus files: %d (pdfs %d), bytes: %d" % (len(files), len(pdfs), total))
+          ok = len(pdfs) >= 30 and total >= 300_000
+          if not ok:
+              print("::error::the review corpus is not committed, or has shrunk to stubs")
+          if subprocess.run(["git", "check-ignore", "-q",
+                             "tests/data/review-corpus/manifest.json"]).returncode == 0:
+              print("::error::tests/data/review-corpus is gitignored")
+              ok = False
+          if "manifest.json" not in [os.path.basename(f) for f in files]:
+              print("::error::tests/data/review-corpus/manifest.json is not tracked")
+              ok = False
+          sys.exit(0 if ok else 1)
+          PY
 
       - name: Hermetic test suite
         run: python scripts/run_tests.py
