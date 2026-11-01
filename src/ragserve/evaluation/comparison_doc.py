@@ -80,6 +80,34 @@ def _delta_text(comparison: Dict, metric: str, first: str, second: str) -> str:
     return "%s -> %s" % (_fmt(left), _fmt(right))
 
 
+def _before_after(comparison: Dict, baseline: str = "vector_only",
+                  improved: str = "hybrid+rerank") -> List[str]:
+    """The deliverable asks for before/after comparisons, so the report states them explicitly.
+
+    Baseline is `vector_only` - the weakest of the three configurations and the one the brief names
+    first - and "after" is `hybrid+rerank`, the configuration the conclusion recommends. Both
+    columns come from the same snapshot as the table above, so a change in the numbers changes this
+    table too.
+    """
+    lines = ["### Before / after (%s -> %s)" % (baseline, improved), ""]
+    lines.append("| Metric | before (%s) | after (%s) | delta | change |" % (baseline, improved))
+    lines.append("|---|---|---|---|---|")
+    for metric in METRICS:
+        before = (comparison.get(baseline) or {}).get(metric)
+        after = (comparison.get(improved) or {}).get(metric)
+        if not isinstance(before, (int, float)) or not isinstance(after, (int, float)):
+            continue
+        delta = after - before
+        change = "n/a" if before == 0 else "%+.1f%%" % (100.0 * delta / before)
+        lines.append("| %s | %s | %s | %+.4f | %s |"
+                     % (metric, _fmt(before), _fmt(after), delta, change))
+    lines.append("")
+    lines.append("Defect-level before/after (a fix, its log/metric evidence and the measured gain) is "
+                 "in `docs/diagnosis/`.")
+    lines.append("")
+    return lines
+
+
 def _conclusion(comparison: Dict, backend: str) -> List[str]:
     """A conclusion derived from the numbers, not written about them.
 
@@ -125,6 +153,7 @@ def _section(title: str, snapshot: Dict, backend: str, notes: Sequence[str] = ()
         lines.append("")
     lines.extend(_table(comparison))
     lines.append("")
+    lines.extend(_before_after(comparison))
     lines.append("### Conclusion (%s)" % backend)
     lines.append("")
     lines.extend(_conclusion(comparison, backend))

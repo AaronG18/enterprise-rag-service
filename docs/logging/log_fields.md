@@ -60,6 +60,7 @@ a field that is not documented here, so this file cannot drift silently.
 | `text` | Answer text after redaction. |
 | `cache_hit` | Whether this response came from the cache. Benchmarks must exclude these. |
 | `cache_layer` | `exact` or `semantic` on a hit, absent otherwise. |
+| `latency_ms` | End-to-end latency of the API response in milliseconds, measured around the whole call - this is the number the performance target is about, so it belongs in the dictionary too. |
 | `usage` | Token usage of this response. |
 
 ## Redaction

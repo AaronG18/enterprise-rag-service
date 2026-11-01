@@ -6,7 +6,7 @@ Two backends are reported, because they answer different questions and **must no
 
 ## Deterministic backend (the CI baseline)
 
-Run `20261102-023522` - corpus `a716676ca46bfa44`, 85 labelled cases, provenance `deterministic`.
+Run `20261102-031953` - corpus `a716676ca46bfa44`, 85 labelled cases, provenance `deterministic`.
 
 Reproduce with `python scripts/run.py --eval --all` (CI pins both stages to `deterministic`).
 
@@ -19,6 +19,20 @@ Reproduce with `python scripts/run.py --eval --all` (CI pins both stages to `det
 | faithfulness | 1.0000 | 1.0000 | 1.0000 |
 | refusal_appropriateness | 0.8000 | 0.9059 | **0.9529** |
 | style_consistency | 1.0000 | 1.0000 | 1.0000 |
+
+### Before / after (vector_only -> hybrid+rerank)
+
+| Metric | before (vector_only) | after (hybrid+rerank) | delta | change |
+|---|---|---|---|---|
+| recall@5 | 0.7722 | 0.9620 | +0.1898 | +24.6% |
+| mrr | 0.7114 | 0.8911 | +0.1797 | +25.3% |
+| ndcg | 0.7266 | 0.9088 | +0.1822 | +25.1% |
+| context_precision | 0.8376 | 0.8814 | +0.0438 | +5.2% |
+| faithfulness | 1.0000 | 1.0000 | +0.0000 | +0.0% |
+| refusal_appropriateness | 0.8000 | 0.9529 | +0.1529 | +19.1% |
+| style_consistency | 1.0000 | 1.0000 | +0.0000 | +0.0% |
+
+Defect-level before/after (a fix, its log/metric evidence and the measured gain) is in `docs/diagnosis/`.
 
 ### Conclusion (deterministic)
 
@@ -51,6 +65,20 @@ Reproduce with `python scripts/run.py --setup` + the two server commands in the 
 | faithfulness | 1.0000 | 1.0000 | 1.0000 |
 | refusal_appropriateness | 0.8588 | 0.9176 | **0.9294** |
 | style_consistency | 1.0000 | 1.0000 | 1.0000 |
+
+### Before / after (vector_only -> hybrid+rerank)
+
+| Metric | before (vector_only) | after (hybrid+rerank) | delta | change |
+|---|---|---|---|---|
+| recall@5 | 0.9747 | 1.0000 | +0.0253 | +2.6% |
+| mrr | 0.9034 | 0.9523 | +0.0489 | +5.4% |
+| ndcg | 0.9216 | 0.9641 | +0.0425 | +4.6% |
+| context_precision | 0.8648 | 0.8673 | +0.0025 | +0.3% |
+| faithfulness | 1.0000 | 1.0000 | +0.0000 | +0.0% |
+| refusal_appropriateness | 0.8588 | 0.9294 | +0.0706 | +8.2% |
+| style_consistency | 1.0000 | 1.0000 | +0.0000 | +0.0% |
+
+Defect-level before/after (a fix, its log/metric evidence and the measured gain) is in `docs/diagnosis/`.
 
 ### Conclusion (model-backed)
 
