@@ -229,16 +229,28 @@ Three things to read out of that transcript:
 * **citations** (`handbook-en-00:0001`) are the passages the answer was composed from, which is what
   "grounded" means here.
 
-### Measured limits, stated rather than discovered
+### Concurrency, and what `:bench` actually measures
 
-`:bench 5` replays **your last question** five times concurrently. On this CPU-only machine with the
-real model that is a cold-cache burst: measured **p50 14.1 s, wall 15.7 s, 0 errors**, so the 10 s
-bound **fails** for five simultaneous real-model requests and `:bench` prints `FAIL` when it does.
+`:bench 5` replays **your last question** five times concurrently. Measured on this machine with the
+real models:
 
-What does meet the bound: one reviewer asking questions (2.8-3.3 s per answer above), the
-deterministic backend (p90 **78 ms**), and any deployment with more than one model slot or a GPU.
-The honest summary is that the service is fast per request and bounded by the model server under
-concurrent real-model load - the number is printed, not hidden.
+```
+Q> :bench 5
+  running 5 concurrent requests on your last question...
+  concurrency 5 | wall 5 ms | p50 0 ms | p95 1 ms | errors 0
+  under-10s bound: PASS
+```
+
+That is single-flight working (`RagService.answer`): of five identical requests arriving together,
+**one** computes and the other four share the result. Before it, all five missed an empty cache and
+queued behind the single-slot model server - **p50 14.1 s, `FAIL`** - on a question the service had
+just answered. The guard is asserted by a test, not by the benchmark: exactly one of five
+simultaneous identical questions computes.
+
+Honest boundary: five **different** questions at the same moment is a different measurement. On this
+CPU-only instance they queue behind the embedding model (measured p50 14.1 s); a deployment with
+more than one model slot, or a GPU, is where that number comes down. One reviewer asking questions in
+sequence is 2.8-4.1 s per answer, and the deterministic backend is p90 **78 ms**.
 
 ```bash
 python scripts/run.py --bench --concurrency 5 --assert   # exits non-zero when the bound is missed

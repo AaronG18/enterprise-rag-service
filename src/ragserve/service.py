@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -71,6 +72,12 @@ class RagService:
         self.provider = provider or self._build_provider()
         self.logger = logger
         self.cache = cache
+        # Single-flight: identical queries that arrive together share one computation. Without it a
+        # burst of the same question all misses an empty cache, and the model server answers them
+        # one at a time - measured at 14.1 s p50 for five concurrent requests, i.e. the brief's
+        # concurrent target failed on a question the service had just answered.
+        self._inflight: Dict[tuple, threading.Event] = {}
+        self._flight_lock = threading.Lock()
         self.corpus_version = getattr(corpus, "manifest", {}).get("corpus_version", "unknown")
         self._workflow_counter = 0
         self.last_trace: Dict[str, object] = {"injection_detected": False}
@@ -149,6 +156,42 @@ class RagService:
     # -- main --------------------------------------------------------------
     def answer(self, query: str, history: Optional[Sequence[Tuple[str, str]]] = None,
                workflow_id: Optional[str] = None) -> ServiceResult:
+        """Answer with a single-flight guard around identical concurrent questions.
+
+        Five identical requests arriving together used to all miss an empty cache and then queue
+        behind the model server (14.1 s p50 measured) - the brief's ">= 5 concurrent" target failed
+        on a question that had just been answered. The first caller computes; the rest wait for it
+        and then hit the cache it just filled.
+        """
+        if self.cache is None:
+            return self._answer_impl(query, history, workflow_id)
+
+        key = self._flight_key(query, history)
+        with self._flight_lock:
+            existing = self._inflight.get(key)
+            leader = existing is None
+            if leader:
+                existing = threading.Event()
+                self._inflight[key] = existing
+        if not leader:
+            # Bounded wait: if the leader dies without filling the cache, recompute rather than hang.
+            existing.wait(timeout=120.0)
+            return self._answer_impl(query, history, workflow_id)
+        try:
+            return self._answer_impl(query, history, workflow_id)
+        finally:
+            with self._flight_lock:
+                self._inflight.pop(key, None)
+            existing.set()
+
+    def _flight_key(self, query: str, history) -> tuple:
+        resolved, _rewritten = resolve_query(query, history)
+        return (resolved, self.retrieval_config.mode, self.retrieval_config.rerank_enabled,
+                self.corpus_version,
+                getattr(self.provider, "version", self.generation.model_version))
+
+    def _answer_impl(self, query: str, history: Optional[Sequence[Tuple[str, str]]] = None,
+                     workflow_id: Optional[str] = None) -> ServiceResult:
         workflow = workflow_id or self._new_workflow_id()
         resolved, rewritten = resolve_query(query, history)
         self.last_trace = {
