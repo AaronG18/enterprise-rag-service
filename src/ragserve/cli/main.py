@@ -22,7 +22,11 @@ import sys
 MODES = (
     ("--ask", "ragserve.cli.ask", False),
     ("--eval", "ragserve.cli.evaluate", False),
-    ("--corpus", "ragserve.cli.ask", False),   # a supplied corpus still runs through the service
+    # `--corpus` takes a value, so stripping the flag left the path behind and the ask parser
+    # rejected it: `python scripts/run.py --corpus DIR` - a command this README documents - failed
+    # 100% of the time with "unrecognized arguments", while `--eval --corpus DIR` worked because
+    # evaluate keeps its own flag. Value-taking flags must be kept.
+    ("--corpus", "ragserve.cli.ask", True),
     ("--serve", "ragserve.cli.serve", False),
     ("--setup", "ragserve.cli.setup", False),
     ("--check", "ragserve.cli.setup", True),
@@ -43,11 +47,13 @@ def main(argv=None) -> int:
     for flag, module, keep in MODES:
         if flag not in args:
             continue
-        rest = list(args)
-        rest.remove(flag)
         if keep:
-            rest.insert(0, flag)
-        sys.argv = ["run.py"] + rest
+            # The target parser owns the flag, so hand it the argv untouched. Re-inserting a
+            # value-taking flag at position 0 detached it from its value ("--corpus --no-bootstrap
+            # DIR"), which argparse then rejected.
+            sys.argv = ["run.py"] + args
+        else:
+            sys.argv = ["run.py"] + [a for a in args if a != flag]
         return importlib.import_module(module).main()
     # No mode flag: the reviewer just typed the command and wants to ask questions.
     sys.argv = ["run.py"] + args
