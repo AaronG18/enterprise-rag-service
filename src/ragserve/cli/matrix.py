@@ -146,6 +146,13 @@ def _run(argv, stdin=None, timeout=600):
                           timeout=timeout)
 
 
+def _tracked_changes() -> set:
+    """Paths git reports as modified; empty means the matrix left the tree alone."""
+    proc = subprocess.run(["git", "status", "--porcelain"], cwd=REPO_ROOT, capture_output=True,
+                          text=True, encoding="utf-8", errors="replace")
+    return {line[3:].strip() for line in (proc.stdout or "").splitlines() if line.strip()}
+
+
 def _options(mode: str):
     """The flags a mode's own --help declares, excluding --help itself."""
     proc = _run([mode, "--help"])
@@ -231,6 +238,7 @@ def main(argv=None) -> int:
     results = []
     failures = []
     print("Matrix: %d combinations%s" % (len(cases), " (quick)" if args.quick else ""))
+    dirty = _tracked_changes()
     for label, argv, stdin, must in cases:
         argv = [a.replace("__TMP__", tmp) for a in argv]
         proc = _run(argv, stdin=stdin)
@@ -242,6 +250,14 @@ def main(argv=None) -> int:
         if not ok:
             tail = [l for l in out.strip().splitlines() if l.strip()][-2:]
             failures.append((label, proc.returncode, tail))
+        # A case that rewrites a committed file is a defect even when it exits 0: it dirties every
+        # reviewer's tree and hides real changes. Attribute it to the case that did it.
+        after = _tracked_changes()
+        if after - dirty:
+            touched = ", ".join(sorted(after - dirty))
+            failures.append((label, proc.returncode, ["rewrote committed file(s): %s" % touched]))
+            print("        -> rewrote committed file(s): %s" % touched)
+            dirty = after
 
     # 4. refusals: non-zero is correct here, so they are asserted separately
     print("Refusals (non-zero is the expected outcome)")
