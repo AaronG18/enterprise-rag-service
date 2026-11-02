@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 
 from . import REPO_ROOT
@@ -20,9 +21,25 @@ from ragserve.retrieval.pipeline import RetrievalConfig  # noqa: E402
 from ragserve.service import GenerationConfig, RagService  # noqa: E402
 
 
+class _FixedClock:
+    """A monotonic, deterministic clock for the sample.
+
+    `ts` came from `time.time()`, so regenerating the sample changed every line and the committed
+    file churned on every run - which makes "regenerate and compare" impossible and turns a
+    generated deliverable into noise. The sample is a fixture, so its clock is a fixture too.
+    """
+
+    def __init__(self, start: float = 1793600000.0):
+        self._now = start
+
+    def __call__(self) -> float:
+        self._now = round(self._now + 0.001, 3)
+        return self._now
+
+
 def build_service(events: EventLog):
     corpus = build_corpus(CorpusConfig.from_json(os.path.join(REPO_ROOT, "configs", "corpus.json")))
-    logger = StructuredLogger(sink=events.append)
+    logger = StructuredLogger(sink=events.append, clock=_FixedClock())
     return RagService(
         corpus,
         RetrievalConfig.from_json(os.path.join(REPO_ROOT, "configs", "retrieval.json")),
@@ -55,7 +72,7 @@ def main() -> int:
     from ragserve.api import ApiServer  # local: the CLI must import cheaply for --help
 
     server = ApiServer(REPO_ROOT, host="127.0.0.1", port=0)
-    server.logger = StructuredLogger(sink=events.append)
+    server.logger = StructuredLogger(sink=events.append, clock=_FixedClock(1793600100.0))
     server.ask({"question": queries[0]})
 
     out_path = os.path.join(REPO_ROOT, "docs", "logging", "sample_logs.md")
@@ -68,7 +85,11 @@ def main() -> int:
         # would make the sample self-contradictory.
         lines.append("    query (redacted): %s" % redact_text(query))
     lines += ["", "## Emitted lines (JSON, one per line)", "", "```json"]
-    lines.extend(events.lines())
+    # `latency_ms` is pinned in the sample so that regenerating it is a no-op: a generated
+    # deliverable that changes on every rebuild is noise in every diff, and a reviewer cannot tell
+    # the churn from a real change. Real runs print the measured value.
+    lines.extend(re.sub(r'"latency_ms": [0-9.]+', '"latency_ms": 42.0', line)
+                 for line in events.lines())
     lines += ["```", ""]
     with open(out_path, "w", encoding="utf-8", newline="\n") as fh:
         fh.write("\n".join(lines))

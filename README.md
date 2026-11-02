@@ -338,6 +338,12 @@ every path it wrote, so nothing has to be hunted for afterwards.
 | `--verify` | the requirement gate (harness) |
 | `--samples` / `--dashboard` / `--gen-corpus` | regenerate one deliverable at a time (sample logs, QA dashboard, the committed review corpus) |
 | `--audit` / `--diagnose` | re-run the 24 product-requirement probes, or one diagnosis case |
+| `--matrix` | run **every** flag of **every** mode, plus the evaluation cross product (mode x reranker x corpus x case limit) and the interactive variants; `--quick` skips the slow evaluation runs. 69 combinations, all expected outcomes asserted |
+
+`--matrix` exists because a hand-picked list of "combinations to try" is always a sample. It derives
+the list from each mode's own `--help`, so a flag cannot be added without being exercised, and it
+fails on any outcome other than the documented one - including commands that are *supposed* to
+refuse.
 
 | Flag | What it does |
 |---|---|
