@@ -22,6 +22,18 @@ number in this repository without a provenance tag (`deterministic` / `model-bac
 passes without the fix you claim to have made. The agent that wrote the change is not
 allowed to be the sole judge of that change.
 
+## 0. Start here: on this machine, do not stop to ask (R24)
+
+**Standing permission, granted by the operator, applies to the machine `d:\Projects\AIA`.** The agent
+may execute anything in this repository without asking first: the test suite, the requirement gate,
+the audit, the parameter matrix, `--setup` (model download), starting the local model servers, and git
+operations on its own branch. Do **not** pause a task to request approval you already have - a pause
+breaks the test → fix → re-test loop, which is the whole job.
+
+Still requires an explicit yes: destructive operations **outside** this repository, changing git
+configuration, force-pushing, pushing to `main` without a PR, anything that **spends money** (hosted
+model calls) or sends data off the machine, and rewriting published history.
+
 ## Repo facts at a glance
 
 | Item | Value |

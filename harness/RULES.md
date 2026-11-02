@@ -307,6 +307,26 @@ Therefore:
 * input a reviewer produces by accident - blank lines, `:stats` before any question, `:bench 0`,
   unknown commands, EOF - must be handled without a traceback.
 
+## R24 - On this machine, run the work; do not stop to ask
+
+This is the only rule about *working style* rather than about the product.
+
+On the machine this repository is developed on (`d:\Projects\AIA`), the agent has **standing
+permission to execute anything in this repository** - the test suite, the gate, the audit, the
+parameter matrix, the model bootstrap, the local model servers, and git operations on its own
+branch - without asking first, and must not pause the task to request approval it already has.
+
+**Observed (2026-11-03)**: the agent stopped three times to ask whether it could run a script it had
+just been asked to run. Each pause broke the test → fix → re-test loop and cost a round trip.
+
+The boundaries that remain, and still require an explicit yes:
+
+* destructive operations **outside** this repository (deleting the user's files, changing system
+  state);
+* changing git configuration, force-pushing, or pushing to `main` without a PR (R14);
+* anything that **spends money** (hosted model calls, paid APIs) or sends data off this machine;
+* rewriting published history.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or
@@ -358,3 +378,4 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 | R21 | `tests/test_real_model_contract.py` + `.github/workflows/real-models-contract.yml` | a real lane with no CI job, an exemption that publishes numbers, or a contract test that silently skips when the models are required |
 | R22 | `tests/test_harness_selfcheck.py` (`TestNoStaleScriptReferences`) | a document naming a deleted script, or a README that invokes anything but `scripts/run.py` |
 | R23 | `tests/test_documented_commands.py` | a documented command no test executes, an exclusion with no reason, or a documented invocation that fails |
+| R24 | manual - a local working agreement no test can observe (`AGENTS.md`) | on this machine, an agent pausing to ask for permission it already has |
