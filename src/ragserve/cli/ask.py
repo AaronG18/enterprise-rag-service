@@ -155,7 +155,12 @@ def main() -> int:
 
     _bootstrap(not args.no_bootstrap)
 
-    server = ApiServer(REPO_ROOT, host="127.0.0.1", port=0, corpus_dir=args.corpus)
+    try:
+        server = ApiServer(REPO_ROOT, host="127.0.0.1", port=0, corpus_dir=args.corpus)
+    except (ValueError, OSError) as exc:
+        # The interactive path builds the corpus too, so it needs the same readable refusal.
+        print("REFUSED: %s" % exc)
+        return 1
     corpus = server.corpus
     print("Corpus")
     print("  source        : %s" % (args.corpus or "built-in synthetic corpus"))

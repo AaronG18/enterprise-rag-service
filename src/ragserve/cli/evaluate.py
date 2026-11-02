@@ -96,9 +96,16 @@ def main() -> int:
         # Deliberately does not touch docs/eval/*. The labelled comparison belongs to the
         # synthetic corpus; measuring it against someone else's files would publish a number
         # nobody could reproduce.
+        from ragserve.corpus.loader import SUPPORTED_SUFFIXES  # noqa: E402
         from ragserve.evaluation.corpus_report import run_corpus_report  # noqa: E402
 
-        outcome = run_corpus_report(args.corpus, REPO_ROOT, args.out)
+        try:
+            outcome = run_corpus_report(args.corpus, REPO_ROOT, args.out)
+        except (ValueError, OSError) as exc:
+            # A reviewer typo must read as a refusal, not as a Python traceback.
+            print("REFUSED: %s" % exc)
+            print("Pass a directory or a supported file (%s)." % ", ".join(SUPPORTED_SUFFIXES))
+            return 1
         report = outcome["report"]
         print("Corpus report (user-supplied documents)")
         print("  source        :", report["source_dir"])

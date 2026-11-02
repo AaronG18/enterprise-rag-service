@@ -297,13 +297,21 @@ def load_documents(path: str) -> Tuple[List[Document], List[Dict[str, str]]]:
     Returns (documents, skipped) where `skipped` explains each file that could not be indexed, so
     the report can say what it did *not* cover instead of quietly omitting it.
     """
-    root = os.path.abspath(path)
-    if not os.path.isdir(root):
-        raise ValueError("corpus path is not a directory: %s" % path)
+    target = os.path.abspath(path)
+    if os.path.isfile(target):
+        # A single file is a corpus of one document. A reviewer pasting a path to a PDF should not
+        # have to wrap it in a directory first, and it used to raise a traceback instead.
+        root = os.path.dirname(target) or "."
+        entries = [(root, [], [os.path.basename(target)])]
+    elif os.path.isdir(target):
+        root = target
+        entries = os.walk(root)
+    else:
+        raise ValueError("no such file or directory: %s" % path)
 
     documents: List[Document] = []
     skipped: List[Dict[str, str]] = []
-    for current, _dirs, files in os.walk(root):
+    for current, _dirs, files in entries:
         for name in sorted(files):
             full = os.path.join(current, name)
             relative = os.path.relpath(full, root)
