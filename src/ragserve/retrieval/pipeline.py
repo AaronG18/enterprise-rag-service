@@ -89,12 +89,22 @@ class RetrievalConfig:
         return cfg
 
 
+_WARNED = set()
+
+
 def _warn(message: str) -> None:
-    """A fallback has to be noticed.
+    """A fallback has to be noticed - once.
 
     stderr, never stdout: `scripts/run.py --json` parses stdout, and one stray line turns its output
     into invalid JSON.
+
+    Deduplicated by message: a cold clone builds the retrieval pipeline for each configuration and
+    each case, so the same fallback warning printed **eleven times** in one 60-line run and buried
+    the result. One line per distinct message is noticed; eleven is noise.
     """
+    if message in _WARNED:
+        return
+    _WARNED.add(message)
     print("WARNING: %s" % message, file=sys.stderr)
 
 
