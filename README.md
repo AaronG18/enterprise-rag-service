@@ -70,13 +70,13 @@ place it is implemented and the command or document that proves it.
 | **Scenario** multi-turn RAG QA + generative service over handbook / compliance / tech specs / architecture | `src/ragserve/service.py`, multi-turn in `generation/context.py` | `tests/test_generation.py` |
 | **Corpus** bilingual CN/EN, includes scanned PDFs | `corpus/` generator, seeded; ~8% of docs through an OCR-noise transform | `docs/eval/retrieval-comparison.md` |
 | **Any stack, but choices justified with quantitative evidence** | section 8, `docs/adr/` | every row there carries a measurement |
-| **Performance** 90% of requests <= 10 s; >= 5 concurrent on one instance | service + cache | `scripts/run.py --http --concurrency 5 --assert` (p90 170 ms, 0 errors) |
-| **Cost** token-cost estimate per 1,000 calls; model-version trade-off (quality/cost/latency) | `configs/pricing.json`, `src/ragserve/evaluation/cost.py` | `scripts/run.py --cost`; `docs/eval/model-backed.md` (hy3 ~$50.5 vs flash ~$14.0 per 1,000 calls) |
-| **Quality** Faithfulness >= 0.85, evaluation method defined | `docs/metrics/metrics.md` | measured 1.0 deterministic / 0.913 model-backed |
-| **Quality** Context Precision >= 0.70 | same rubric | 0.9529 deterministic / 0.8814 model-backed |
-| **Quality** Answer Compliance >= 80% (advanced 90%) | generative scorer | 0.9000 deterministic / 0.965-0.983 model-backed |
-| **Quality** Style Consistency >= 80% (advanced 0.85) | generative scorer | 1.0 deterministic / 0.8957-0.904 model-backed |
-| **Quality** Refusal Appropriateness >= 80% (advanced 90%) | refusal eval set | 0.9000 deterministic / 0.9000 model-backed |
+| **Performance** 90% of requests <= 10 s; >= 5 concurrent on one instance | service + cache | `python scripts/run.py --bench --concurrency 5 --assert` - p90 **78 ms**, p95 **122 ms**, 0 errors, `within_bound: True`; the interactive loop reports the latency of *your* questions |
+| **Cost** token-cost estimate per 1,000 calls; model-version trade-off (quality/cost/latency) | `configs/pricing.json`, `src/ragserve/evaluation/cost.py` | `python scripts/run.py --eval --cost`; `docs/eval/model-backed.md` (hy3 ~$50.5 vs flash ~$14.0 per 1,000 calls) |
+| **Quality** Faithfulness >= 0.85, evaluation method defined | `docs/metrics/metrics.md` | 1.0000 deterministic / 0.9130 model-backed |
+| **Quality** Context Precision >= 0.70 | same rubric | 0.8814 deterministic / 0.9529 model-backed |
+| **Quality** Answer Compliance >= 80% (advanced 90%) | generative scorer | 0.9600 deterministic / 0.9826 model-backed |
+| **Quality** Style Consistency >= 80% (advanced 0.85) | generative scorer | 1.0000 deterministic / 0.9043 model-backed |
+| **Quality** Refusal Appropriateness >= 80% (advanced 90%) | refusal eval set | 0.9529 deterministic / 0.9000 model-backed |
 | **Logging** structured logs for monitoring and issue diagnosis | `src/ragserve/logging/` | `docs/logging/log_fields.md` + generated `sample_logs.md` |
 | **Security** minimal prompt-injection defense | `generation/safety.py` (`detect_injection`, `neutralise`) | injection query -> refusal `injection_detected` with guidance |
 | **Security** basic PII handling | `generation/pii.py` | redacted on the answer **and** the log record (email/phone/id/card) |
@@ -105,14 +105,14 @@ maps each target to a verification command and an owning issue.
 
 | Family | Target | Measured |
 |---|---|---|
-| End-to-end latency | p90 <= 10 s | 10.5-34.8 ms at 5 concurrent |
+| End-to-end latency | p90 <= 10 s | p50 **21 ms** / p90 **78 ms** / p95 **122 ms**, 5 concurrent, 0 errors |
 | Concurrency | >= 5 concurrent, single instance | 5 concurrent, 0 errors |
 | Faithfulness | >= 0.85 | 1.0 |
 | Context Precision | >= 0.70 | 0.8814 |
 | Answer Compliance | >= 0.80 / 0.90 | 0.9600 |
 | Refusal Appropriateness | >= 0.80 / 0.90 | 0.9529 |
 | Style Consistency | >= 0.80 / 0.85 | 1.0 |
-| Cost | estimate per 1,000 calls | `scripts/run.py --cost` prints `cost_per_1000_calls_usd` from measured tokens x `configs/pricing.json` (reference prices; the deterministic CI baseline is a local stub, so $0.00) |
+| Cost | estimate per 1,000 calls | `python scripts/run.py --eval --cost` prints `cost_per_1000_calls_usd` from measured tokens x `configs/pricing.json` (reference prices; the deterministic CI baseline is a local stub, so $0.00) |
 | Observability | structured logs, single-request reconstruction | 5 stages per request, documented dictionary |
 | Issue diagnosis | >= 2 cases, >= 10% gain | 2 cases: +575%, +100% |
 
@@ -124,8 +124,8 @@ The repository also carries a **model-backed lane** (`model-backed` provenance):
 calls over 2 model versions x 3 retrieval configurations. Real generation initially missed the
 targets (faithfulness 0.64-0.72, compliance 0.73-0.90) - two defects in our own pipeline were
 found and fixed as a result (INC-003), and the best configuration now meets every advanced target:
-**hy3 + hybrid, faithfulness 0.8913, refusal appropriateness 0.9000, style 0.8957, compliance
-0.965**. See [`docs/eval/model-backed.md`](docs/eval/model-backed.md),
+**hy3 + hybrid, faithfulness 0.9130, refusal appropriateness 0.9000, style 0.9043, compliance
+0.9826** (30 cases x 6 configurations = 180 calls, `docs/eval/model-backed-metrics.json`). See [`docs/eval/model-backed.md`](docs/eval/model-backed.md),
 [`docs/diagnosis/INC-003-real-generation-quality.md`](docs/diagnosis/INC-003-real-generation-quality.md)
 and [ADR 0004](docs/adr/0004-model-version-tradeoff.md) - which records a recommendation
 reversal once the measurements were corrected.
@@ -180,7 +180,7 @@ Environment
 
 Corpus
   source        : built-in synthetic corpus
-  documents     : 80 | chunks 204 | languages {'en': 41, 'zh': 39}
+  documents     : 80 | chunks 204 | languages {'en': 40, 'zh': 40}
   backend       : model-backed (bge-m3 + bge-reranker-v2-m3)
 
 Ask a question. Commands: :stats  :bench [N]  :quit
@@ -267,13 +267,15 @@ every path it wrote, so nothing has to be hunted for afterwards.
 | `--setup` / `--check` | install the local models, or report what is installed |
 | `--test` | the hermetic test suite (harness) |
 | `--verify` | the requirement gate (harness) |
+| `--samples` / `--dashboard` / `--gen-corpus` | regenerate one deliverable at a time (sample logs, QA dashboard, the committed review corpus) |
+| `--audit` / `--diagnose` | re-run the 24 product-requirement probes, or one diagnosis case |
 
 | Flag | What it does |
 |---|---|
 | `--all` | run everything (the default): three-config comparison + generative scoring + ops report |
 | `--mode vector_only\|hybrid` | score only this retrieval mode; overrides `configs/retrieval.json` (FR-1) |
 | `--rerank on\|off` | enable/disable the reranker for this run; overrides the config (FR-1) |
-| `--corpus DIR` | index `.txt`/`.md`/`.pdf` from `DIR` and write a corpus report instead of the labelled comparison |
+| `--corpus PATH` | index `.txt` / `.md` / `.markdown` / `.pdf` from a **directory or a single file** and write a corpus report instead of the labelled comparison |
 | `--deliverables` | after the run, regenerate the committed deliverables and print every path written |
 | `--refresh-model-backed` | with `--deliverables`: re-measure the model-backed lane (needs the local servers; **refuses** otherwise, writing nothing) |
 | `--seed-model-backed FILE` | commit an existing `artifacts/eval/<id>/metrics.json` as the snapshot without re-measuring |
@@ -299,11 +301,29 @@ python scripts/run.py --eval --corpus ./my-docs             # measure documents 
 ### Bring your own documents
 
 The corpus above is synthetic on purpose, but a reviewer will plausibly bring their own files, so
-any entry point can index a directory instead:
+every mode can index a **directory or a single file** instead:
 
 ```bash
 python scripts/run.py --eval --corpus /path/to/documents     # corpus report; snapshots untouched
-python scripts/run.py --serve    --corpus /path/to/documents     # serve them over the API
+python scripts/run.py --eval --corpus /path/to/one-report.pdf  # a single file is a corpus of one
+python scripts/run.py --corpus /path/to/documents              # the same documents, asked interactively
+python scripts/run.py --serve --corpus /path/to/documents      # serve them over the API
+```
+
+Paths are used as given, so all of these work: absolute or relative, **with spaces**, a **Chinese
+directory name**, nested folders, a trailing separator, `..` segments, and **UPPERCASE extensions**
+(`REPORT.PDF`). Unsupported files inside a directory (`.json`, `.bin`, no extension) are listed as
+skipped rather than silently dropped.
+
+Two inputs are refused on purpose, in one readable line with exit 1 and no traceback and nothing
+written:
+
+* a path that does not exist, and
+* a folder with no supported documents in it (an empty folder is not a successful run).
+
+```
+REFUSED: nothing was indexed from /path/to/empty - no supported documents were found
+Pass a directory or a supported file (.txt, .md, .markdown, .pdf).
 ```
 
 Do **not** add `--deliverables` to a `--corpus` run: the committed deliverables describe the
@@ -312,8 +332,9 @@ believing your documents were measured into them.
 
 Supported: `.txt`, `.md`, `.markdown`, `.pdf`. PDF text is extracted with the standard library
 only (no PDF parser is available without a dependency), so it is best-effort - and a PDF whose
-text cannot be extracted is **reported as skipped, not silently indexed as empty**. Anything
-without extractable text is listed in the report.
+text cannot be extracted is **reported as skipped, not silently indexed as empty**. A **mixed**
+PDF (some pages with a text layer, some scanned) keeps the readable pages and reports how many
+pages had no text. Anything without extractable text is listed in the report.
 
 With a supplied corpus the labelled comparison is **not** run: its 85 cases name synthetic
 documents (`handbook-en-00`, ...) and would score nothing meaningful against someone else's files.
@@ -349,7 +370,15 @@ script all point at the same place. Note that gitignored files do **not** travel
 pull` - a reviewer re-creates them by running `scripts/run.py` above, which is why that script
 is committed.
 
-Start the two servers (they are plain executables: no installer, no service, no admin rights):
+**Platform note, stated rather than discovered:** the bundled runtime asset is the **Windows x64
+CPU** build of `llama.cpp`. On Windows a cold clone gets the real models by running
+`python scripts/run.py`; on Linux or macOS `--check` reports `runtime: MISSING` and the service
+falls back to the deterministic backend (loudly, never silently). Everything except the two model
+servers - the whole suite, the deterministic evaluation, the corpus handling - runs on any OS with
+Python 3.11+.
+
+`python scripts/run.py` starts both servers for you and waits until they answer; the commands below
+are the equivalent by hand (plain executables: no installer, no service, no admin rights):
 
 ```bash
 vendor/llama.cpp/llama-server.exe -m models/bge-m3-q8_0.gguf \

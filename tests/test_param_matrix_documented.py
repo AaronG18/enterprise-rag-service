@@ -42,6 +42,32 @@ class ParameterMatrixDocumentedTest(unittest.TestCase):
                          _read("docs/eval/parameter-matrix.md"),
                          "matrix must not reference the deleted second entry point")
 
+    def test_readme_headline_numbers_match_the_committed_snapshots(self):
+        """The README quoted a stale corpus, swapped context precision and a superseded model-backed
+        run all at once. Pin every headline number to the snapshot that produces it."""
+        with open(os.path.join(_repo_root(), "docs", "eval", "deterministic-metrics.json"),
+                  "r", encoding="utf-8") as fh:
+            deterministic = json.load(fh)
+        best = deterministic["comparison"]["hybrid+rerank"]
+        readme = _read("README.md")
+        for label, value in (("faithfulness", best["faithfulness"]),
+                             ("context precision", best["context_precision"]),
+                             ("refusal appropriateness", best["refusal_appropriateness"]),
+                             ("style consistency", best["style_consistency"]),
+                             ("answer compliance", deterministic["operations"]["answer_compliance_rate"])):
+            self.assertIn("%.4f" % value, readme,
+                          "README must quote the current deterministic %s (%.4f)" % (label, value))
+
+        with open(os.path.join(_repo_root(), "docs", "eval", "model-backed-metrics.json"),
+                  "r", encoding="utf-8") as fh:
+            model_backed = json.load(fh)["comparison"]["hy3 | hybrid"]
+        for label, value in (("faithfulness", model_backed["faithfulness"]),
+                             ("compliance", model_backed["answer_compliance_rate"]),
+                             ("style", model_backed["style_consistency"]),
+                             ("refusal", model_backed["refusal_appropriateness"])):
+            self.assertIn("%.4f" % value, readme,
+                          "README must quote the current model-backed %s (%.4f)" % (label, value))
+
     def test_readme_documents_reviewer_supplied_corpus(self):
         """The reviewer-supplied corpus is a required capability (issue #96)."""
         readme = _read("README.md")
