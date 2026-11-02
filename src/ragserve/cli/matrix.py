@@ -55,8 +55,12 @@ MODES = (
     ("--audit", ["--audit"], False),          # re-runs the probes
     ("--diagnose", ["--diagnose"], True),
     ("--gen-corpus", ["--gen-corpus"], True),
-    ("--samples", ["--samples"], True),
-    ("--dashboard", ["--dashboard"], True),
+    # These two rewrite committed deliverables under docs/. A test that dirties the working tree is
+    # a test nobody can trust: running the matrix used to leave qa-dashboard.html modified with the
+    # latency of whatever bench had just run. Parse-only here; their content is guarded by the
+    # --deliverables drift test.
+    ("--samples", ["--samples"], False),
+    ("--dashboard", ["--dashboard"], False),
     ("--build-corpus", ["--build-corpus"], True),
 )
 
