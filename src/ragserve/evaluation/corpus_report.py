@@ -121,6 +121,11 @@ def run_corpus_report(directory: str, root: str, artifacts_dir: str) -> Dict:
     configs = os.path.join(root, "configs")
     corpus = build_corpus_from_directory(directory, CorpusConfig.from_json(
         os.path.join(configs, "corpus.json")))
+    if not corpus.documents:
+        # Refusing here, before anything is written, is the difference between "your path is wrong"
+        # and "0 documents, a report about nothing, exit 0".
+        raise ValueError("nothing was indexed from %s - no supported documents were found"
+                         % os.path.abspath(directory))
     retrieval = RetrievalConfig.from_json(os.path.join(configs, "retrieval.json"))
     generation = GenerationConfig.from_json(os.path.join(configs, "generation.json"))
     report = measure_corpus(corpus, retrieval, generation)
