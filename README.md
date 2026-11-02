@@ -237,15 +237,16 @@ real models:
 ```
 Q> :bench 5
   running 5 concurrent requests on your last question...
-  concurrency 5 | wall 5 ms | p50 0 ms | p95 1 ms | errors 0
+  concurrency 5 | wall 3165 ms | p50 3162 ms | p95 3163 ms | errors 0
   under-10s bound: PASS
 ```
 
 That is single-flight working (`RagService.answer`): of five identical requests arriving together,
-**one** computes and the other four share the result. Before it, all five missed an empty cache and
-queued behind the single-slot model server - **p50 14.1 s, `FAIL`** - on a question the service had
-just answered. The guard is asserted by a test, not by the benchmark: exactly one of five
-simultaneous identical questions computes.
+**one** computes and the other four share the result, so the burst costs one model call instead of
+five. When the last question is already in the cache the same burst returns in **~5 ms**. Before the
+guard, all five missed an empty cache and queued behind the single-slot model server - **p50 14.1 s,
+`FAIL`** - on a question the service had just answered. The property is asserted by a test, not by
+the benchmark: exactly one of five simultaneous identical questions computes.
 
 Honest boundary: five **different** questions at the same moment is a different measurement. On this
 CPU-only instance they queue behind the embedding model (measured p50 14.1 s); a deployment with
