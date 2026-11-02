@@ -127,6 +127,10 @@ class Session:
         if not self.last_question:
             print("  ask a question first, then :bench")
             return
+        if concurrency < 1:
+            # ThreadPoolExecutor(max_workers=0) raises; a typo must not produce a traceback.
+            print("  :bench needs a positive number of requests, e.g. :bench 5")
+            return
         print("  running %d concurrent requests on your last question..." % concurrency)
         started = time.perf_counter()
         latencies, errors = [], 0

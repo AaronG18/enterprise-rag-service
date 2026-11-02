@@ -256,7 +256,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.check:
-        exe = os.path.join(VENDOR, "llama-server.exe")
+        exe = server_binary()  # platform-aware, so `--check` is honest on Linux too
         print("runtime:", "present" if os.path.exists(exe) else "MISSING")
         for name, _ in WEIGHTS:
             p = os.path.join(MODELS, name)
@@ -264,7 +264,10 @@ def main() -> int:
                 print("weights: %-34s present (%.0f MB)" % (name, os.path.getsize(p) / 1e6))
             else:
                 print("weights: %-34s MISSING" % name)
-        return 0 if os.path.exists(exe) else 1
+        # A report is not a gate. On a cold clone nothing is installed yet, and `--check` used to
+        # exit 1 there - which made a documented command look broken and is how CI caught it.
+        # `--setup` still exits non-zero when a download fails; `--check` only reports.
+        return 0
 
     runtime_ok = ensure_runtime()
     weights_ok = ensure_weights()

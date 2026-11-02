@@ -284,6 +284,29 @@ not exist - the worst failure mode for a hand-over, and invisible to every test.
 So: commands name the single entry point; the self-check scans every tracked document for dead script
 names; and the README's invocations are asserted to be `scripts/run.py` and nothing else.
 
+## R23 - A documented command is a contract, not a suggestion
+
+If the README shows a command, something must **execute** it. Prose is never compiled, so a change in
+a dispatcher can break a documented command while every test that exercises the *service underneath*
+stays green - and the reviewer meets the breakage first, before any of the evidence.
+
+**Observed, and it was fatal.** `python scripts/run.py --corpus DIR`, printed in the Quickstart,
+failed **100% of the time** with `unrecognized arguments`. The dispatcher treated `--corpus` as a
+valueless mode switch, stripped it, and left the path stranded; the interactive path never started.
+Nothing caught it: the command matrix I had run covered `--eval --corpus DIR` - a different code path
+in a different module - and no test had ever executed a command copied from the README.
+
+Therefore:
+
+* every documented invocation is **executed** by `tests/test_documented_commands.py`, with its exit
+  code and its output checked;
+* a README command that no test runs, and that no recorded exclusion explains, is a **red build** -
+  adding a line to the Quickstart therefore costs a test;
+* "it parses" is not enough: the check asserts the effect (a supplied corpus is actually indexed), not
+  just that argparse accepted the flags;
+* input a reviewer produces by accident - blank lines, `:stats` before any question, `:bench 0`,
+  unknown commands, EOF - must be handled without a traceback.
+
 ## R11 - Fold learning back
 
 When something breaks in a way that a rule or skill did not anticipate, update the rule or
@@ -334,3 +357,4 @@ provider gave identical results, so the claim was withdrawn in `docs/diagnosis/I
 | R20 | `tests/test_harness_selfcheck.py` (`test_scripts_holds_exactly_one_entry_point`) | a second script in `scripts/`, or README instructions that send a reviewer to anything but `run.py` |
 | R21 | `tests/test_real_model_contract.py` + `.github/workflows/real-models-contract.yml` | a real lane with no CI job, an exemption that publishes numbers, or a contract test that silently skips when the models are required |
 | R22 | `tests/test_harness_selfcheck.py` (`TestNoStaleScriptReferences`) | a document naming a deleted script, or a README that invokes anything but `scripts/run.py` |
+| R23 | `tests/test_documented_commands.py` | a documented command no test executes, an exclusion with no reason, or a documented invocation that fails |
