@@ -78,6 +78,10 @@ def _report_backend(server: ApiServer) -> None:
 
 
 class Session:
+    #: How many previous turns the follow-up resolver may see. Six is enough for the pronoun and
+    #: elliptical cases the brief cares about without letting an early question hijack a late one.
+    HISTORY_TURNS = 6
+
     def __init__(self, server: ApiServer):
         self.server = server
         self.latencies = []
@@ -85,13 +89,24 @@ class Session:
         self.tokens = 0
         self.cache_hits = 0
         self.last_question = None
+        # The loop used to call answer() with no history at all, so "multi-turn" only worked if you
+        # drove the service directly. A follow-up typed here now resolves against the earlier turns.
+        self.history = []
 
     def ask(self, question: str):
         started = time.perf_counter()
-        result = self.server.service.answer(question)
+        result = self.server.service.answer(question, history=self.history)
         latency = (time.perf_counter() - started) * 1000.0
         self.latencies.append(latency)
         self.last_question = question
+        resolved = result.resolved_query or question
+        if resolved != question:
+            # Show the rewrite: a wrong one is the single most likely multi-turn failure, and it is
+            # invisible unless the loop says what it actually searched for.
+            print("  resolved to: %s" % resolved)
+        self.history.append((resolved, result.answer.text))
+        if len(self.history) > self.HISTORY_TURNS:
+            self.history = self.history[-self.HISTORY_TURNS:]
         if result.answer.refused:
             self.refusals += 1
         self.tokens += int(getattr(result.answer.usage, "total_tokens", 0) or 0)
@@ -174,7 +189,9 @@ def main() -> int:
     session = Session(server)
     while True:
         try:
-            line = input("Q> ").strip()
+            # Strip a byte-order mark too: pasted questions (and piped input from some shells) can
+            # arrive with U+FEFF, which then rides into retrieval as part of the query.
+            line = input("Q> ").strip().strip("\ufeff").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break

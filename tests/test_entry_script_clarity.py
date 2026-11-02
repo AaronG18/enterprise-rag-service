@@ -57,5 +57,40 @@ class EntryScriptClarityTest(unittest.TestCase):
                       "every combination must end with the paths it wrote")
 
 
+def run_ask(*questions: str):
+    """Drive the interactive loop with piped answers, hermetically."""
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["RAGSERVE_EMBEDDING_PROVIDER"] = "deterministic"
+    env["RAGSERVE_RERANKER_PROVIDER"] = "deterministic"
+    return subprocess.run(
+        [sys.executable, os.path.join(REPO, "scripts", "run.py"), "--no-bootstrap"],
+        cwd=REPO, env=env, input="\n".join(questions) + "\n", capture_output=True, text=True,
+        encoding="utf-8", errors="replace", timeout=300)
+
+
+class InteractiveMultiTurnTest(unittest.TestCase):
+    """The loop must carry the previous turn, not just the service API (issue #132).
+
+    Observed: `Session.ask` called `answer(question)` with no history, so "multi-turn" only worked if
+    you drove the service directly - the one script the reviewer runs was single-turn.
+    """
+
+    def test_a_follow_up_is_rewritten_against_the_previous_turn(self):
+        proc = run_ask("How many days of annual leave do full-time employees accrue?",
+                       "What about part-time employees?", ":quit")
+        self.assertEqual(proc.returncode, 0, proc.stderr[-400:])
+        self.assertIn("resolved to:", proc.stdout,
+                      "the loop must show the rewrite, or a bad one is invisible")
+        rewritten = next(line for line in proc.stdout.splitlines() if "resolved to:" in line)
+        self.assertIn("annual leave", rewritten)
+        self.assertIn("part-time", rewritten)
+
+    def test_a_first_question_is_never_rewritten(self):
+        proc = run_ask("How many days of annual leave do full-time employees accrue?", ":quit")
+        self.assertEqual(proc.returncode, 0, proc.stderr[-400:])
+        self.assertNotIn("resolved to:", proc.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
