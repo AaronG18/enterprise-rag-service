@@ -33,6 +33,9 @@ CASES = (
     ("--bench", ["--bench", "--concurrency", "5", "--assert"], None),
     ("--gen-corpus", ["--gen-corpus", "--out", "__TMP__"], None),
     ("--diagnose", ["--diagnose", "--all"], None),
+    # The matrix itself is a documented command: it derives the combinations from the CLI, so this
+    # one case keeps 61 of them honest on every build.
+    ("--matrix --quick", ["--matrix", "--quick"], None),
 )
 
 #: Documented commands deliberately not executed here, each with a reason. The self-check reads this
@@ -53,7 +56,7 @@ NOT_EXECUTED = {
 #: Mode flags the README may use. Anything else that looks like a mode is a documentation bug.
 MODE_FLAGS = ("--ask", "--eval", "--corpus", "--serve", "--setup", "--check", "--bench", "--test",
               "--verify", "--audit", "--diagnose", "--gen-corpus", "--samples", "--dashboard",
-              "--build-corpus")
+              "--build-corpus", "--matrix")
 
 
 def _env() -> dict:

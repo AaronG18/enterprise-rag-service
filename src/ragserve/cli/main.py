@@ -39,6 +39,7 @@ MODES = (
     ("--samples", "ragserve.cli.samples", False),
     ("--dashboard", "ragserve.cli.dashboard", False),
     ("--build-corpus", "ragserve.cli.build_corpus", False),
+    ("--matrix", "ragserve.cli.matrix", False),
 )
 
 
