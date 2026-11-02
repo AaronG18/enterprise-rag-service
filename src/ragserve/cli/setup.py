@@ -162,9 +162,14 @@ def ensure_weights() -> bool:
     return ok
 
 
+# `-np` and `--cont-batching` matter for the brief's ">= 5 concurrent" target: llama-server defaults
+# to a single slot, so five concurrent requests were served one after another - measured at 14.6 s
+# wall and p50 9.6 s, i.e. the target FAILED while the deterministic gate reported 78 ms.
 SERVERS = (
-    ("embedding", "bge-m3-q8_0.gguf", 8011, ["--embedding"]),
-    ("reranker", "bge-reranker-v2-m3-q4_k_m.gguf", 8012, ["--embedding", "--pooling", "rank"]),
+    ("embedding", "bge-m3-q8_0.gguf", 8011,
+     ["--embedding", "-np", "8", "--cont-batching"]),
+    ("reranker", "bge-reranker-v2-m3-q4_k_m.gguf", 8012,
+     ["--embedding", "--pooling", "rank", "-np", "8", "--cont-batching"]),
 )
 
 

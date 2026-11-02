@@ -167,16 +167,23 @@ That is the whole setup. There is **one** script, and its first run builds the e
 it installs the bundled models if they are missing, starts the two model servers, waits until they
 answer, then opens the question loop.
 
+Here is a real session, copied verbatim from a run on this machine (Windows, CPU-only). Nothing is
+abridged: the banner, the environment steps, two questions including a **follow-up**, the statistics
+and the exit summary are all exactly what the script printed.
+
 ```
-Terminal folder   : /path/where/you/are
-Repository root   : /path/to/repository
+Terminal folder   : D:\Projects\AIA
+Repository root   : D:\Projects\AIA
+User              : Gao
 
 Environment
-  embedding already present (635 MB)
-  reranker  already present (438 MB)
-  embedding starting on 8011 (pid 41234)
-  reranker  starting on 8012 (pid 41235)
+runtime: present (D:\Projects\AIA\vendor\llama.cpp\llama-server.exe)
+weights: bge-m3-q8_0.gguf                   present (635 MB)
+weights: bge-reranker-v2-m3-q4_k_m.gguf     present (438 MB)
+  embedding starting on 8011 (pid 17324)
+  reranker  starting on 8012 (pid 18540)
   waiting for the models to load...
+  left running for the next run (loopback only)
 
 Corpus
   source        : built-in synthetic corpus
@@ -186,6 +193,55 @@ Corpus
 Ask a question. Commands: :stats  :bench [N]  :quit
 
 Q> How many days of annual leave do full-time employees accrue?
+Leave of more than 3 consecutive days requires line-manager approval at least 10 working days in
+advance. Full-time employees accrue 15 working days of paid annual leave per calendar year.
+Part-time employees accrue leave pro rata based on contracted hours, rounded up to the nearest half day.
+  handbook-en-00:0001
+  handbook-en-00:0000
+  (2757 ms)
+
+Q> What about part-time employees?
+  resolved to: How many days of annual leave do full-time employees accrue? What about part-time employees?
+Managers may approve unpaid leave of up to 10 days where entitlement is exhausted. Full-time
+employees accrue 15 working days of paid annual leave per calendar year. Part-time employees accrue
+leave pro rata based on contracted hours, rounded up to the nearest half day.
+  handbook-en-00:0003
+  handbook-en-00:0000
+  (3316 ms)
+
+Q> :stats
+  questions 2 | p50 2757 ms | p95 3316 ms | max 3316 ms | refusals 0 | tokens 0 | cache hits 0
+
+Q> :quit
+
+Summary
+  questions 2 | p50 2757 ms | p95 3316 ms | max 3316 ms | refusals 0 | tokens 0 | cache hits 0
+```
+
+Three things to read out of that transcript:
+
+* **`resolved to:`** is the multi-turn machinery working. The follow-up *"What about part-time
+  employees?"* has no subject of its own; the loop rewrites it against the previous turn and shows
+  you the rewrite, because a silent bad rewrite is the hardest multi-turn bug to see. A first
+  question is never rewritten.
+* **the latency is per question**, printed by the loop - that is the number the brief's "90% within
+  10 s" is about, not a batch average.
+* **citations** (`handbook-en-00:0001`) are the passages the answer was composed from, which is what
+  "grounded" means here.
+
+### Measured limits, stated rather than discovered
+
+`:bench 5` replays **your last question** five times concurrently. On this CPU-only machine with the
+real model that is a cold-cache burst: measured **p50 14.1 s, wall 15.7 s, 0 errors**, so the 10 s
+bound **fails** for five simultaneous real-model requests and `:bench` prints `FAIL` when it does.
+
+What does meet the bound: one reviewer asking questions (2.8-3.3 s per answer above), the
+deterministic backend (p90 **78 ms**), and any deployment with more than one model slot or a GPU.
+The honest summary is that the service is fast per request and bounded by the model server under
+concurrent real-model load - the number is printed, not hidden.
+
+```bash
+python scripts/run.py --bench --concurrency 5 --assert   # exits non-zero when the bound is missed
 ```
 
 The **second run** finds the models and the servers already there, says so, and goes straight to the

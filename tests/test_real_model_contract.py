@@ -75,9 +75,12 @@ class RealModelContractTest(unittest.TestCase):
                 "real-model contract runs in its own job; set RAGSERVE_REQUIRE_REAL_MODELS=1")
 
         # conftest.py pins the offline provider for every pytest run. Undo it here, or this module
-        # would test the fixture it is supposed to be the counterweight to.
-        os.environ.pop("RAGSERVE_EMBEDDING_PROVIDER", None)
-        os.environ.pop("RAGSERVE_RERANKER_PROVIDER", None)
+        # would test the fixture it is supposed to be the counterweight to. Save what we removed and
+        # put it back in tearDownClass: leaking the pop made every later test in the same worker run
+        # against the real models (measured: the suite slowed to 192 s and a legitimate query was
+        # refused because retrieval had changed underneath it).
+        cls._saved_env = {name: os.environ.pop(name, None) for name in
+                          ("RAGSERVE_EMBEDDING_PROVIDER", "RAGSERVE_RERANKER_PROVIDER")}
 
         if REQUIRE:
             for _name, weight, _port, _extra in setup_mod.SERVERS:
@@ -99,6 +102,9 @@ class RealModelContractTest(unittest.TestCase):
     def tearDownClass(cls):
         setup_mod.stop_servers(getattr(cls, "started", []))
         shutil.rmtree(getattr(cls, "tmp", ""), ignore_errors=True)
+        for name, value in getattr(cls, "_saved_env", {}).items():
+            if value is not None:
+                os.environ[name] = value
 
     def test_the_shipped_config_is_model_backed(self):
         """A silently degraded config is how the real lane rots without anyone noticing."""
