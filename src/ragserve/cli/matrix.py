@@ -275,6 +275,12 @@ def main(argv=None) -> int:
         print("  %-44s exit=%-4s %s" % (label, proc.returncode, "ok" if ok else "FAIL"))
         if not ok:
             failures.append((label, proc.returncode, [out.strip().splitlines()[-1][:120]]))
+        after = _tracked_changes()
+        if after - dirty:
+            touched = ", ".join(sorted(after - dirty))
+            failures.append((label, proc.returncode, ["rewrote committed file(s): %s" % touched]))
+            print("        -> rewrote committed file(s): %s" % touched)
+            dirty = after
 
     print()
     print("%d/%d behaved as expected" % (len(results) + len(refusal_argv) - len(failures),

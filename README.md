@@ -305,7 +305,7 @@ measurements (it once did - see `docs/diagnosis/` / issue #92):
 | deterministic snapshot | `docs/eval/deterministic-metrics.json` |
 | comparison report (**generated**, never hand-edited) | `docs/eval/retrieval-comparison.md` |
 | sample logs | `docs/logging/sample_logs.md` |
-| QA dashboard | `docs/qa/qa-dashboard.html` |
+| QA dashboard | `docs/qa/qa-dashboard.html` (generated on demand by `--dashboard`; **not committed**, so a run cannot dirty your working tree) |
 
 Editing `retrieval-comparison.md` by hand fails a test: the committed file must equal what the
 renderer produces from the committed snapshots. Add `--refresh-model-backed` (with the local model

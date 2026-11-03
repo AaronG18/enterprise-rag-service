@@ -13,11 +13,12 @@ import unittest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXTURE = os.path.join(REPO, "tests", "data", "external-corpus")
+#: The three committed deliverables. The QA dashboard is generated on demand and gitignored - it
+#: reflects the latest run by design, so committing it dirtied the tree after every test run.
 DELIVERABLES = [
     os.path.join(REPO, "docs", "eval", "deterministic-metrics.json"),
     os.path.join(REPO, "docs", "eval", "retrieval-comparison.md"),
     os.path.join(REPO, "docs", "logging", "sample_logs.md"),
-    os.path.join(REPO, "docs", "qa", "qa-dashboard.html"),
 ]
 
 
