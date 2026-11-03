@@ -39,3 +39,6 @@ Thumbs.db
 *.swp
 .vscode/settings.json
 *.~lock.*
+
+# Generated on demand; committing it made every test run dirty the tree
+docs/qa/qa-dashboard.html
