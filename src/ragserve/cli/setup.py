@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import platform
 import socket
 import subprocess
 import sys
@@ -50,14 +51,23 @@ VENDOR = os.path.join(REPO_ROOT, "vendor", "llama.cpp")
 MODELS = os.path.join(REPO_ROOT, "models")
 
 LLAMA_BUILD = "b12015"
-LLAMA_ASSET = "llama-%s-bin-win-cpu-x64.zip" % LLAMA_BUILD
-LLAMA_SOURCES = [
-    # ghproxy fronts GitHub release assets, which are otherwise served from a host that some
-    # networks cannot reach.
-    "https://ghproxy.net/https://github.com/ggml-org/llama.cpp/releases/download/"
-    "%s/%s" % (LLAMA_BUILD, LLAMA_ASSET),
-    "https://github.com/ggml-org/llama.cpp/releases/download/%s/%s" % (LLAMA_BUILD, LLAMA_ASSET),
-]
+
+
+def runtime_sources(asset: str = None):
+    """Download URLs for this platform's llama.cpp asset, proxied first.
+
+    ghproxy fronts GitHub release assets, which are otherwise served from a host that some networks
+    cannot reach.
+    """
+    if asset is None:
+        asset = runtime_asset()
+    if not asset:  # an explicit "" means "this platform has no asset", not "use the default"
+        return []
+    return [
+        "https://ghproxy.net/https://github.com/ggml-org/llama.cpp/releases/download/"
+        "%s/%s" % (LLAMA_BUILD, asset),
+        "https://github.com/ggml-org/llama.cpp/releases/download/%s/%s" % (LLAMA_BUILD, asset),
+    ]
 
 WEIGHTS = [
     ("bge-m3-q8_0.gguf", [
@@ -114,20 +124,42 @@ def _download_any(sources, dest: str, label: str) -> bool:
     return False
 
 
+def runtime_asset() -> str:
+    """The llama.cpp release asset for this machine.
+
+    Hard-coding the Windows build meant a reviewer on macOS or Linux never got a model at all - the
+    server is the difference between a working service and a documented fallback. The upstream
+    release publishes one asset per platform, so the platform picks the asset.
+    """
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+    if system == "windows":
+        return "llama-%s-bin-win-cpu-x64.zip" % LLAMA_BUILD
+    if system == "linux":
+        return "llama-%s-bin-ubuntu-x64.zip" % LLAMA_BUILD
+    if system == "darwin":
+        arch = "arm64" if machine in ("arm64", "aarch64") else "x64"
+        return "llama-%s-bin-macos-%s.zip" % (LLAMA_BUILD, arch)
+    return ""
+
+
 def ensure_runtime() -> bool:
-    exe = os.path.join(VENDOR, "llama-server.exe")
+    exe = server_binary()  # platform-aware name: llama-server.exe vs llama-server
     if os.path.exists(exe):
         print("runtime: present (%s)" % exe)
         return True
-    if sys.platform != "win32":
-        print("runtime: SKIPPED - this bundled build is Windows x64 only.")
-        print("         On Linux/macOS build llama.cpp from source, or run Ollama, then point")
-        print("         embedding_endpoint / reranker_endpoint at it (see README).")
+    asset = runtime_asset()
+    if not asset:
+        print("runtime: SKIPPED - no bundled build for %s/%s."
+              % (platform.system(), platform.machine()))
+        print("         Build llama.cpp from source and drop the binary in %s," % VENDOR)
+        print("         or point embedding_endpoint / reranker_endpoint at a server you run.")
         return False
-    print("runtime: downloading llama.cpp %s ..." % LLAMA_BUILD)
+    print("runtime: downloading llama.cpp %s for %s ..."
+          % (LLAMA_BUILD, platform.system().lower()))
     os.makedirs(VENDOR, exist_ok=True)
     zip_path = os.path.join(VENDOR, "llama.zip")
-    if not _download_any(LLAMA_SOURCES, zip_path, "llama.cpp"):
+    if not _download_any(runtime_sources(asset), zip_path, "llama.cpp"):
         return False
     try:
         with zipfile.ZipFile(zip_path) as zf:

@@ -248,10 +248,13 @@ guard, all five missed an empty cache and queued behind the single-slot model se
 `FAIL`** - on a question the service had just answered. The property is asserted by a test, not by
 the benchmark: exactly one of five simultaneous identical questions computes.
 
-Honest boundary: five **different** questions at the same moment is a different measurement. On this
-CPU-only instance they queue behind the embedding model (measured p50 14.1 s); a deployment with
-more than one model slot, or a GPU, is where that number comes down. One reviewer asking questions in
-sequence is 2.8-4.1 s per answer, and the deterministic backend is p90 **78 ms**.
+Honest boundary, with the measurement split: five **different** questions at the same moment is a
+different number. Measured on this CPU-only box - 12.8 s wall for five concurrent, 3 of them over
+10 s - and the cost is the reranker: **0.77 s per call** (10 candidates) serialised across five
+queries, while the embedding endpoint costs **0.18 s** and a *batched* call of five texts costs
+0.18 s too. So the bound holds for one reviewer (2.8-4.1 s per answer) and for the deterministic
+backend (p90 **78 ms**), and it needs more compute - a GPU, more cores, or a smaller cross-encoder -
+to hold for five simultaneous real-model questions on one CPU instance.
 
 ```bash
 python scripts/run.py --bench --concurrency 5 --assert   # exits non-zero when the bound is missed
@@ -445,12 +448,13 @@ script all point at the same place. Note that gitignored files do **not** travel
 pull` - a reviewer re-creates them by running `scripts/run.py` above, which is why that script
 is committed.
 
-**Platform note, stated rather than discovered:** the bundled runtime asset is the **Windows x64
-CPU** build of `llama.cpp`. On Windows a cold clone gets the real models by running
-`python scripts/run.py`; on Linux or macOS `--check` reports `runtime: MISSING` and the service
-falls back to the deterministic backend (loudly, never silently). Everything except the two model
-servers - the whole suite, the deterministic evaluation, the corpus handling - runs on any OS with
-Python 3.11+.
+**Platform:** `--setup` downloads the `llama.cpp` build for **your** machine - Windows x64 CPU,
+Linux x86_64, or macOS (arm64 / x64) - so a reviewer on a laptop gets the real models, not a
+fallback. `tests/test_runtime_asset.py` pins the mapping, and an unsupported platform reports
+`runtime: SKIPPED` with the reason instead of downloading a wrong binary.
+
+Verified end to end: a download into an empty directory fetched the 24.5 MB asset, extracted it, and
+the binary ran - the check every reviewer's first `python scripts/run.py` depends on.
 
 `python scripts/run.py` starts both servers for you and waits until they answer; the commands below
 are the equivalent by hand (plain executables: no installer, no service, no admin rights):
