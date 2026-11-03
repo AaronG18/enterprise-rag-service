@@ -77,7 +77,7 @@ place it is implemented and the command or document that proves it.
 | **Quality** Answer Compliance >= 80% (advanced 90%) | generative scorer | 0.9600 deterministic / 0.9826 model-backed |
 | **Quality** Style Consistency >= 80% (advanced 0.85) | generative scorer | 1.0000 deterministic / 0.9043 model-backed |
 | **Quality** Refusal Appropriateness >= 80% (advanced 90%) | refusal eval set | 0.9529 deterministic / 0.9000 model-backed |
-| **Logging** structured logs for monitoring and issue diagnosis | `src/ragserve/logging/` | `docs/logging/log_fields.md` + generated `sample_logs.md` |
+| **Logging** structured logs for monitoring and issue diagnosis | `src/ragserve/observability/` (`EventLog`, `StructuredLogger`) | `docs/logging/log_fields.md` + generated `sample_logs.md` |
 | **Security** minimal prompt-injection defense | `generation/safety.py` (`detect_injection`, `neutralise`) | injection query -> refusal `injection_detected` with guidance |
 | **Security** basic PII handling | `generation/pii.py` | redacted on the answer **and** the log record (email/phone/id/card) |
 | **Security** answers strictly grounded to retrieved context | generation prompt + citations | every answer carries citations; faithfulness measured |
@@ -105,7 +105,7 @@ maps each target to a verification command and an owning issue.
 
 | Family | Target | Measured |
 |---|---|---|
-| End-to-end latency | p90 <= 10 s | p50 **21 ms** / p90 **78 ms** / p95 **122 ms**, 5 concurrent, 0 errors |
+| End-to-end latency | p90 <= 10 s | ops report p50 **14.5 ms** / p95 **18.0 ms**; benchmark at 5 concurrent: p90 **78 ms**, 0 errors |
 | Concurrency | >= 5 concurrent, single instance | 5 concurrent, 0 errors |
 | Faithfulness | >= 0.85 | 1.0 |
 | Context Precision | >= 0.70 | 0.8814 |
@@ -114,7 +114,7 @@ maps each target to a verification command and an owning issue.
 | Style Consistency | >= 0.80 / 0.85 | 1.0 |
 | Cost | estimate per 1,000 calls | `python scripts/run.py --eval --cost` prints `cost_per_1000_calls_usd` from measured tokens x `configs/pricing.json` (reference prices; the deterministic CI baseline is a local stub, so $0.00) |
 | Observability | structured logs, single-request reconstruction | 5 stages per request, documented dictionary |
-| Issue diagnosis | >= 2 cases, >= 10% gain | 2 cases: +575%, +100% |
+| Issue diagnosis | >= 2 cases, >= 10% gain | 3 cases: +575.2%, +100.0%, +37.8% |
 
 **Read these numbers with the caveat they carry:** they come from the deterministic provider,
 which composes answers from verbatim retrieved sentences. They establish the pipeline floor
@@ -308,7 +308,7 @@ measurements (it once did - see `docs/diagnosis/` / issue #92):
 | deterministic snapshot | `docs/eval/deterministic-metrics.json` |
 | comparison report (**generated**, never hand-edited) | `docs/eval/retrieval-comparison.md` |
 | sample logs | `docs/logging/sample_logs.md` |
-| QA dashboard | `docs/qa/qa-dashboard.html` (generated on demand by `--dashboard`; **not committed**, so a run cannot dirty your working tree) |
+| QA dashboard | `docs/qa/qa-dashboard.html` (written by `--deliverables` and by `--dashboard`; **gitignored**, so regenerating it cannot dirty your working tree) |
 
 Editing `retrieval-comparison.md` by hand fails a test: the committed file must equal what the
 renderer produces from the committed snapshots. Add `--refresh-model-backed` (with the local model
@@ -460,10 +460,11 @@ the binary ran - the check every reviewer's first `python scripts/run.py` depend
 are the equivalent by hand (plain executables: no installer, no service, no admin rights):
 
 ```bash
-vendor/llama.cpp/llama-server.exe -m models/bge-m3-q8_0.gguf \
+vendor/llama.cpp/llama-server -m models/bge-m3-q8_0.gguf \
     --embedding --host 127.0.0.1 --port 8011
-vendor/llama.cpp/llama-server.exe -m models/bge-reranker-v2-m3-q4_k_m.gguf \
+vendor/llama.cpp/llama-server -m models/bge-reranker-v2-m3-q4_k_m.gguf \
     --embedding --pooling rank --host 127.0.0.1 --port 8012
+# Windows: the same binaries are named llama-server.exe
 ```
 
 The first speaks an OpenAI-compatible `/v1/embeddings`; the second a `/v1/rerank`. Both are
@@ -533,8 +534,8 @@ carry the provenance tag from section 5.
 | **Standard library only, no third-party dependency** (`PROJECT.md` INV-1) | any vector DB / ML framework | cold clone runs the whole suite with Python 3.11+ and no install; CI has no `pip install` step | `contract-gate` + `TestWorkflowHermeticity` (R-28) |
 | **Hybrid = BM25 + vector, fused with RRF** | vector-only | recall@5 `0.7722 -> 0.8987`, mrr `0.7114 -> 0.8006` (85 cases, deterministic) | `docs/eval/retrieval-comparison.md` (generated), R-19 |
 | **Real cross-encoder reranker** (`bge-reranker-v2-m3`), not a hand-written scorer | heuristic feature scorer | the model returns real scores: a relevant passage **+6.13** vs an unrelated one **-10.15**; deterministic mrr `0.8006 -> 0.8911` | `docs/adr/0005`, R-10 |
-| **Reranking is optional, not assumed** | always on | it *hurts* under real embeddings: model-backed mrr `0.9610 -> 0.9523`, while it helps under hashing embeddings (`0.8006 -> 0.8911`). Reranking helps exactly when retrieval leaves it room | the same report states both, and the conclusion is derived from them |
-| **BGE-M3 embeddings (1024-d), keyless and local** | hosted embedding API (key + network) | hybrid recall@5 `0.8987 -> 1.0`, mrr `0.8006 -> 0.9610` versus the hashing baseline; no credential needed | `docs/adr/0005`, model-backed section of the report |
+| **Reranking is optional, not assumed** | always on | it **trades recall for rank** under real embeddings: recall@5 `0.9615 -> 0.9231` while mrr `0.9167 -> 0.9231`; under hashing embeddings it improves both (`0.8987 -> 0.9620`, mrr `0.8006 -> 0.8911`). Reranking helps exactly when retrieval leaves it room, which is why it is a toggle | the same report states both, and the conclusion is derived from them |
+| **BGE-M3 embeddings (1024-d), keyless and local** | hosted embedding API (key + network) | on the committed review corpus, recall@5 `0.9333 -> 1.0` and mrr `0.9333 -> 0.9733` versus hashing; in the labelled comparison hybrid recall@5 `0.8987 -> 0.9615`; no credential needed | `docs/adr/0005`, table above, model-backed section of the report |
 | **Deterministic backend as the gate fixture** | real models behind every gate number | it makes the published numbers exactly reproducible: no download, no key, and no float drift when the runner's SIMD path changes. Every gate number is `deterministic` - a **floor**, not a result | CI pins `RAGSERVE_*_PROVIDER=deterministic` (R-28); the real lane is proven separately by `real-models-contract.yml` (R21) |
 | **Synthetic corpus, seeded** (`seed=20261027`) | real internal documents | keeps the repository publishable (R6) and the numbers reproducible; 80 docs / 204 chunks / 85 labelled cases | `TestGoldenRetrieval`, R-31 |
 | **In-memory index** | ANN index + vector store | index build measured in milliseconds at this corpus size; correct at 204 chunks, would be replaced at millions (trade-off recorded) | `docs/adr/0002` |

@@ -68,6 +68,28 @@ class ParameterMatrixDocumentedTest(unittest.TestCase):
             self.assertIn("%.4f" % value, readme,
                           "README must quote the current model-backed %s (%.4f)" % (label, value))
 
+    def test_readme_comparison_numbers_match_the_snapshots(self):
+        """Section 8 states what reranking does; the numbers behind it must be the committed ones.
+
+        Observed: the table claimed reranking *lowered* mrr under real embeddings (0.9610 -> 0.9523)
+        while the snapshot had it rising (0.9167 -> 0.9231) - a conclusion contradicting its own data.
+        """
+        with open(os.path.join(_repo_root(), "docs", "eval", "deterministic-metrics.json"),
+                  "r", encoding="utf-8") as fh:
+            det = json.load(fh)["comparison"]
+        with open(os.path.join(_repo_root(), "docs", "eval", "model-backed-metrics.json"),
+                  "r", encoding="utf-8") as fh:
+            mb = json.load(fh)["comparison"]
+        readme = _read("README.md")
+        for config in ("vector_only", "hybrid", "hybrid+rerank"):
+            self.assertIn("%.4f" % det[config]["recall@5"], readme,
+                          "README must quote the deterministic recall@5 of %s" % config)
+        for config in ("hy3 | hybrid", "hy3 | hybrid+rerank"):
+            self.assertIn("%.4f" % mb[config]["recall@5"], readme,
+                          "README must quote the model-backed recall@5 of %s" % config)
+            self.assertIn("%.4f" % mb[config]["mrr"], readme,
+                          "README must quote the model-backed mrr of %s" % config)
+
     def test_readme_documents_reviewer_supplied_corpus(self):
         """The reviewer-supplied corpus is a required capability (issue #96)."""
         readme = _read("README.md")
