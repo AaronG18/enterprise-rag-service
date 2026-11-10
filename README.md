@@ -35,6 +35,10 @@ python scripts/run.py --serve --mode hybrid --rerank off    # hybrid, reranker d
 python scripts/run.py --serve --mode hybrid --rerank on     # hybrid + cross-encoder reranker
 ```
 
+> **Want the illustrated version?** [`docs/architecture-explainer.html`](docs/architecture-explainer.html)
+> walks through the architecture, the end-to-end data flow for a folder of CN/EN PDFs, and what would
+> change at 1,000 concurrent users. Self-contained single file - open it in a browser, no network needed.
+
 ## 2. Scope of the knowledge base
 
 The corpus is **synthetically generated** inside this repository. No real internal

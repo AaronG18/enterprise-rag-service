@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIA · RAG 服务架构讲解</title>
+<style>
+  :root{
+    --ink:#0f172a; --ink-2:#334155; --muted:#64748b;
+    --bg:#f6f7f9; --card:#ffffff; --line:#e2e8f0;
+    --accent:#0f766e; --accent-2:#0e7490; --warn:#b45309; --bad:#b91c1c;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.72 var(--sans);
+       -webkit-font-smoothing:antialiased}
+  a{color:var(--accent-2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font:13px/1.5 var(--mono);background:#eef2f7;border:1px solid var(--line);
+       border-radius:5px;padding:1px 5px;white-space:nowrap}
+  pre{margin:14px 0;background:#0b1220;color:#e2e8f0;border-radius:10px;padding:16px 18px;
+      overflow:auto;font:13px/1.65 var(--mono)}
+  pre code{background:none;border:0;padding:0;color:inherit;white-space:pre}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  header.hero{background:linear-gradient(160deg,#0b1220 0%,#11312e 60%,#0f766e 100%);
+              color:#e6fffb;padding:64px 0 56px}
+  header.hero h1{margin:0 0 10px;font-size:38px;line-height:1.25;letter-spacing:.2px}
+  header.hero p{margin:0;max-width:820px;color:#b8e6df;font-size:17px}
+  .badges{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px}
+  .badge{font:12px/1 var(--mono);border:1px solid rgba(230,255,251,.35);color:#d9fff9;
+         padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06)}
+
+  .layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:40px;padding:40px 0 80px}
+  @media (max-width:980px){.layout{grid-template-columns:1fr}.toc{display:none}}
+  .toc{position:sticky;top:24px;align-self:start;font-size:14px}
+  .toc h4{margin:0 0 10px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .toc ol{list-style:none;margin:0;padding:0}
+  .toc li{margin:6px 0}
+  .toc ol ol{margin:4px 0 10px 12px;font-size:13px}
+  .toc a{color:var(--ink-2)}
+
+  section{margin-bottom:52px}
+  h2{font-size:26px;margin:0 0 6px;letter-spacing:.2px}
+  h2 .n{color:var(--accent);font:600 15px/1 var(--mono);margin-right:10px}
+  h3{font-size:19px;margin:30px 0 8px}
+  h4{font-size:15px;margin:18px 0 6px;color:var(--ink-2)}
+  .lede{color:var(--muted);margin:6px 0 22px;max-width:860px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;
+        margin:16px 0;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media (max-width:820px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+  th{background:#f1f5f9;font-weight:600;font-size:13px;letter-spacing:.02em;color:var(--ink-2)}
+  tbody tr:hover{background:#fafcff}
+  td code{white-space:normal}
+
+  .callout{border-left:3px solid var(--accent);background:#f0fdfa;padding:12px 16px;border-radius:0 10px 10px 0;
+           margin:14px 0;font-size:15px}
+  .callout.warn{border-color:var(--warn);background:#fffbeb}
+  .callout.bad{border-color:var(--bad);background:#fef2f2}
+  .callout b{display:block;margin-bottom:4px;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+
+  .kpi{display:flex;flex-direction:column;gap:2px}
+  .kpi .v{font:600 24px/1.2 var(--mono);color:var(--accent)}
+  .kpi .l{font-size:12.5px;color:var(--muted)}
+
+  .tag{display:inline-block;font:11.5px/1 var(--mono);padding:4px 7px;border-radius:5px;
+       background:#e2e8f0;color:#334155;margin-right:6px}
+  .tag.det{background:#dcfce7;color:#166534}
+  .tag.mb{background:#dbeafe;color:#1e40af}
+  .tag.est{background:#fef3c7;color:#92400e}
+
+  figure{margin:22px 0}
+  figure svg{width:100%;height:auto;display:block;background:var(--card);border:1px solid var(--line);
+             border-radius:14px}
+  figcaption{font-size:13px;color:var(--muted);margin-top:8px;text-align:center}
+
+  .steps{counter-reset:s;list-style:none;padding:0;margin:0}
+  .steps li{counter-increment:s;position:relative;padding:14px 0 14px 46px;border-bottom:1px dashed var(--line)}
+  .steps li:last-child{border-bottom:0}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:12px;width:28px;height:28px;
+    border-radius:50%;background:var(--accent);color:#fff;font:600 13px/28px var(--mono);text-align:center}
+  .steps b{display:block;font-size:15.5px}
+  .steps .meta{font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+
+  footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13.5px}
+  .pill{display:inline-block;padding:3px 9px;border-radius:999px;background:#e2e8f0;
+        font:12px/1.8 var(--mono);color:var(--ink-2);margin:2px 4px 2px 0}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>一个可被验证的 RAG 服务：架构、端到端数据流、以及面向 1,000 并发的设计</h1>
+    <p>本文用三段讲清这个仓库：<b>为什么这样分层</b>、<b>一条命令处理一堆中英 PDF 时到底发生了什么</b>、
+       <b>如果要给 10,000 人用、峰值 1,000 并发该换成什么形态</b>。所有数字都标注来源（实测 / 快照 / 估算），不混谈。</p>
+    <div class="badges">
+      <span class="badge">Python 3.11+ · 标准库</span>
+      <span class="badge">BGE-M3 1024d</span>
+      <span class="badge">BM25 + 向量 · RRF k=60</span>
+      <span class="badge">cross-encoder 重排</span>
+      <span class="badge">85 条评测用例</span>
+      <span class="badge">41 行需求门禁</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap layout">
+  <nav class="toc">
+    <h4>目录</h4>
+    <ol>
+      <li><a href="#p1">1 · 架构设计与取舍</a>
+        <ol>
+          <li><a href="#p1-constraint">约束即设计</a></li>
+          <li><a href="#p1-layers">分层与模块</a></li>
+          <li><a href="#p1-why">八个关键决定</a></li>
+        </ol>
+      </li>
+      <li><a href="#p2">2 · 端到端流程（含数据流图）</a>
+        <ol>
+          <li><a href="#p2-overview">两张泳道</a></li>
+          <li><a href="#p2-stages">逐阶段拆解</a></li>
+          <li><a href="#p2-timing">实测耗时</a></li>
+          <li><a href="#p2-edge">边界与拒绝</a></li>
+        </ol>
+      </li>
+      <li><a href="#p3">3 · 10,000 用户 / 1,000 并发</a>
+        <ol>
+          <li><a href="#p3-now">现在的瓶颈在哪</a></li>
+          <li><a href="#p3-math">先做容量算术</a></li>
+          <li><a href="#p3-target">目标架构</a></li>
+          <li><a href="#p3-why">为什么不是“加机器”</a></li>
+          <li><a href="#p3-path">分阶段迁移</a></li>
+        </ol>
+      </li>
+      <li><a href="#p4">4 · 数字从哪来</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+  <!-- ============================================================ PART 1 -->
+  <section id="p1">
+    <h2><span class="n">01</span>架构设计与取舍</h2>
+    <p class="lede">先说结论：这不是“能跑就行”的 RAG demo，而是一个<b>每一步都可被外部验证</b>的系统。
+      架构上最大的三个决定——零第三方依赖、真模型本地跑、确定性后端当门禁夹具——都不是技术炫技，
+      而是被“面试官要在自己的机器上复现”这个约束逼出来的。</p>
+
+    <h3 id="p1-constraint">1.1 约束即设计</h3>
+    <div class="card">
+      <table>
+        <thead><tr><th style="width:26%">约束</th><th style="width:34%">如果不这么做的后果</th><th>因此的系统形态</th></tr></thead>
+        <tbody>
+          <tr><td><b>一份交付物要被陌生人复现</b></td>
+              <td>数字只能靠作者口述，评审无法验证</td>
+              <td>所有指标落盘为快照 + 一条命令重生成；文档与快照有漂移测试</td></tr>
+          <tr><td><b>零第三方 Python 依赖</b></td>
+              <td>冷克隆可能装不上、版本漂移、CI 不可复现</td>
+              <td>检索/融合/PDF 抽取/日志全部标准库实现；模型通过 HTTP 调用，不进依赖树</td></tr>
+          <tr><td><b>无 API Key 也要能跑</b></td>
+              <td>评审拿到仓库却跑不起来</td>
+              <td>确定性后端（哈希向量 + 特征重排 + 模板生成）作为默认与 CI 夹具</td></tr>
+          <tr><td><b>质量要有阈值</b></td>
+              <td>“看起来不错”变成验收标准</td>
+              <td>85 条带标签用例 + 41 行门禁，每条需求指向一个可执行断言</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="p1-layers">1.2 分层与模块</h3>
+
+    <figure>
+      <svg viewBox="0 0 1000 520" role="img" aria-label="分层架构图">
+        <defs>
+          <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#0f766e"/>
+          </marker>
+          <style>
+            .b{fill:#fff;stroke:#cbd5e1;stroke-width:1.5;rx:12}
+            .lbl{font:13px/1.4 var(--mono);fill:#0f172a}
+            .sub{font:11px/1.3 var(--mono);fill:#64748b}
+            .zone{fill:#f8fafc;stroke:#e2e8f0;stroke-dasharray:5 4;rx:14}
+            .zt{font:600 11px/1.4 var(--mono);fill:#94a3b8;letter-spacing:.08em}
+          </style>
+        </defs>
+
+        <!-- entry -->
+        <rect class="zone" x="20" y="20" width="960" height="86"/>
+        <text class="zt" x="34" y="42">ENTRY · 唯一入口</text>
+        <rect class="b" x="40" y="52" width="200" height="40" rx="10"/>
+        <text class="lbl" x="56" y="77">scripts/run.py</text>
+        <rect class="b" x="256" y="52" width="230" height="40" rx="10"/>
+        <text class="lbl" x="272" y="77">cli/main.py · 分发器</text>
+        <rect class="b" x="502" y="52" width="220" height="40" rx="10"/>
+        <text class="lbl" x="518" y="77">cli/setup.py · 环境</text>
+        <rect class="b" x="738" y="52" width="222" height="40" rx="10"/>
+        <text class="lbl" x="754" y="77">cli/ask · eval · serve …</text>
+
+        <!-- service zone -->
+        <rect class="zone" x="20" y="126" width="600" height="230"/>
+        <text class="zt" x="34" y="148">SERVICE · 请求编排</text>
+        <rect class="b" x="40" y="160" width="250" height="74" rx="10"/>
+        <text class="lbl" x="56" y="184">service.py · RagService</text>
+        <text class="sub" x="56" y="203">answer() / single-flight / 决策</text>
+        <text class="sub" x="56" y="220">5 段 trace 由这里发出</text>
+
+        <rect class="b" x="306" y="160" width="294" height="74" rx="10"/>
+        <text class="lbl" x="322" y="184">api.py · ApiServer</text>
+        <text class="sub" x="322" y="203">ThreadingHTTPServer + 会话(cap 200)</text>
+        <text class="sub" x="322" y="220">/api/ask · /api/providers · /health</text>
+
+        <rect class="b" x="40" y="250" width="170" height="86" rx="10"/>
+        <text class="lbl" x="56" y="272">generation/</text>
+        <text class="sub" x="56" y="290">safety · pii</text>
+        <text class="sub" x="56" y="307">context · answer</text>
+        <text class="sub" x="56" y="324">providers</text>
+
+        <rect class="b" x="226" y="250" width="170" height="86" rx="10"/>
+        <text class="lbl" x="242" y="272">retrieval/</text>
+        <text class="sub" x="242" y="290">pipeline · lexical</text>
+        <text class="sub" x="242" y="307">vector · rerank</text>
+        <text class="sub" x="242" y="324">embeddings · text</text>
+
+        <rect class="b" x="412" y="250" width="188" height="86" rx="10"/>
+        <text class="lbl" x="428" y="272">cache.py</text>
+        <text class="sub" x="428" y="290">exact 300 s</text>
+        <text class="sub" x="428" y="307">semantic 60 s</text>
+        <text class="sub" x="428" y="324">single-flight 合并</text>
+
+        <!-- data zone -->
+        <rect class="zone" x="640" y="126" width="320" height="230"/>
+        <text class="zt" x="654" y="148">DATA · 语料与索引</text>
+        <rect class="b" x="660" y="160" width="280" height="60" rx="10"/>
+        <text class="lbl" x="676" y="184">corpus/loader.py</text>
+        <text class="sub" x="676" y="203">PDF 逐页 / ToUnicode / 扫描件判定</text>
+        <rect class="b" x="660" y="232" width="280" height="48" rx="10"/>
+        <text class="lbl" x="676" y="257">builder.py · chunker.py</text>
+        <rect class="b" x="660" y="292" width="280" height="48" rx="10"/>
+        <text class="lbl" x="676" y="317">内存索引：BM25 + 向量</text>
+
+        <!-- observability + eval -->
+        <rect class="zone" x="20" y="376" width="460" height="122"/>
+        <text class="zt" x="34" y="398">OBSERVABILITY</text>
+        <rect class="b" x="40" y="410" width="420" height="72" rx="10"/>
+        <text class="lbl" x="56" y="434">observability/events.py</text>
+        <text class="sub" x="56" y="453">EventLog · StructuredLogger(clock 可注入)</text>
+        <text class="sub" x="56" y="470">每请求 request → retrieval → decision → generation → response</text>
+
+        <rect class="zone" x="500" y="376" width="460" height="122"/>
+        <text class="zt" x="514" y="398">EVALUATION · 证据链</text>
+        <rect class="b" x="520" y="410" width="420" height="72" rx="10"/>
+        <text class="lbl" x="536" y="434">evaluation/ · harness/</text>
+        <text class="sub" x="536" y="453">runner · metrics · audit · verification</text>
+        <text class="sub" x="536" y="470">快照 → 报告 → 门禁 41 行 · 审计 24 项</text>
+
+        <!-- arrows -->
+        <path d="M140,92 L140,160" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+        <path d="M371,92 L371,160" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+        <path d="M290,198 L306,198" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+        <path d="M165,234 L165,250" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+        <path d="M311,234 L311,250" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+        <path d="M506,234 L506,250" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+        <path d="M800,222 L800,232" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      </svg>
+      <figcaption>图 1 · 分层。入口只有一个；服务层不碰文件系统；数据层不做决策；证据层只读产出。</figcaption>
+    </figure>
+
+    <h3 id="p1-why">1.3 八个关键决定，以及它们各自反对了什么</h3>
+    <table>
+      <thead><tr><th style="width:20%">决定</th><th style="width:20%">被拒绝的替代方案</th><th style="width:38%">为什么</th><th>在哪里被强制</th></tr></thead>
+      <tbody>
+        <tr><td><b>只用标准库</b></td><td>LangChain / FAISS / pandas</td>
+            <td>冷克隆即可运行是交付底线；依赖越少，"我这儿能跑"与"你能跑"的差距越小</td>
+            <td><code>contract-gate</code> 检查无 <code>pip install</code></td></tr>
+        <tr><td><b>模型走 HTTP，不进依赖</b></td><td>进程内加载 GGUF</td>
+            <td>推理与编排解耦：换模型不改代码，模型崩溃不拖垮服务（有健康检查与回退）</td>
+            <td><code>configs/retrieval.json</code> 的 endpoint</td></tr>
+        <tr><td><b>确定性后端做门禁夹具</b></td><td>CI 直接跑真模型</td>
+            <td>跨 runner 的浮点差异会让快照抖动；夹具让 41 行门禁逐字节可复现。<b>但夹具不是被测系统</b>——真模型另有契约作业</td>
+            <td>R-28 + <code>real-models-contract.yml</code></td></tr>
+        <tr><td><b>混合检索（BM25 + 向量 + RRF）</b></td><td>纯向量</td>
+            <td>专业术语、编号、缩写靠词面命中；语义靠向量。RRF 不需要两路分数同分布</td>
+            <td>recall@5 0.7722→0.8987（确定性快照）</td></tr>
+        <tr><td><b>重排做成开关</b></td><td>永远开启</td>
+            <td>实测它<b>用召回换排名</b>（recall 0.9615→0.9231，mrr 0.9167→0.9231），并非永远正确</td>
+            <td><code>--rerank on|off</code> + 报告结论</td></tr>
+        <tr><td><b>两层缓存 + single-flight</b></td><td>只做精确缓存</td>
+            <td>FAQ 型流量重复率高；identical 并发突发如果不合并，会同时击穿缓存打到模型（实测 5 并发 14.1 s → 合并后 3.1 s）</td>
+            <td>命中率 0.4706 进运维报告</td></tr>
+        <tr><td><b>拒绝是显式状态，不是空答案</b></td><td>低置信度也硬答</td>
+            <td>四种 reason code + 引导语，可审计；"答不上来"本身是可测量指标</td>
+            <td>refusal appropriateness 0.9529</td></tr>
+        <tr><td><b>PDF 逐页处理</b></td><td>整篇判定是否扫描件</td>
+            <td>整篇判定会把"1 页文字 + 3 页图片"的文档连同文字一起丢掉；逐页保留可读页并上报无文字页数</td>
+            <td><code>tests/test_mixed_scan_pdf.py</code>（R18）</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <b>一句话</b>
+      架构的核心不是"用了什么组件"，而是<b>把"正确"变成可执行断言</b>：需求 → 门禁行 → 测试 → CI job → 规则。
+      没有测试的承诺在这个仓库里会被当成 bug。
+    </div>
+  </section>
+
+  <!-- ============================================================ PART 2 -->
+  <section id="p2">
+    <h2><span class="n">02</span>端到端流程：一条命令 + 一文件夹中英 PDF</h2>
+    <p class="lede">场景：评审者把 20 份中英文混合 PDF（含少量纯扫描页、少量图文混排）放进 <code>./docs-in</code>，
+      执行 <code>python scripts/run.py --corpus ./docs-in</code>。下面从进程启动开始，逐步到终端输出。</p>
+
+    <h3 id="p2-overview">2.1 两张泳道：索引期 vs 查询期</h3>
+
+    <figure>
+      <svg viewBox="0 0 1040 620" role="img" aria-label="端到端数据流">
+        <defs>
+          <marker id="a2" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#0e7490"/>
+          </marker>
+          <marker id="a3" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/>
+          </marker>
+          <style>
+            .box{fill:#fff;stroke:#cbd5e1;stroke-width:1.5}
+            .t{font:13px/1.3 var(--mono);fill:#0f172a}
+            .s{font:11px/1.3 var(--mono);fill:#64748b}
+            .lane{fill:#f8fafc;stroke:#e2e8f0;rx:14}
+            .lt{font:600 12px/1.2 var(--mono);fill:#0f766e;letter-spacing:.06em}
+            .num{font:600 11px/1 var(--mono);fill:#fff}
+            .circle{fill:#0f766e}
+          </style>
+        </defs>
+
+        <!-- lane A -->
+        <rect class="lane" x="18" y="18" width="1004" height="250"/>
+        <text class="lt" x="34" y="42">A · 索引期（命令启动时发生一次）</text>
+
+        <rect class="box" x="34" y="58" width="150" height="58" rx="9"/>
+        <text class="t" x="48" y="82">run.py</text><text class="s" x="48" y="100">进程入口</text>
+        <circle class="circle" cx="176" cy="62" r="9"/><text class="num" x="173" y="66">1</text>
+
+        <rect class="box" x="204" y="58" width="150" height="58" rx="9"/>
+        <text class="t" x="218" y="82">cli/main</text><text class="s" x="218" y="100">识别 --corpus</text>
+        <circle class="circle" cx="346" cy="62" r="9"/><text class="num" x="343" y="66">2</text>
+
+        <rect class="box" x="374" y="58" width="170" height="58" rx="9"/>
+        <text class="t" x="388" y="82">setup</text><text class="s" x="388" y="100">模型/服务/健康探测</text>
+        <circle class="circle" cx="536" cy="62" r="9"/><text class="num" x="533" y="66">3</text>
+
+        <rect class="box" x="564" y="58" width="200" height="58" rx="9"/>
+        <text class="t" x="578" y="82">loader</text><text class="s" x="578" y="100">逐页抽取 / ToUnicode</text>
+        <circle class="circle" cx="756" cy="62" r="9"/><text class="num" x="753" y="66">4</text>
+
+        <rect class="box" x="784" y="58" width="220" height="58" rx="9"/>
+        <text class="t" x="798" y="82">builder + chunker</text><text class="s" x="798" y="100">清洗 · 分块 220/44</text>
+        <circle class="circle" cx="996" cy="62" r="9"/><text class="num" x="993" y="66">5</text>
+
+        <!-- second row lane A -->
+        <rect class="box" x="284" y="150" width="230" height="70" rx="9"/>
+        <text class="t" x="298" y="174">向量化（批）</text>
+        <text class="s" x="298" y="192">/v1/embeddings · 1024d</text>
+        <text class="s" x="298" y="208">失败→确定性哈希（大声回退）</text>
+        <circle class="circle" cx="506" cy="154" r="9"/><text class="num" x="503" y="158">6</text>
+
+        <rect class="box" x="540" y="150" width="230" height="70" rx="9"/>
+        <text class="t" x="554" y="174">建索引</text>
+        <text class="s" x="554" y="192">BM25 倒排 + 向量矩阵</text>
+        <text class="s" x="554" y="208">保存在内存 · corpus_version</text>
+        <circle class="circle" cx="762" cy="154" r="9"/><text class="num" x="759" y="158">7</text>
+
+        <rect class="box" x="800" y="150" width="204" height="70" rx="9"/>
+        <text class="t" x="814" y="174">清单 manifest</text>
+        <text class="s" x="814" y="192">doc/chunk/语言/扫描页</text>
+        <text class="s" x="814" y="208">+ 跳过原因</text>
+        <circle class="circle" cx="996" cy="154" r="9"/><text class="num" x="993" y="158">8</text>
+
+        <path d="M184,87 L204,87" stroke="#0e7490" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+        <path d="M354,87 L374,87" stroke="#0e7490" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+        <path d="M544,87 L564,87" stroke="#0e7490" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+        <path d="M764,87 L784,87" stroke="#0e7490" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+        <path d="M894,116 L894,150" stroke="#0e7490" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+        <path d="M800,185 L770,185" stroke="#0e7490" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+        <path d="M540,185 L514,185" stroke="#0e7490" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+
+        <!-- lane B -->
+        <rect class="lane" x="18" y="292" width="1004" height="300"/>
+        <text class="lt" x="34" y="316">B · 查询期（每一轮提问重复一次）</text>
+
+        <rect class="box" x="34" y="334" width="150" height="66" rx="9"/>
+        <text class="t" x="48" y="358">用户输入</text>
+        <text class="s" x="48" y="376">Q&gt; …</text>
+        <circle class="circle" cx="176" cy="338" r="9"/><text class="num" x="173" y="342">1</text>
+
+        <rect class="box" x="204" y="334" width="158" height="66" rx="9"/>
+        <text class="t" x="218" y="358">多轮改写</text>
+        <text class="s" x="218" y="376">指代/省略式消解</text>
+        <circle class="circle" cx="354" cy="338" r="9"/><text class="num" x="351" y="342">2</text>
+
+        <rect class="box" x="382" y="334" width="158" height="66" rx="9"/>
+        <text class="t" x="396" y="358">安全闸</text>
+        <text class="s" x="396" y="376">注入检测 / PII</text>
+        <circle class="circle" cx="532" cy="338" r="9"/><text class="num" x="529" y="342">3</text>
+
+        <rect class="box" x="560" y="334" width="170" height="66" rx="9"/>
+        <text class="t" x="574" y="358">缓存查询</text>
+        <text class="s" x="574" y="376">exact 300s / sem 60s</text>
+        <circle class="circle" cx="722" cy="338" r="9"/><text class="num" x="719" y="342">4</text>
+
+        <rect class="box" x="750" y="334" width="254" height="66" rx="9"/>
+        <text class="t" x="764" y="358">混合检索</text>
+        <text class="s" x="764" y="376">BM25 top20 ‖ dense top20 → RRF k=60</text>
+        <circle class="circle" cx="996" cy="338" r="9"/><text class="num" x="993" y="342">5</text>
+
+        <rect class="box" x="560" y="430" width="200" height="66" rx="9"/>
+        <text class="t" x="574" y="454">重排</text>
+        <text class="s" x="574" y="472">10 候选 → cross-encoder</text>
+        <circle class="circle" cx="752" cy="434" r="9"/><text class="num" x="749" y="438">6</text>
+
+        <rect class="box" x="330" y="430" width="200" height="66" rx="9"/>
+        <text class="t" x="344" y="454">决策</text>
+        <text class="s" x="344" y="472">coverage ≥ .08 / conf ≥ .30</text>
+        <circle class="circle" cx="522" cy="434" r="9"/><text class="num" x="519" y="438">7</text>
+
+        <rect class="box" x="90" y="430" width="210" height="66" rx="9"/>
+        <text class="t" x="104" y="454">生成 或 拒绝</text>
+        <text class="s" x="104" y="472">引用必须存在 · 否则拒答</text>
+        <circle class="circle" cx="292" cy="434" r="9"/><text class="num" x="289" y="438">8</text>
+
+        <rect class="box" x="330" y="516" width="200" height="56" rx="9"/>
+        <text class="t" x="344" y="540">脱敏</text>
+        <text class="s" x="344" y="558">输出 + 日志字段</text>
+
+        <rect class="box" x="560" y="516" width="200" height="56" rx="9"/>
+        <text class="t" x="574" y="540">回写缓存</text>
+        <text class="s" x="574" y="558">exact + semantic 两层</text>
+
+        <rect class="box" x="790" y="516" width="214" height="56" rx="9"/>
+        <text class="t" x="804" y="540">日志 / 引用 / 延迟</text>
+        <text class="s" x="804" y="558">5 段 trace + (xxx ms)</text>
+
+        <path d="M184,367 L204,367" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M362,367 L382,367" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M540,367 L560,367" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M730,367 L750,367" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M877,400 L877,430 L764,430" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M556,463 L534,463" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M326,463 L304,463" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M430,496 L430,516" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M300,540 L330,540" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M532,544 L560,544" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M762,544 L790,544" stroke="#0f766e" stroke-width="1.6" fill="none" marker-end="url(#a3)"/>
+        <path d="M660,400 L660,430" stroke="#0f766e" stroke-width="1.4" stroke-dasharray="4 3" fill="none"/>
+      </svg>
+      <figcaption>图 2 · 数据流。上泳道只在建索引时发生；下泳道每问一次走一遍。虚线表示缓存未命中才进入检索。</figcaption>
+    </figure>
+
+    <h3 id="p2-stages">2.2 逐阶段：发生了什么，为什么这样</h3>
+
+    <ol class="steps">
+      <li><b>进程入口与参数识别</b><span class="meta">scripts/run.py → cli/main.py</span>
+        <p>唯一脚本把 argv 交给分发器。分发器按<b>模式旗标</b>选模块；带值的旗标（如 <code>--corpus DIR</code>）
+        必须与值一起保留——这里曾有过一个 bug：把 <code>--corpus</code> 当无值开关剥掉，路径被留下成为多余参数，
+        导致 README 里的这条命令 100% 失败。现在由"文档命令即契约"的测试守着。</p></li>
+
+      <li><b>环境准备（幂等）</b><span class="meta">cli/setup.py</span>
+        <p>按平台选 llama.cpp 资产（win/ubuntu/macos），缺则下载；起 embedding(8011) 与 reranker(8012) 两个进程；
+        <b>轮询 <code>/health</code> 直到 200</b>（不是等端口监听——模型加载完成前端口就已绑定）。已存在的服务不会重启，
+        这就是"第二次跑直接干活"的原因。</p></li>
+
+      <li><b>语料获取与逐页抽取</b><span class="meta">corpus/loader.py</span>
+        <p>遍历目录（或单个文件），按扩展名分流。PDF 走标准库解析：解析 <code>ToUnicode</code> CMap 把 subset CID 映射回
+        字符（否则中文 PDF 只会抽到控制字符）、把 CMap 流当元数据而非正文、未压缩流原样读。
+        <b>按页</b>收集文本：有文字层的页入库，纯图片页计入 <code>scanned_pages</code> 并在报告里列出——
+        绝不因为"整篇看起来像扫描件"而丢弃可读页。</p></li>
+
+      <li><b>清洗、分块与语言判定</b><span class="meta">corpus/builder.py · chunker.py</span>
+        <p>目标块长 <b>220 字符</b>、重叠 <b>44</b>；中文信息密度高，按 <b>0.55 系数</b>缩放目标长度，避免中文被切成过短的碎片。
+        每个块带 <code>doc_id / section / language / ocr</code> 元数据，供检索与降权使用。</p></li>
+
+      <li><b>向量化</b><span class="meta">retrieval/embeddings.py</span>
+        <p>批量 POST 到 <code>/v1/embeddings</code>（模型 bge-m3，1024 维）。端点不可达时<b>大声</b>回退到确定性哈希向量
+        （同一份语料两次运行结果一致），并在 provenance 里标 <code>deterministic</code>——绝不把回退说成模型结果。</p></li>
+
+      <li><b>建索引</b><span class="meta">retrieval/pipeline.py</span>
+        <p>两套索引同时建：BM25 倒排（中英分别分词）与向量矩阵（内存）。同时算出 <code>corpus_version</code>
+        （内容指纹，不含摄取元数据），它进入缓存键与日志，保证"同一问题在语料变化后不会命中旧答案"。</p></li>
+
+      <li><b>问题进来先过闸</b><span class="meta">generation/safety.py · pii.py</span>
+        <p>注入检测（"ignore previous instructions" 之类）→ 直接拒答并给引导语；问题里的 PII 在入库检索前就脱敏，
+        避免把用户邮箱写进日志与缓存键。</p></li>
+
+      <li><b>多轮改写</b><span class="meta">generation/context.py</span>
+        <p>只有当历史存在时才改写：指代（"Can they…?"）与省略式开头（"What about X?" / "那…呢？"）。
+        首轮永不改写——错误改写比不改写更糟。改写结果在终端显示为 <code>resolved to:</code>，让错误可见。</p></li>
+
+      <li><b>缓存与 single-flight</b><span class="meta">cache.py · service.py</span>
+        <p>精确层 TTL 300 s，语义层 60 s（token 集合相似度）。同一问题并发到达时，<b>一个 leader 计算，其余等待并共享结果</b>：
+        实测 5 并发从 14.1 s 降到 3.1 s；命中缓存时约 5 ms。</p></li>
+
+      <li><b>混合检索与融合</b><span class="meta">retrieval/pipeline.py</span>
+        <p>两路各取 <b>top-20</b>，用 <b>RRF（k=60）</b>融合排名——RRF 只吃名次，不需要把 BM25 分数与余弦相似度归一化到同一尺度，
+        这是异构检索最稳的融合方式。融合后取前 <b>10</b> 进入重排。</p></li>
+
+      <li><b>交叉编码器重排</b><span class="meta">retrieval/rerank.py</span>
+        <p>query 与每个候选<b>成对</b>送入 cross-encoder（bge-reranker-v2-m3），得到真实相关性分数后取 <b>top-5</b>。
+        代价是 0.77 s/次（10 候选，CPU），收益是排名更准——所以它是<b>开关</b>而不是硬编码。</p></li>
+
+      <li><b>决策：答、还是拒</b><span class="meta">service.py</span>
+        <p>两个可解释信号：<code>coverage</code>（查询词被覆盖的比例）与 <code>confidence</code>（0.6×覆盖 + 0.4×首位分数占比）。
+        低于 <b>0.08 / 0.30</b>、或没有引用，就返回带 reason code 的拒答（<code>out_of_scope</code> / <code>low_confidence</code> /
+        <code>no_context</code> / <code>safety_trigger</code> / <code>injection_detected</code>）+ 引导语。宁拒不编。</p></li>
+
+      <li><b>生成、脱敏、落日志</b><span class="meta">generation/* · observability/events.py</span>
+        <p>答案必须带引用；随后对答案与<b>整条日志记录</b>做 PII 脱敏（<code>redact_record</code> 递归处理嵌套结构）。
+        一次请求发出 5 段结构化事件：<code>request → retrieval → decision → generation → response</code>，
+        终端把这段延迟打在答案下面。</p></li>
+    </ol>
+
+    <h3 id="p2-timing">2.3 实测耗时（同一台 CPU 机器）</h3>
+    <div class="card">
+      <table>
+        <thead><tr><th style="width:30%">阶段</th><th style="width:20%">确定性后端</th><th style="width:22%">真模型（CPU）</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>单题端到端</td><td><b>14.5 ms</b>（p50）</td><td><b>2.8–4.1 s</b></td><td>真模型的时间几乎全在重排与生成</td></tr>
+          <tr><td>嵌入一次</td><td>不足 1 ms（未单独计时）</td><td><b>0.18 s</b>（5 条批量同样 0.18 s）</td><td>批量几乎免费 → 并发时应该批处理</td></tr>
+          <tr><td>重排一次（10 候选）</td><td>特征打分，微秒级（未单独计时）</td><td><b>0.77 s</b></td><td>串行瓶颈；5 个不同问题同时来会排队</td></tr>
+          <tr><td>5 并发（同一问题）</td><td>-</td><td><b>3.1 s</b>（single-flight）</td><td>只算一次，其余共享</td></tr>
+          <tr><td>5 并发（5 个不同问题）</td><td>p90 <b>78 ms</b></td><td><b>12.8 s</b>（3/5 超 10 s）</td><td>CPU 算力上限，不是代码缺陷</td></tr>
+        </tbody>
+      </table>
+      <p style="margin:6px 0 0;color:var(--muted);font-size:13.5px">
+        <span class="tag det">deterministic</span> 来自快照与压测；<span class="tag mb">model-backed</span> 来自本机真模型实测。
+      </p>
+    </div>
+
+    <h3 id="p2-edge">2.4 同一路径上的边界情况</h3>
+    <table>
+      <thead><tr><th style="width:30%">输入</th><th style="width:32%">系统行为</th><th>为什么这样</th></tr></thead>
+      <tbody>
+        <tr><td>目录里只有不支持的格式</td><td><code>REFUSED: nothing was indexed…</code>，退出码 1，不写报告</td>
+            <td>0 篇文档还报"成功"，会让评审以为跑过了</td></tr>
+        <tr><td>路径不存在</td><td>一行可读错误，退出码 1，无 traceback</td><td>栈回溯不是给使用者看的东西</td></tr>
+        <tr><td>纯图片扫描 PDF</td><td>列入 skipped，报告里注明</td><td>零依赖下无 OCR；不假装索引成功</td></tr>
+        <tr><td>图文混排 PDF</td><td>文字页入库，报告列出"无文字层的页数"</td><td>整篇丢弃会连带丢掉可读内容</td></tr>
+        <tr><td>中文 PDF（subset 字体）</td><td>经 ToUnicode 还原为中文</td><td>不做这一步抽到的是控制字符，索引里还会混进 "Adobe UCS"</td></tr>
+        <tr><td>注入式问题</td><td>拒答 + 引导语，reason=<code>injection_detected</code></td><td>在检索前就拦，避免污染上下文</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============================================================ PART 3 -->
+  <section id="p3">
+    <h2><span class="n">03</span>从“一条命令”到“1,000 并发”：该怎么设计</h2>
+    <p class="lede">假设入口从脚本换成 HTTP API，10,000 名注册用户、峰值 1,000 并发。
+      这一节先讲清楚现在的瓶颈（有测量），再做容量算术，最后给出目标架构与迁移顺序。</p>
+
+    <h3 id="p3-now">3.1 现在的瓶颈在哪（不是猜的）</h3>
+    <div class="card">
+      <div class="grid3">
+        <div class="kpi"><span class="v">1 进程</span><span class="l"><code>ThreadingHTTPServer</code>，会话上限 200；单机单实例</span></div>
+        <div class="kpi"><span class="v">CPU 推理</span><span class="l">嵌入 0.18 s / 重排 0.77 s，串行排队</span></div>
+        <div class="kpi"><span class="v">内存索引</span><span class="l">204 块全在进程内；语料变大即受限于单机内存</span></div>
+      </div>
+      <p style="margin:14px 0 0">线程模型本身不慢（I/O 密集），<b>慢的是模型调用与它的串行化</b>：
+      5 个不同问题并发实测 12.8 s wall，3 个超过 10 s。也就是说，把入口换成 API 而不改这三件事，
+      1,000 并发会全部堵在模型队列上。</p>
+    </div>
+
+    <h3 id="p3-math">3.2 先做容量算术，再谈组件</h3>
+    <div class="card">
+      <p>用 Little 定律：<code>并发数 C = 吞吐 λ × 单请求耗时 S</code>。反过来，给定 C 与 S 就能算出需要的 λ。</p>
+      <table>
+        <thead><tr><th style="width:26%">量</th><th style="width:20%">取值</th><th>推导</th></tr></thead>
+        <tbody>
+          <tr><td>峰值并发</td><td><b>1,000</b></td><td>题设</td></tr>
+          <tr><td>目标 p95 端到端</td><td><b>≤ 3 s</b></td><td>比 10 s 上限留 3× 余量，页面体验才不"卡"</td></tr>
+          <tr><td>所需吞吐 λ</td><td><b>≈ 330 rps</b></td><td>λ = C / S = 1000 / 3 s</td></tr>
+          <tr><td>缓存命中率</td><td>0.45–0.60</td><td>本项目 FAQ 型流量实测 0.4706；命中部分不打模型</td></tr>
+          <tr><td>真正打到模型</td><td><b>≈ 150–180 rps</b></td><td>λ × (1 − 命中率)</td></tr>
+          <tr><td>检索层 QPS</td><td><b>≈ 330</b></td><td>缓存未命中 + 命中都要回检索（或缓存直接返回答案）</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <b>结论先行</b>
+        1,000 并发 ≠ 1,000 个模型调用。把缓存、批处理、异步化做对，模型侧只要承接 <b>约 150–180 rps</b>，
+        这是 2–4 台 GPU 推理节点 + 连续批处理能覆盖的量级；而 API 层是 I/O 等待，扩副本即可。
+      </div>
+    </div>
+
+    <h3 id="p3-target">3.3 目标架构</h3>
+
+    <figure>
+      <svg viewBox="0 0 1040 560" role="img" aria-label="分布式目标架构">
+        <defs>
+          <marker id="a4" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#0e7490"/>
+          </marker>
+          <style>
+            .n{fill:#fff;stroke:#cbd5e1;stroke-width:1.5}
+            .t{font:12.5px/1.3 var(--mono);fill:#0f172a}
+            .s{font:10.5px/1.3 var(--mono);fill:#64748b}
+            .z{fill:#f8fafc;stroke:#e2e8f0;stroke-dasharray:5 4;rx:12}
+            .zt{font:600 11px/1.3 var(--mono);fill:#94a3b8;letter-spacing:.07em}
+          </style>
+        </defs>
+
+        <rect class="z" x="16" y="16" width="1008" height="86"/>
+        <text class="zt" x="30" y="38">EDGE</text>
+        <rect class="n" x="30" y="48" width="150" height="42" rx="9"/>
+        <text class="t" x="44" y="74">客户端 / Web</text>
+        <rect class="n" x="196" y="48" width="180" height="42" rx="9"/>
+        <text class="t" x="210" y="74">CDN + WAF</text>
+        <rect class="n" x="392" y="48" width="200" height="42" rx="9"/>
+        <text class="t" x="406" y="74">API 网关（鉴权/配额）</text>
+        <rect class="n" x="608" y="48" width="200" height="42" rx="9"/>
+        <text class="t" x="622" y="74">负载均衡 L7</text>
+        <rect class="n" x="824" y="48" width="184" height="42" rx="9"/>
+        <text class="t" x="838" y="74">限流 / 熔断</text>
+
+        <rect class="z" x="16" y="122" width="1008" height="104"/>
+        <text class="zt" x="30" y="144">STATELESS SERVICE（无状态，水平扩）</text>
+        <rect class="n" x="30" y="154" width="300" height="56" rx="9"/>
+        <text class="t" x="44" y="176">RAG 编排 Pod × N</text>
+        <text class="s" x="44" y="196">改写 · 安全 · 检索编排 · 决策 · 脱敏 · SSO</text>
+        <rect class="n" x="346" y="154" width="240" height="56" rx="9"/>
+        <text class="t" x="360" y="176">会话存储</text>
+        <text class="s" x="360" y="196">Redis / Postgres（多轮历史）</text>
+        <rect class="n" x="602" y="154" width="200" height="56" rx="9"/>
+        <text class="t" x="616" y="176">响应缓存</text>
+        <text class="s" x="616" y="196">exact + semantic（共享）</text>
+        <rect class="n" x="818" y="154" width="190" height="56" rx="9"/>
+        <text class="t" x="832" y="176">限流计数</text>
+        <text class="s" x="832" y="196">按租户 / 按用户</text>
+
+        <rect class="z" x="16" y="246" width="620" height="132"/>
+        <text class="zt" x="30" y="268">MODEL TIER（GPU，连续批处理）</text>
+        <rect class="n" x="30" y="278" width="186" height="84" rx="9"/>
+        <text class="t" x="44" y="300">Embedding × 2</text>
+        <text class="s" x="44" y="318">batch 32–64</text>
+        <text class="s" x="44" y="335">~5–10 ms / batch</text>
+        <text class="s" x="44" y="352">HPA by queue depth</text>
+        <rect class="n" x="228" y="278" width="186" height="84" rx="9"/>
+        <text class="t" x="242" y="300">Rerank × 2</text>
+        <text class="s" x="242" y="318">batch 32</text>
+        <text class="s" x="242" y="335">~20–40 ms / batch</text>
+        <text class="s" x="242" y="352">同机或旁路</text>
+        <rect class="n" x="426" y="278" width="194" height="84" rx="9"/>
+        <text class="t" x="440" y="300">LLM 生成 × 3</text>
+        <text class="s" x="440" y="318">连续批处理 / KV cache</text>
+        <text class="s" x="440" y="335">~1–2 s / 答案</text>
+        <text class="s" x="440" y="352">按 token 计量</text>
+
+        <rect class="z" x="652" y="246" width="372" height="132"/>
+        <text class="zt" x="666" y="268">RETRIEVAL STORE</text>
+        <rect class="n" x="666" y="278" width="344" height="40" rx="9"/>
+        <text class="t" x="680" y="304">向量库（HNSW）· 分片 + 副本</text>
+        <rect class="n" x="666" y="326" width="344" height="36" rx="9"/>
+        <text class="t" x="680" y="350">BM25 / 关键词索引（可选并行）</text>
+
+        <rect class="z" x="16" y="394" width="620" height="150"/>
+        <text class="zt" x="30" y="416">INGESTION（异步流水线）</text>
+        <rect class="n" x="30" y="426" width="150" height="100" rx="9"/>
+        <text class="t" x="44" y="448">上传 → 对象存储</text>
+        <text class="s" x="44" y="466">S3 / OSS</text>
+        <text class="s" x="44" y="483">原文件留存</text>
+        <rect class="n" x="196" y="426" width="150" height="100" rx="9"/>
+        <text class="t" x="210" y="448">队列</text>
+        <text class="s" x="210" y="466">Kafka / SQS</text>
+        <text class="s" x="210" y="483">削峰 + 重试</text>
+        <rect class="n" x="362" y="426" width="150" height="100" rx="9"/>
+        <text class="t" x="376" y="448">解析 Worker</text>
+        <text class="s" x="376" y="466">PDF 逐页 / OCR</text>
+        <text class="s" x="376" y="483">可独立扩缩</text>
+        <rect class="n" x="528" y="426" width="94" height="100" rx="9"/>
+        <text class="t" x="542" y="448">分块</text>
+        <text class="s" x="542" y="466">+ 向量化</text>
+        <text class="s" x="542" y="483">+ 写索引</text>
+
+        <rect class="z" x="652" y="394" width="372" height="150"/>
+        <text class="zt" x="666" y="416">OBSERVABILITY &amp; CONTROL</text>
+        <rect class="n" x="666" y="426" width="344" height="44" rx="9"/>
+        <text class="t" x="680" y="452">OpenTelemetry trace（沿用现有 5 段）</text>
+        <rect class="n" x="666" y="478" width="166" height="48" rx="9"/>
+        <text class="t" x="680" y="500">指标 RED</text>
+        <text class="s" x="680" y="516">p95 / 错误率 / 队列深度</text>
+        <rect class="n" x="844" y="478" width="166" height="48" rx="9"/>
+        <text class="t" x="858" y="500">成本与配额</text>
+        <text class="s" x="858" y="516">token / 租户 / 告警</text>
+
+        <path d="M880,90 L880,154" stroke="#0e7490" stroke-width="1.6" fill="none" marker-end="url(#a4)"/>
+        <path d="M180,210 L180,278" stroke="#0e7490" stroke-width="1.6" fill="none" marker-end="url(#a4)"/>
+        <path d="M330,210 L330,278" stroke="#0e7490" stroke-width="1.4" stroke-dasharray="4 3" fill="none"/>
+        <path d="M420,210 L660,278" stroke="#0e7490" stroke-width="1.4" stroke-dasharray="4 3" fill="none"/>
+        <path d="M196,426 L196,398" stroke="#0e7490" stroke-width="1.2" fill="none"/>
+      </svg>
+      <figcaption>图 3 · 目标形态：入口与模型分离、状态外置、摄取异步、可观测贯穿。</figcaption>
+    </figure>
+
+    <h3 id="p3-why">3.4 为什么是这些组件（而不是“加机器”）</h3>
+    <table>
+      <thead><tr><th style="width:22%">改动</th><th style="width:34%">解决的具体问题</th><th>如果不做会怎样</th></tr></thead>
+      <tbody>
+        <tr><td><b>API 层无状态化</b></td>
+            <td>会话历史原本在进程内存（cap 200），扩副本后用户会被打到不同实例</td>
+            <td>多轮对话随机丢上下文；滚动发布时全部会话清零</td></tr>
+        <tr><td><b>模型层独立部署 + 连续批处理</b></td>
+            <td>嵌入 0.18 s、重排 0.77 s 是串行成本；GPU 上批 32 条与 1 条几乎同价（实测 5 条批量 = 0.18 s）</td>
+            <td>CPU 单实例下 5 个不同问题就要 12.8 s；1,000 并发会排到几分钟</td></tr>
+        <tr><td><b>共享缓存（Redis）</b></td>
+            <td>现在的缓存在进程内，10 个副本 = 10 份冷缓存，命中率被稀释 10 倍</td>
+            <td>同样的热门问题在每个副本各打一次模型，成本随副本数线性上升</td></tr>
+        <tr><td><b>向量库（HNSW，分片+副本）</b></td>
+            <td>204 块可以放内存；百万级不行，且需要独立扩缩与快照</td>
+            <td>索引重建期间不可用；单机内存成为硬上限</td></tr>
+        <tr><td><b>消息队列做摄取</b></td>
+            <td>PDF 解析 + 向量化是长任务（CPU 密集），不能占请求线程</td>
+            <td>上传 200 份 PDF 会打满进程，问答接口一起变慢（噪声邻居）</td></tr>
+        <tr><td><b>网关：鉴权 / 配额 / 限流</b></td>
+            <td>1,000 并发里必有滥用与爬取；成本与公平性要可计量</td>
+            <td>一个租户刷爆模型配额，全员变慢；账单无法归因</td></tr>
+        <tr><td><b>熔断 + 降级</b></td>
+            <td>模型层过载时，宁可返回缓存答案或"降级为抽取式回答"，也不要雪崩</td>
+            <td>重试风暴把小故障放大成全站不可用</td></tr>
+        <tr><td><b>OpenTelemetry（复用 5 段 trace）</b></td>
+            <td>现有日志已经是 request→retrieval→decision→generation→response，天然可做分布式追踪</td>
+            <td>1,000 并发下无法定位"慢在检索还是重排"</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <b>不要过早做的两件事</b>
+      ① <b>不要先上微服务</b>：这个系统的复杂度集中在"检索质量 + 模型成本"，拆成 12 个服务只会让链路更长；
+      先把索引与模型拆出去（两个边界）就够。<br>
+      ② <b>不要先上 Kafka</b>：如果每天只上传几百份文档，SQS/Redis 队列足够；引入 Kafka 的运维成本要能换来吞吐才值得。
+    </div>
+
+    <h3 id="p3-path">3.5 分阶段迁移（按"先解决什么最痛"排序）</h3>
+    <div class="card">
+      <table>
+        <thead><tr><th style="width:12%">阶段</th><th style="width:36%">做什么</th><th style="width:26%">预期指标</th><th>风险控制</th></tr></thead>
+        <tbody>
+          <tr><td><b>P0</b></td><td>把服务做成无状态：会话与缓存移出进程（Redis），镜像可水平复制</td>
+              <td>单机 → 4 副本；缓存命中率维持 ~0.47</td><td>灰度：先 10% 流量，比较 p95 与拒答率</td></tr>
+          <tr><td><b>P1</b></td><td>模型层独立：embedding / rerank / LLM 各自部署，开连续批处理</td>
+              <td>单请求 3 s；模型层承接 150–180 rps</td><td>双写影子流量，比对答案一致性</td></tr>
+          <tr><td><b>P2</b></td><td>向量库替换内存索引（HNSW + 副本），保留 BM25 作为并行召回</td>
+              <td>百万块、p95 检索 &lt; 50 ms</td><td>保留旧索引回滚路径；按租户分批迁移</td></tr>
+          <tr><td><b>P3</b></td><td>摄取异步化（对象存储 + 队列 + worker），支持 OCR worker</td>
+              <td>上传不再阻塞问答；解析可独立扩缩</td><td>队列积压告警；任务幂等 + 重试上限</td></tr>
+          <tr><td><b>P4</b></td><td>网关配额/限流、熔断降级、成本看板</td>
+              <td>单租户故障不影响全局；成本可归因</td><td>先观测后限流，避免误伤正常用户</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <b>这套设计的取舍</b>
+      它用<b>运维复杂度</b>换<b>可预测的尾延迟与成本</b>。如果流量只有几十并发，更好的选择恰恰是现在这样：
+      单体 + 内存索引 + 本地模型——因为那时瓶颈不是算力，而是"能不能被复现和验证"。
+      <b>架构要匹配当前瓶颈，而不是匹配招聘 JD。</b>
+    </div>
+  </section>
+
+  <!-- ============================================================ PART 4 -->
+  <section id="p4">
+    <h2><span class="n">04</span>这些数字从哪来</h2>
+    <p class="lede">本文所有数字都带来源标记，与仓库的证据策略一致：没有来源的数字视为 bug。</p>
+    <div class="card">
+      <table>
+        <thead><tr><th style="width:34%">数字</th><th style="width:18%">来源</th><th>复现命令</th></tr></thead>
+        <tbody>
+          <tr><td>recall@5 0.7722 → 0.8987 → 0.9620；context precision 0.8814；faithfulness 1.0；refusal 0.9529；compliance 0.96</td>
+              <td><span class="tag det">deterministic</span></td>
+              <td><code>python scripts/run.py --eval --all</code></td></tr>
+          <tr><td>hy3+hybrid: 0.9130 / 0.9529 / 0.9826 / 0.9043 / 0.9000</td>
+              <td><span class="tag mb">model-backed</span></td>
+              <td><code>docs/eval/model-backed-metrics.json</code>（门禁 R-16m..R-18m 校验）</td></tr>
+          <tr><td>p50 14.5 ms / p95 18.0 ms；5 并发 p90 78 ms</td>
+              <td><span class="tag det">deterministic</span></td>
+              <td><code>python scripts/run.py --bench --concurrency 5 --assert</code></td></tr>
+          <tr><td>嵌入 0.18 s / 重排 0.77 s / 5 并发不同问题 12.8 s</td>
+              <td><span class="tag mb">model-backed</span></td>
+              <td>本机真模型实测（CPU，bge-m3 + bge-reranker-v2-m3）</td></tr>
+          <tr><td>1,000 并发 → λ≈330 rps；模型侧 150–180 rps</td>
+              <td><span class="tag est">estimate</span></td>
+              <td>Little 定律 + 实测命中率 0.4706；非测量值</td></tr>
+        </tbody>
+      </table>
+      <p style="margin:10px 0 0;color:var(--muted);font-size:13.5px">
+        最后一行的容量数字是<b>算术推导</b>，不是压测结果——把它当"设计输入"，而不是"已实现的能力"。
+      </p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><b>AIA · Enterprise RAG Service</b> · 本文由仓库现状生成，数字与代码同源。</p>
+    <p>
+      <span class="pill">scripts/run.py 唯一入口</span>
+      <span class="pill">301 tests</span>
+      <span class="pill">41 行门禁</span>
+      <span class="pill">24 项需求审计</span>
+      <span class="pill">69 个参数组合</span>
+    </p>
+    <p style="margin-top:8px">若某处与代码不一致，以 <code>python scripts/run.py --verify</code> 的结果为准。</p>
+  </div>
+</footer>
+
+</body>
+</html>
