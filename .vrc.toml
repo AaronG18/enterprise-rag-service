@@ -1,0 +1,13 @@
+# verifiable-contributions policy for enterprise-rag-service
+# The project ships a one-command hermetic test suite (stdlib only, no third-party
+# deps at runtime): `python scripts/run.py --test`. That is what the verifier runs.
+command = ["python", "scripts/run.py", "--test"]
+setup-command = ["python", "-m", "pip", "install", "--disable-pip-version-check", "pytest"]
+test_paths = ["tests", "conftest.py"]
+timeout_seconds = 900
+protected_paths = [
+    ".github/workflows/verify.yml",
+    ".vrc.toml",
+    "scripts/run.py",
+    "conftest.py",
+]
